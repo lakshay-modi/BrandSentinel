@@ -1,0 +1,130 @@
+[
+  {
+    "id": "F-01",
+    "product": "Oatvia ProBar (all flavours)",
+    "fact": "20 g protein per 60 g bar.",
+    "source": "Lab report LR-2026-031",
+    "valid_until": "2027-03-31",
+    "type": "nutrition"
+  },
+  {
+    "id": "F-02",
+    "product": "ProBar Choco Almond",
+    "fact": "240 kcal per bar.",
+    "source": "Lab report LR-2026-031",
+    "valid_until": "2027-03-31",
+    "type": "nutrition"
+  },
+  {
+    "id": "F-03",
+    "product": "ProBar Peanut Butter",
+    "fact": "250 kcal per bar.",
+    "source": "Lab report LR-2026-032",
+    "valid_until": "2027-03-31",
+    "type": "nutrition"
+  },
+  {
+    "id": "F-04",
+    "product": "ProBar Peanut Butter",
+    "fact": "Contains peanuts and milk solids.",
+    "source": "Product label v3",
+    "valid_until": "2027-12-31",
+    "type": "allergen"
+  },
+  {
+    "id": "F-05",
+    "product": "ProBar Choco Almond",
+    "fact": "Vegan (no animal ingredients).",
+    "source": "Vegan certificate VC-1142",
+    "valid_until": "2027-06-30",
+    "type": "diet"
+  },
+  {
+    "id": "F-06",
+    "product": "Oatvia ProBar (all flavours)",
+    "fact": "No added sugar; sweetened with dates.",
+    "source": "Formulation sheet FS-12",
+    "valid_until": "2027-12-31",
+    "type": "nutrition"
+  },
+  {
+    "id": "F-07",
+    "product": "Oatvia ProBar (all flavours)",
+    "fact": "Made with whole-grain oats grown in India.",
+    "source": "Supplier certificate SC-208",
+    "valid_until": "2027-12-31",
+    "type": "origin"
+  },
+  {
+    "id": "F-08",
+    "product": "Oatvia Oat Milk",
+    "fact": "45 kcal and 120 mg calcium per 100 ml.",
+    "source": "Lab report LR-2026-040",
+    "valid_until": "2027-03-31",
+    "type": "nutrition"
+  },
+  {
+    "id": "F-09",
+    "product": "Oatvia Oat Milk",
+    "fact": "No added sugar (3 g natural sugar from oats per 100 ml).",
+    "source": "Lab report LR-2026-040",
+    "valid_until": "2027-03-31",
+    "type": "nutrition"
+  },
+  {
+    "id": "F-10",
+    "product": "All products",
+    "fact": "Outer box is made from recyclable paperboard. The inner wrapper is not recyclable.",
+    "source": "Packaging spec PK-07",
+    "valid_until": "2027-12-31",
+    "type": "environment"
+  },
+  {
+    "id": "F-11",
+    "product": "Prices (MRP)",
+    "fact": "ProBar ₹99 per bar; ProBar 6-pack ₹549; Oat Milk ₹249 per litre.",
+    "source": "Price list PL-2026-Q4",
+    "valid_until": "2026-12-31",
+    "type": "price"
+  },
+  {
+    "id": "F-12",
+    "product": "Brand",
+    "fact": "Available on oatvia.in and in 2,000+ stores across 12 Indian cities.",
+    "source": "Sales ops report SO-2026-10",
+    "valid_until": "2026-12-31",
+    "type": "availability"
+  },
+  {
+    "id": "F-13",
+    "product": "Oatvia ProBar",
+    "fact": "Launch offer: 20% off ProBar on oatvia.in with code OATVIA20, valid 1–30 Nov 2026. T&C apply.",
+    "source": "Offer approval OA-2026-11",
+    "valid_until": "2026-11-30",
+    "type": "offer"
+  },
+  {
+    "id": "F-14",
+    "product": "All products",
+    "fact": "Diwali offer: 15% off with code DIWALI15, valid 20 Oct–5 Nov 2026. T&C apply.",
+    "source": "Offer approval OA-2026-10",
+    "valid_until": "2026-11-05",
+    "type": "offer"
+  },
+  {
+    "id": "F-15",
+    "product": "Brand",
+    "fact": "Founded in 2023 in Pune.",
+    "source": "Company registration",
+    "valid_until": "2099-12-31",
+    "type": "company"
+  },
+  {
+    "id": "F-16",
+    "product": "All products",
+    "fact": "Not gluten-free: made in a facility that handles wheat.",
+    "source": "Allergen statement AS-03",
+    "valid_until": "2027-12-31",
+    "type": "restriction"
+  }
+]

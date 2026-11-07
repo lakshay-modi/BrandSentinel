@@ -1,0 +1,127 @@
+[
+  {
+    "id": "P01",
+    "title": "Launch post with many mistakes (the walkthrough example)",
+    "channel": "instagram",
+    "post_type": "launch",
+    "product": "Oatvia ProBar",
+    "partner": false,
+    "caption": "India's No. 1 protein bar! 100% natural, eco-friendly pack. Grab yours NOW!! #protein #OatviaEveryday",
+    "images": [
+      {
+        "file": "images/p01_launch_banner.png",
+        "alt_text": ""
+      }
+    ]
+  },
+  {
+    "id": "P02",
+    "title": "LinkedIn company update with subtle mistakes",
+    "channel": "linkedin",
+    "post_type": "company update",
+    "product": "Brand",
+    "partner": false,
+    "caption": "Big news 🎉🚀 OatVia is now available in 15 cities and 2,000+ stores! Our new chocolate almond flavor is already a team favorite 💚. Thank you to every partner who made this possible.",
+    "images": []
+  },
+  {
+    "id": "P03",
+    "title": "Offer post using an expired offer",
+    "channel": "instagram",
+    "post_type": "offer",
+    "product": "Oatvia ProBar",
+    "partner": false,
+    "caption": "Diwali treat for you 🪔 Get 15% off on Oatvia ProBar with code DIWALI15, shop now at oatvia.in! #OatviaEveryday #FestiveSnacking",
+    "images": []
+  },
+  {
+    "id": "P04",
+    "title": "Influencer post without disclosure",
+    "channel": "instagram",
+    "post_type": "partner",
+    "product": "Oatvia ProBar",
+    "partner": true,
+    "caption": "My go-to guilt-free snack 😍 Oatvia ProBar keeps me full and helps me lose weight. Seriously the best bar out there! #oatviaeveryday #fitnessmotivation #healthysnacks",
+    "images": []
+  },
+  {
+    "id": "P05",
+    "title": "Product post with wrong diet claims and no allergen line",
+    "channel": "instagram",
+    "post_type": "product",
+    "product": "ProBar Peanut Butter",
+    "partner": false,
+    "caption": "Meet ProBar Peanut Butter: 20 g protein, 250 kcal, vegan and gluten-free. Made with whole-grain oats grown in India 🥜 #OatviaEveryday",
+    "images": [
+      {
+        "file": "images/p05_peanut_butter.png",
+        "alt_text": "A ProBar Peanut Butter bar on a Forest Green background with the words 20 g protein."
+      }
+    ]
+  },
+  {
+    "id": "P06",
+    "title": "Sustainability post with greenwashing (caption and image)",
+    "channel": "linkedin",
+    "post_type": "sustainability",
+    "product": "Brand",
+    "partner": false,
+    "caption": "We're proud that every Oatvia pack is 100% recyclable and plastic-free. Sustainable snacking, the Oatvia way 🌱",
+    "images": [
+      {
+        "file": "images/p06_green_claim.png",
+        "alt_text": "Text on a cream background reading 100% Plastic-Free Packaging."
+      }
+    ]
+  },
+  {
+    "id": "P07",
+    "title": "Oat milk post with a wrong number and a comparison",
+    "channel": "instagram",
+    "post_type": "product",
+    "product": "Oatvia Oat Milk",
+    "partner": false,
+    "caption": "Oatvia Oatmilk, India's #1 oat milk. Calcium 150mg per 100ml, creamier and better than dairy milk. Now at ₹249 per litre. #OatviaEveryday #PlantBased",
+    "images": []
+  },
+  {
+    "id": "P08",
+    "title": "Clean post (should get zero problems)",
+    "channel": "instagram",
+    "post_type": "product",
+    "product": "ProBar Choco Almond",
+    "partner": false,
+    "caption": "Say hello to ProBar Choco Almond: 20 g of protein, 240 kcal and no added sugar, sweetened with dates. Made with whole-grain oats grown in India. Pick yours up on oatvia.in for ₹99. #OatviaEveryday #ProteinSnack",
+    "images": [
+      {
+        "file": "images/p08_clean.png",
+        "alt_text": "A ProBar Choco Almond bar on a cream background next to the words 20 g protein."
+      }
+    ]
+  },
+  {
+    "id": "P09",
+    "title": "Off-brand image with misspelled names",
+    "channel": "instagram",
+    "post_type": "promo",
+    "product": "Oatvia ProBar",
+    "partner": false,
+    "caption": "Fuel your mornings with Oatvia ProBar. Find us in 2,000+ stores across 12 cities. #OatviaEveryday",
+    "images": [
+      {
+        "file": "images/p09_off_brand.png",
+        "alt_text": ""
+      }
+    ]
+  },
+  {
+    "id": "P10",
+    "title": "Valid offer with small formatting mistakes",
+    "channel": "instagram",
+    "post_type": "offer",
+    "product": "Oatvia ProBar",
+    "partner": false,
+    "caption": "Stock up! ProBar 6-pack now just Rs. 499 with code OATVIA20, 20% off till 30 Nov. Valid on oatvia.in. T&C apply. #OatviaEveryday #ProBar #Protein #HealthySnacking #Oats #FitIndia #Snacks",
+    "images": []
+  }
+]

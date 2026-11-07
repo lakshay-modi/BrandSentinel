@@ -1,0 +1,436 @@
+[
+  {
+    "post": "P01",
+    "title": "Launch post with many mistakes (the walkthrough example)",
+    "expected_score": 14,
+    "band": "red",
+    "expected_findings": [
+      {
+        "rule": "CLAIM-01",
+        "quote": "India's No. 1 protein bar",
+        "where": "caption",
+        "severity": "high",
+        "points": 15
+      },
+      {
+        "rule": "CLAIM-05",
+        "quote": "100% natural",
+        "where": "caption",
+        "severity": "high",
+        "points": 15
+      },
+      {
+        "rule": "CLAIM-03",
+        "quote": "eco-friendly pack",
+        "where": "caption",
+        "severity": "high",
+        "points": 15
+      },
+      {
+        "rule": "TONE-01",
+        "quote": "Grab yours NOW!!",
+        "where": "caption",
+        "severity": "medium",
+        "points": 7
+      },
+      {
+        "rule": "TONE-02",
+        "quote": "3 exclamation marks (launch limit is 2)",
+        "where": "caption",
+        "severity": "low",
+        "points": 3
+      },
+      {
+        "rule": "TONE-03",
+        "quote": "NOW",
+        "where": "caption",
+        "severity": "low",
+        "points": 3
+      },
+      {
+        "rule": "TONE-03",
+        "quote": "NEW",
+        "where": "image",
+        "severity": "low",
+        "points": 3
+      },
+      {
+        "rule": "WORD-05",
+        "quote": "20g",
+        "where": "image",
+        "severity": "low",
+        "points": 3
+      },
+      {
+        "rule": "READ-01",
+        "quote": "Honey text on Oat Cream, 1.8:1",
+        "where": "image",
+        "severity": "high",
+        "points": 15
+      },
+      {
+        "rule": "READ-02",
+        "quote": "No alt text",
+        "where": "image",
+        "severity": "medium",
+        "points": 7
+      }
+    ],
+    "should_not_flag": [
+      "#protein (single-word hashtag, no CamelCase needed)"
+    ],
+    "image_contrast": {
+      "p01_launch_banner.png": 1.83
+    }
+  },
+  {
+    "post": "P02",
+    "title": "LinkedIn company update with subtle mistakes",
+    "expected_score": 69,
+    "band": "amber",
+    "expected_findings": [
+      {
+        "rule": "TONE-05",
+        "quote": "3 emojis on LinkedIn (limit 1)",
+        "where": "caption",
+        "severity": "low",
+        "points": 3
+      },
+      {
+        "rule": "WORD-01",
+        "quote": "OatVia",
+        "where": "caption",
+        "severity": "medium",
+        "points": 7
+      },
+      {
+        "rule": "CLAIM-02",
+        "quote": "15 cities",
+        "where": "caption",
+        "severity": "high",
+        "points": 15
+      },
+      {
+        "rule": "WORD-03",
+        "quote": "flavor",
+        "where": "caption",
+        "severity": "low",
+        "points": 3
+      },
+      {
+        "rule": "WORD-03",
+        "quote": "favorite",
+        "where": "caption",
+        "severity": "low",
+        "points": 3
+      }
+    ],
+    "should_not_flag": [
+      "2,000+ stores (matches F-12)",
+      "one exclamation mark",
+      "'chocolate almond flavour' as a description"
+    ],
+    "image_contrast": {}
+  },
+  {
+    "post": "P03",
+    "title": "Offer post using an expired offer",
+    "expected_score": 70,
+    "band": "amber",
+    "expected_findings": [
+      {
+        "rule": "CLAIM-06",
+        "quote": "15% off ... code DIWALI15 (offer ended 5 Nov 2026)",
+        "where": "caption",
+        "severity": "high",
+        "points": 15
+      },
+      {
+        "rule": "CLAIM-06",
+        "quote": "Missing 'T&C apply'",
+        "where": "caption",
+        "severity": "high",
+        "points": 15
+      }
+    ],
+    "should_not_flag": [
+      "shop now (a normal call to action)",
+      "DIWALI15 in capitals (an offer code)"
+    ],
+    "image_contrast": {}
+  },
+  {
+    "post": "P04",
+    "title": "Influencer post without disclosure",
+    "expected_score": 37,
+    "band": "red",
+    "expected_findings": [
+      {
+        "rule": "CLAIM-08",
+        "quote": "No #ad or 'Paid partnership' at the start",
+        "where": "caption",
+        "severity": "high",
+        "points": 15
+      },
+      {
+        "rule": "TONE-04",
+        "quote": "guilt-free",
+        "where": "caption",
+        "severity": "high",
+        "points": 15
+      },
+      {
+        "rule": "CLAIM-04",
+        "quote": "helps me lose weight",
+        "where": "caption",
+        "severity": "high",
+        "points": 15
+      },
+      {
+        "rule": "CLAIM-01",
+        "quote": "the best bar out there",
+        "where": "caption",
+        "severity": "high",
+        "points": 15
+      },
+      {
+        "rule": "READ-03",
+        "quote": "#oatviaeveryday #fitnessmotivation #healthysnacks",
+        "where": "caption",
+        "severity": "low",
+        "points": 3
+      }
+    ],
+    "should_not_flag": [
+      "'keeps me full' may go to 'ask a human' (not a clear rule break)",
+      "brand hashtag is present (case-insensitive match)"
+    ],
+    "image_contrast": {}
+  },
+  {
+    "post": "P05",
+    "title": "Product post with wrong diet claims and no allergen line",
+    "expected_score": 55,
+    "band": "red",
+    "expected_findings": [
+      {
+        "rule": "CLAIM-05",
+        "quote": "vegan",
+        "where": "caption",
+        "severity": "high",
+        "points": 15
+      },
+      {
+        "rule": "CLAIM-05",
+        "quote": "gluten-free",
+        "where": "caption",
+        "severity": "high",
+        "points": 15
+      },
+      {
+        "rule": "CLAIM-09",
+        "quote": "Missing 'Contains peanuts'",
+        "where": "caption",
+        "severity": "high",
+        "points": 15
+      }
+    ],
+    "should_not_flag": [
+      "20 g protein (F-01)",
+      "250 kcal (F-03)",
+      "whole-grain oats grown in India (F-07)",
+      "image: white on green, 7.6:1"
+    ],
+    "image_contrast": {
+      "p05_peanut_butter.png": 7.64
+    }
+  },
+  {
+    "post": "P06",
+    "title": "Sustainability post with greenwashing (caption and image)",
+    "expected_score": 40,
+    "band": "red",
+    "expected_findings": [
+      {
+        "rule": "CLAIM-03",
+        "quote": "100% recyclable",
+        "where": "caption",
+        "severity": "high",
+        "points": 15
+      },
+      {
+        "rule": "CLAIM-03",
+        "quote": "plastic-free",
+        "where": "caption",
+        "severity": "high",
+        "points": 15
+      },
+      {
+        "rule": "CLAIM-03",
+        "quote": "Sustainable snacking",
+        "where": "caption",
+        "severity": "high",
+        "points": 15
+      },
+      {
+        "rule": "CLAIM-03",
+        "quote": "100% Plastic-Free Packaging",
+        "where": "image",
+        "severity": "high",
+        "points": 15
+      }
+    ],
+    "should_not_flag": [
+      "one emoji on LinkedIn",
+      "image colours and contrast (navy on cream, 12.1:1)"
+    ],
+    "image_contrast": {
+      "p06_green_claim.png": 12.09
+    }
+  },
+  {
+    "post": "P07",
+    "title": "Oat milk post with a wrong number and a comparison",
+    "expected_score": 53,
+    "band": "red",
+    "expected_findings": [
+      {
+        "rule": "WORD-01",
+        "quote": "Oatmilk",
+        "where": "caption",
+        "severity": "medium",
+        "points": 7
+      },
+      {
+        "rule": "CLAIM-01",
+        "quote": "India's #1 oat milk",
+        "where": "caption",
+        "severity": "high",
+        "points": 15
+      },
+      {
+        "rule": "CLAIM-02",
+        "quote": "150mg (approved: 120 mg)",
+        "where": "caption",
+        "severity": "high",
+        "points": 15
+      },
+      {
+        "rule": "WORD-05",
+        "quote": "150mg / 100ml",
+        "where": "caption",
+        "severity": "low",
+        "points": 3
+      },
+      {
+        "rule": "CLAIM-07",
+        "quote": "creamier and better than dairy milk",
+        "where": "caption",
+        "severity": "medium",
+        "points": 7
+      }
+    ],
+    "should_not_flag": [
+      "₹249 per litre (F-11)",
+      "#PlantBased (CamelCase)"
+    ],
+    "image_contrast": {}
+  },
+  {
+    "post": "P08",
+    "title": "Clean post (should get zero problems)",
+    "expected_score": 100,
+    "band": "green",
+    "expected_findings": [],
+    "should_not_flag": [
+      "everything: every claim matches F-01, F-02, F-06, F-07, F-11"
+    ],
+    "image_contrast": {
+      "p08_clean.png": 12.09
+    }
+  },
+  {
+    "post": "P09",
+    "title": "Off-brand image with misspelled names",
+    "expected_score": 57,
+    "band": "red",
+    "expected_findings": [
+      {
+        "rule": "VIS-01",
+        "quote": "Neon pink background #FF4FA3 is not a brand colour",
+        "where": "image",
+        "severity": "medium",
+        "points": 7
+      },
+      {
+        "rule": "READ-01",
+        "quote": "Yellow on pink, 2.7:1",
+        "where": "image",
+        "severity": "high",
+        "points": 15
+      },
+      {
+        "rule": "WORD-01",
+        "quote": "Oativa",
+        "where": "image",
+        "severity": "medium",
+        "points": 7
+      },
+      {
+        "rule": "WORD-01",
+        "quote": "Probar",
+        "where": "image",
+        "severity": "medium",
+        "points": 7
+      },
+      {
+        "rule": "READ-02",
+        "quote": "No alt text",
+        "where": "image",
+        "severity": "medium",
+        "points": 7
+      }
+    ],
+    "should_not_flag": [
+      "caption: everything matches F-12"
+    ],
+    "image_contrast": {
+      "p09_off_brand.png": 2.69
+    }
+  },
+  {
+    "post": "P10",
+    "title": "Valid offer with small formatting mistakes",
+    "expected_score": 79,
+    "band": "amber",
+    "expected_findings": [
+      {
+        "rule": "WORD-04",
+        "quote": "Rs. 499",
+        "where": "caption",
+        "severity": "low",
+        "points": 3
+      },
+      {
+        "rule": "CLAIM-02",
+        "quote": "499 (6-pack MRP is ₹549; 20% off is ₹439.20)",
+        "where": "caption",
+        "severity": "high",
+        "points": 15
+      },
+      {
+        "rule": "WORD-07",
+        "quote": "7 hashtags (limit 5)",
+        "where": "caption",
+        "severity": "low",
+        "points": 3
+      }
+    ],
+    "should_not_flag": [
+      "offer code, discount, dates and T&C match F-13",
+      "one exclamation mark",
+      "OATVIA20 in capitals (offer code)"
+    ],
+    "image_contrast": {}
+  }
+]
