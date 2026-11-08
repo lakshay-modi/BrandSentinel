@@ -68,25 +68,25 @@ export function QueueList() {
         <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface">
           {shown.map((p) => (
             <li key={p.id}>
-              <Link href={`/posts/${p.id}`} className="flex flex-wrap items-center gap-x-5 gap-y-1 px-5 py-4 hover:bg-paper">
-                {p.latest && (
-                  <span className={`w-12 text-[26px] font-bold leading-none tracking-tight tabular-nums ${BAND_CLS[p.latest.band] ?? ""}`} aria-label={`Score ${p.latest.score}`}>
-                    {p.latest.score}
-                  </span>
-                )}
-                <div className="min-w-0 flex-1">
+              <Link href={`/posts/${p.id}`} className="grid grid-cols-[3rem_minmax(0,1fr)] items-center gap-x-4 gap-y-2 px-5 py-4 hover:bg-paper sm:grid-cols-[3rem_minmax(0,1fr)_auto]">
+                <span className={`text-[26px] font-bold leading-none tracking-tight tabular-nums ${p.latest ? BAND_CLS[p.latest.band] ?? "" : "text-ink-faint"}`} aria-label={p.latest ? `Score ${p.latest.score}` : "Not checked yet"}>
+                  {p.latest ? p.latest.score : "–"}
+                </span>
+                <div className="min-w-0">
                   <p className="truncate text-[15px] font-semibold">{p.title || "Untitled post"}</p>
                   <p className="text-[13px] text-ink-soft">
                     {CHANNEL_LABEL[p.channel] ?? p.channel}, {p.post_type}. By {p.created_by}, {timeAgo(p.updated_at)}
                     {p.status === "in_review" && p.assigned_role ? `. Waiting for ${ROLE_LABEL[p.assigned_role]}` : ""}
                   </p>
                 </div>
-                {p.latest && (
-                  <p className="text-[13px] tabular-nums text-ink-soft">
-                    {p.latest.problems === 0 ? "No problems" : `${p.latest.problems} problem${p.latest.problems === 1 ? "" : "s"}`}
-                  </p>
-                )}
-                <StatusTag status={p.status} />
+                <div className="col-start-2 flex items-center gap-3 sm:col-start-auto">
+                  {p.latest && (
+                    <span className="text-[13px] tabular-nums text-ink-soft">
+                      {p.latest.problems === 0 ? "No problems" : `${p.latest.problems} problem${p.latest.problems === 1 ? "" : "s"}`}
+                    </span>
+                  )}
+                  <StatusTag status={p.status} />
+                </div>
               </Link>
             </li>
           ))}
