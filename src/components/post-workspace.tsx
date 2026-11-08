@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, type BrandData, type DecisionRow, type HistoryRow, type PostRow, type ReviewRow } from "@/lib/client/api";
 import { applyFix, canApply } from "@/lib/fixes";
@@ -38,8 +37,7 @@ const AI_NOTE: Record<string, string> = {
   off: "AI checks are switched off on this server, so this report has the fast checks only.",
 };
 
-export function PostWorkspace() {
-  const id = useSearchParams().get("id") ?? "";
+export function PostWorkspace({ id }: { id: string }) {
   const { role, name } = useRole();
   const brand = useBrand();
   const [data, setData] = useState<Data | null>(null);

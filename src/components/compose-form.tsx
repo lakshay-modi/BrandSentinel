@@ -75,7 +75,7 @@ export function ComposeForm() {
       }
       setBusy("Checking against the rules and the Fact Bank…");
       const res = await api.review({ sample_id: sampleId ?? undefined, role, actor: name, input: { ...input, images: prepared } });
-      router.push(`/post?id=${res.post_id}`);
+      router.push(`/posts/${res.post_id}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {

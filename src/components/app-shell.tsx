@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Suspense } from "react";
 import { usePathname } from "next/navigation";
 import type { Role } from "@/lib/types";
 import { ROLE_HINT, ROLE_LABEL, useRole } from "./role-provider";
@@ -13,8 +14,32 @@ const NAV = [
   { href: "/insights", label: "Insights" },
 ];
 
+// usePathname reads the URL, so it sits inside Suspense: dynamic pages like /posts/[id] still get a static shell.
+function CurrentNav() {
+  return <MainNav path={usePathname()} />;
+}
+
+function MainNav({ path }: { path: string | null }) {
+  return (
+    <nav aria-label="Main" className="order-3 flex w-full gap-1 overflow-x-auto text-sm sm:order-none sm:w-auto">
+      {NAV.map((n) => {
+        const active = path !== null && (n.href === "/" ? path === "/" : path.startsWith(n.href));
+        return (
+          <Link
+            key={n.href}
+            href={n.href}
+            aria-current={active ? "page" : undefined}
+            className={`whitespace-nowrap rounded-md px-3 py-1.5 ${active ? "bg-ink text-white" : "text-ink-soft hover:bg-paper hover:text-ink"}`}
+          >
+            {n.label}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
+
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const path = usePathname();
   const { role, setRole, name, setName } = useRole();
 
   return (
@@ -28,21 +53,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </svg>
             BrandSentinel
           </Link>
-          <nav aria-label="Main" className="order-3 flex w-full gap-1 overflow-x-auto text-sm sm:order-none sm:w-auto">
-            {NAV.map((n) => {
-              const active = n.href === "/" ? path === "/" : path.startsWith(n.href);
-              return (
-                <Link
-                  key={n.href}
-                  href={n.href}
-                  aria-current={active ? "page" : undefined}
-                  className={`whitespace-nowrap rounded-md px-3 py-1.5 ${active ? "bg-ink text-white" : "text-ink-soft hover:bg-paper hover:text-ink"}`}
-                >
-                  {n.label}
-                </Link>
-              );
-            })}
-          </nav>
+          <Suspense fallback={<MainNav path={null} />}>
+            <CurrentNav />
+          </Suspense>
           <div className="ml-auto flex items-center gap-2 text-sm">
             <label htmlFor="role" className="text-ink-faint">
               Acting as

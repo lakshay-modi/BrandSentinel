@@ -61,7 +61,7 @@ export function QueueList() {
         <ul className="divide-y divide-line overflow-hidden rounded-lg border border-line bg-surface">
           {shown.map((p) => (
             <li key={p.id}>
-              <Link href={`/post?id=${p.id}`} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 hover:bg-paper">
+              <Link href={`/posts/${p.id}`} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 hover:bg-paper">
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-medium">{p.title || "Untitled post"}</p>
                   <p className="text-xs text-ink-soft">
