@@ -36,7 +36,7 @@ export async function GET(req: Request) {
   if (url.searchParams.get("ai") === "1" && process.env.GEMINI_API_KEY) {
     if (!allowAiCall(clientId(req))) return json({ ...out, ai: "rate limited, try in a minute" });
     const key = process.env.GEMINI_API_KEY;
-    const models = (url.searchParams.get("models") ?? `${process.env.GEMINI_MODEL ?? "gemini-3.8-flash"},gemini-flash-latest,gemini-2.5-flash`).split(",").slice(0, 4);
+    const models = (url.searchParams.get("models") ?? `${process.env.GEMINI_MODEL ?? "gemini-3.8-flash"},gemini-flash-lite-latest,gemini-flash-latest`).split(",").slice(0, 4);
     const mode = url.searchParams.get("thinking");
     const thinking = mode === "level" ? { thinkingLevel: "low" } : mode === "budget" ? { thinkingBudget: 0 } : null;
     out.ai = await Promise.all(models.map((m) => probe(m.trim(), key, thinking)));

@@ -15,7 +15,8 @@ const ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models";
 
 function models(): string[] {
   const primary = process.env.GEMINI_MODEL?.trim();
-  return [...new Set([primary, "gemini-3.8-flash", "gemini-flash-latest", "gemini-2.5-flash", "gemini-flash-lite-latest"].filter((m): m is string => !!m))];
+  // Flash first for quality, Flash-Lite as the fast fallback when Flash is overloaded.
+  return [...new Set([primary, "gemini-3.8-flash", "gemini-flash-lite-latest", "gemini-flash-latest"].filter((m): m is string => !!m))];
 }
 
 export function aiConfigured(): boolean {
@@ -29,7 +30,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
  * Free-tier limits and outages are per model, so on "busy" answers (429, 5xx) or an unknown model (404)
  * it retries once and then falls back to the next Flash model, within a total time budget.
  */
-export async function callGemini(system: string, parts: AiPart[], budgetMs = 45000): Promise<AiCallResult> {
+export async function callGemini(system: string, parts: AiPart[], budgetMs = 50000): Promise<AiCallResult> {
   const key = process.env.GEMINI_API_KEY;
   if (!key) return { ok: false, status: "off", detail: "GEMINI_API_KEY is not set" };
 
@@ -53,7 +54,9 @@ export async function callGemini(system: string, parts: AiPart[], budgetMs = 450
       const left = deadline - Date.now();
       if (left < 3000) return { ok: false, status: "busy", detail: `Out of time. Tried: ${tried.join(", ")}` };
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), Math.min(25000, left));
+      // the first model gets a short limit so an overloaded model doesn't eat the whole budget
+      const limit = tried.length === 0 ? 14000 : 20000;
+      const timer = setTimeout(() => controller.abort(), Math.min(limit, left));
       try {
         const res = await fetch(`${ENDPOINT}/${model}:generateContent`, {
           method: "POST",
@@ -72,7 +75,7 @@ export async function callGemini(system: string, parts: AiPart[], budgetMs = 450
         if (res.status === 404) break; // this model name isn't available: next model
         if (res.status === 429 || res.status >= 500) {
           sawBusy = true;
-          if (attempt === 0 && res.status >= 500) {
+          if (attempt === 0 && res.status >= 500 && res.status !== 503) {
             await sleep(800);
             continue; // one quick retry on a temporary outage
           }
