@@ -52,6 +52,17 @@ describe("proof check", () => {
     expect(r.findings.filter((x) => x.source === "ai")).toHaveLength(0);
   });
 
+  it("treats an AI finding under a code-only rule that the fast checks already found as agreement", () => {
+    const p4 = samplePosts(true).find((p) => p.id === "P04")!;
+    const c4 = assignIds(runCodeChecks({ input: p4, rules, facts: demoFacts, brand: demoBrand, today: "2026-11-08" }));
+    const tags = c4.find((f) => f.rule_id === "READ-03")!;
+    expect(tags).toBeDefined();
+    const r = proofCheck(ai([{ rule_id: "READ-03", quote: "#fitnessmotivation", message: "Use CamelCase" }]), c4, p4, rules, demoFacts);
+    expect(r.ask_human).toHaveLength(0);
+    expect(r.dropped).toBe(0);
+    expect(r.findings.find((x) => x.rule_id === "READ-03")?.source).toBe("code+ai");
+  });
+
   it("matches quotes even when the AI changes letter case", () => {
     const r = proofCheck(ai([{ rule_id: "CLAIM-04", quote: "KEEPS YOUR HEART HAPPY", message: "x", fix: null, fix_advice: "Remove it" }]), code, post, rules, demoFacts);
     expect(r.findings.find((x) => x.source === "ai")?.quotes).toEqual(["keeps your heart happy"]);

@@ -57,8 +57,15 @@ export function proofCheck(ai: AiResponse, codeFindings: Finding[], input: PostI
     const quote = a.quote.trim();
     // 1. the rule must exist, be approved and allow AI checks
     if (!rule || rule.status !== "approved" || !rule.check_type.includes("ai")) {
+      // a code-only rule the fast checks already flagged on this text: the AI agrees, nothing new to show
+      const agreed = rule && quote && merged.find((f) => f.rule_id === rule.id && f.quotes.some((q) => overlaps(q, quote)));
+      if (agreed) {
+        agreed.source = "code+ai";
+        continue;
+      }
       dropped++;
-      if (quote) ask.push({ quote, location: "caption", note: `The AI suggested a problem under “${a.rule_id}”, which isn't an approved AI-checked rule. ${a.message}` });
+      const where = quote ? locate(input, a.location, quote) : null;
+      if (quote && where) ask.push({ quote, location: where, note: `The AI suggested a problem under “${a.rule_id}”, which isn't an approved AI-checked rule. ${a.message}` });
       continue;
     }
     // 2. the quote must really be in the post (READ-02 is about a missing description, so it has no quote)
