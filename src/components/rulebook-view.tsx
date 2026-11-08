@@ -126,11 +126,15 @@ export function RulebookView() {
         <div>
           <h1 className="text-[28px] font-bold leading-tight tracking-tight">Rulebook</h1>
           <p className="mt-1.5 max-w-2xl text-[15px] leading-relaxed text-ink-soft">
-            Oatvia&apos;s brand rules, built from the{" "}
-            <a href="/demo/Oatvia_Brand_Guidelines.pdf" target="_blank" className="underline">
-              guideline PDF
-            </a>
-            . Every finding cites one of these IDs. {data && `Rulebook version ${data.brand.rulebook_version}; ${live.length - drafts.length} approved rules.`}
+            {data?.brand.name ?? "The brand"}&apos;s rules
+            {data?.brand.settings.guidelines_pdf && (
+              <>
+                , built from the{" "}
+                <a href={data.brand.settings.guidelines_pdf} target="_blank" className="underline">
+                  guideline PDF
+                </a>
+              </>
+            )}. Every finding cites one of these IDs. {data && `Rulebook version ${data.brand.rulebook_version}; ${live.length - drafts.length} approved rules.`}
           </p>
         </div>
         {isManager ? (
@@ -146,7 +150,7 @@ export function RulebookView() {
       </div>
 
       {error && <ErrorNote>{error}</ErrorNote>}
-      {importing && isManager && <RuleImport role={role} actor={name} onDone={async () => { await reload(); }} onClose={() => setImporting(false)} />}
+      {importing && isManager && <RuleImport role={role} actor={name} sample={data?.brand.settings.import_sample} onDone={async () => { await reload(); }} onClose={() => setImporting(false)} />}
       {editing === "new" && (
         <RuleEditor
           rule={{ category: "tone", severity: "medium", scope: "all" }}

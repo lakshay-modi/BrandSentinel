@@ -11,7 +11,6 @@ interface ImportResult {
   truncated: boolean;
 }
 
-const SAMPLE = { url: "/demo/Oatvia_Social_Addendum.pdf", name: "Oatvia_Social_Addendum.pdf" };
 
 function toBase64(buf: ArrayBuffer): string {
   let s = "";
@@ -21,7 +20,19 @@ function toBase64(buf: ArrayBuffer): string {
 }
 
 /** Brand manager uploads a guidelines document; the AI drafts rules for approval. */
-export function RuleImport({ role, actor, onDone, onClose }: { role: string; actor: string; onDone: () => Promise<void>; onClose: () => void }) {
+export function RuleImport({
+  role,
+  actor,
+  sample,
+  onDone,
+  onClose,
+}: {
+  role: string;
+  actor: string;
+  sample?: { url: string; name: string; label: string };
+  onDone: () => Promise<void>;
+  onClose: () => void;
+}) {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<ImportResult | null>(null);
@@ -81,20 +92,24 @@ export function RuleImport({ role, actor, onDone, onClose }: { role: string; act
             }}
           />
         </label>
-        <span className="text-sm text-ink-faint">or</span>
-        <Button
-          size="sm"
-          disabled={!!busy}
-          onClick={async () => {
-            const res = await fetch(SAMPLE.url);
-            await run(SAMPLE.name, "application/pdf", await res.arrayBuffer());
-          }}
-        >
-          Try the sample addendum
-        </Button>
-        <a href={SAMPLE.url} target="_blank" className="text-xs text-ink-soft underline">
-          View sample PDF
-        </a>
+        {sample && (
+          <>
+            <span className="text-sm text-ink-faint">or</span>
+            <Button
+              size="sm"
+              disabled={!!busy}
+              onClick={async () => {
+                const res = await fetch(sample.url);
+                await run(sample.name, "application/pdf", await res.arrayBuffer());
+              }}
+            >
+              {sample.label}
+            </Button>
+            <a href={sample.url} target="_blank" className="text-xs text-ink-soft underline">
+              View that PDF
+            </a>
+          </>
+        )}
       </div>
 
       {busy && <p className="text-sm text-ink-soft" role="status">{busy}</p>}

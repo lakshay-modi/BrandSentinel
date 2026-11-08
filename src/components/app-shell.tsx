@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import { usePathname } from "next/navigation";
 import type { Role } from "@/lib/types";
 import { ROLE_HINT, ROLE_LABEL, useRole } from "./role-provider";
+import { useBrand } from "@/lib/client/use-brand";
 
 const NAV = [
   { href: "/", label: "Check a post" },
@@ -90,6 +91,31 @@ function RoleSwitcher() {
   );
 }
 
+/** Which brand's rules, facts and posts you are working on. Kept in a cookie so every API call uses it. */
+function BrandSwitcher() {
+  const data = useBrand();
+  if (!data) return <span className="inline-block h-7 w-36 animate-pulse rounded-lg bg-line/70" aria-hidden="true" />;
+  return (
+    <label className="flex items-center gap-2">
+      <span className="font-medium text-ink">Brand</span>
+      <select
+        value={data.brand.slug}
+        onChange={(e) => {
+          document.cookie = `bs-brand=${encodeURIComponent(e.target.value)}; path=/; max-age=31536000; samesite=lax; secure`;
+          window.location.reload();
+        }}
+        className="rounded-lg border border-line-strong bg-surface px-2 py-1 font-semibold text-ink"
+      >
+        {data.brands.map((b) => (
+          <option key={b.slug} value={b.slug}>
+            {b.name}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-full flex-col">
@@ -112,9 +138,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </div>
       </header>
-      <p className="mx-auto w-full max-w-7xl px-4 pt-4 text-[13px] text-ink-soft sm:px-6">
-        Demo brand <strong className="font-semibold text-ink">Oatvia Foods</strong> is fictional. No sign-in: switch roles at the top right to play the creator, the expert reviewer and the brand manager.
-      </p>
+      <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center gap-x-3 gap-y-1 px-4 pt-4 text-[13px] text-ink-soft sm:px-6">
+        <BrandSwitcher />
+        <p>Demo brands are fictional. No sign-in: switch roles at the top right to play the creator, the expert reviewer and the brand manager.</p>
+      </div>
       <main id="main" className="mx-auto w-full max-w-7xl flex-1 px-4 pb-12 pt-5 sm:px-6">
         {children}
       </main>

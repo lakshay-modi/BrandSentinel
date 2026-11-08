@@ -8,11 +8,16 @@ import { SAMPLE_HINT, SAMPLE_LABEL, samplePosts, type SamplePost } from "@/lib/d
 import type { Channel, PostImage, PostInput } from "@/lib/types";
 import { Button, ErrorNote } from "./ui";
 import { LivePreview } from "./live-preview";
+import { useBrand } from "@/lib/client/use-brand";
 import { useRole } from "./role-provider";
 
 const POST_TYPES = ["product", "launch", "offer", "partner", "sustainability", "company update", "promo"];
-const PRODUCTS = ["Oatvia ProBar", "ProBar Choco Almond", "ProBar Peanut Butter", "Oatvia Oat Milk", "Brand"];
-const EMPTY: PostInput = { channel: "instagram", post_type: "product", product: "Oatvia ProBar", partner: false, caption: "", images: [] };
+const EMPTY: PostInput = { channel: "instagram", post_type: "product", product: "", partner: false, caption: "", images: [] };
+
+interface Sample extends SamplePost {
+  label: string;
+  hint: string;
+}
 
 interface DraftImage extends PostImage {
   preview: string; // what we show and analyse (full quality)
@@ -27,14 +32,25 @@ export function ComposeForm() {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-  const samples = samplePosts();
+  const brandData = useBrand();
+  const settings = brandData?.brand.settings;
+  // the demo brand's samples are built in; other brands bring their own in their settings
+  const samples: Sample[] | null = !brandData
+    ? null
+    : settings?.samples?.length
+      ? settings.samples.map((x) => ({ ...x, images: x.images.map((i) => ({ ...i })) }))
+      : brandData.brand.slug === "oatvia"
+        ? samplePosts().map((x) => ({ ...x, label: SAMPLE_LABEL[x.id] ?? x.id, hint: SAMPLE_HINT[x.id] ?? x.title }))
+        : [];
+  const products = [...(settings?.products ?? []), "Brand"];
+  const product = input.product || products[0] || "Brand";
 
   const set = <K extends keyof PostInput>(k: K, v: PostInput[K]) => {
     setInput((p) => ({ ...p, [k]: v }));
     setSampleId(null);
   };
 
-  function loadSample(s: SamplePost) {
+  function loadSample(s: Sample) {
     setInput({ title: s.title, channel: s.channel, post_type: s.post_type, product: s.product, partner: s.partner, caption: s.caption, images: [] });
     setImages(s.images.map((i) => ({ ...i, preview: i.src })));
     setSampleId(s.id);
@@ -75,7 +91,7 @@ export function ComposeForm() {
         prepared.push({ src, alt_text: img.alt_text, analysis });
       }
       setBusy("Checking against the rules and the Fact Bank…");
-      const res = await api.review({ sample_id: sampleId ?? undefined, role, actor: name, input: { ...input, images: prepared } });
+      const res = await api.review({ sample_id: sampleId ?? undefined, role, actor: name, input: { ...input, product, images: prepared } });
       router.push(`/posts/${res.post_id}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -95,6 +111,7 @@ export function ComposeForm() {
         </h1>
         <p className="mt-2 max-w-2xl text-[16px] leading-relaxed text-ink-soft">
           Paste a caption and add images. Every problem comes with the rule or approved fact that proves it, and a fix that keeps your message.
+          {brandData && <> Checking against <strong className="font-semibold text-ink">{brandData.brand.name}</strong>&apos;s Rulebook.</>}
         </p>
 
         <div className="mt-6 rounded-2xl border border-line bg-surface shadow-[var(--shadow-sheet)]">
@@ -121,8 +138,8 @@ export function ComposeForm() {
             </label>
             <label className="text-[13px]">
               <span className="mb-1 block font-medium text-ink-soft">Product</span>
-              <select value={input.product} onChange={(e) => set("product", e.target.value)} className={field}>
-                {PRODUCTS.map((p) => (
+              <select value={product} onChange={(e) => set("product", e.target.value)} className={field}>
+                {products.map((p) => (
                   <option key={p}>{p}</option>
                 ))}
               </select>
@@ -147,7 +164,7 @@ export function ComposeForm() {
             />
           </label>
 
-          <LivePreview input={input} />
+          <LivePreview input={{ ...input, product }} />
 
           <div className="px-5 pt-5">
             <div className="flex items-center justify-between">
@@ -216,9 +233,13 @@ export function ComposeForm() {
           <h2 id="samples-title" className="text-[15px] font-semibold tracking-tight">
             Start with a sample post
           </h2>
-          <p className="mt-1 text-[13px] text-ink-soft">Each one has real mistakes planted in it.</p>
-          <ul className="mt-3 overflow-hidden rounded-xl border border-line bg-surface">
-            {samples.map((s) => {
+          <p className="mt-1 text-[13px] text-ink-soft">
+            {brandData ? `${brandData.brand.name} posts with real mistakes planted in them.` : "Posts with real mistakes planted in them."}
+          </p>
+          {!samples && <div className="mt-3 h-96 animate-pulse rounded-xl bg-line/70 motion-reduce:animate-none" aria-hidden="true" />}
+          {samples && samples.length === 0 && <p className="mt-3 rounded-xl border border-dashed border-line-strong p-4 text-[13px] text-ink-soft">No sample posts for this brand yet. Write your own.</p>}
+          <ul className={`mt-3 overflow-hidden rounded-xl border border-line bg-surface ${samples?.length ? "" : "hidden"}`}>
+            {(samples ?? []).map((s) => {
               const on = sampleId === s.id;
               return (
                 <li key={s.id} className="border-b border-line last:border-0">
@@ -228,8 +249,8 @@ export function ComposeForm() {
                     aria-pressed={on}
                     className={`block w-full px-4 py-2.5 text-left transition-colors ${on ? "bg-ink text-white" : "hover:bg-paper"}`}
                   >
-                    <span className="block text-[14px] font-semibold">{SAMPLE_LABEL[s.id] ?? s.id}</span>
-                    <span className={`block text-[13px] leading-snug ${on ? "text-white/75" : "text-ink-soft"}`}>{SAMPLE_HINT[s.id] ?? s.title}</span>
+                    <span className="block text-[14px] font-semibold">{s.label}</span>
+                    <span className={`block text-[13px] leading-snug ${on ? "text-white/75" : "text-ink-soft"}`}>{s.hint}</span>
                   </button>
                 </li>
               );
@@ -260,9 +281,11 @@ export function ComposeForm() {
             <a href="/tests" className="underline underline-offset-4">
               Test results on the sample posts
             </a>
-            <a href="/demo/Oatvia_Brand_Guidelines.pdf" target="_blank" className="underline underline-offset-4">
-              Oatvia guidelines (PDF)
-            </a>
+            {settings?.guidelines_pdf && (
+              <a href={settings.guidelines_pdf} target="_blank" className="underline underline-offset-4">
+                {brandData?.brand.name} guidelines (PDF)
+              </a>
+            )}
           </p>
         </section>
       </aside>
