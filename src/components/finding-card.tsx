@@ -37,7 +37,11 @@ export function FindingCard({
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const s = SEVERITY_STYLE[f.severity];
-  const acceptable = canApply(f.fix) || f.fix.kind === "alt_text";
+  const inCaption = f.location === "caption";
+  const isAlt = f.rule_id === "READ-02" || f.fix.kind === "alt_text";
+  // text inside an image can't be changed here, so only caption fixes and alt text are one-click
+  const acceptable = (inCaption && canApply(f.fix)) || f.fix.kind === "alt_text";
+  const editable = (inCaption && f.quotes.length > 0) || isAlt;
   const editDefault = f.fix.kind === "replace" ? f.fix.pairs[0].to : f.fix.kind === "alt_text" ? f.fix.text : f.quotes[0] ?? "";
 
   const run = async (fn: () => Promise<void>) => {
@@ -80,6 +84,7 @@ export function FindingCard({
           <p className="text-sm">
             <span className="font-medium">{acceptable ? "Suggested fix: " : "How to fix: "}</span>
             <span className="text-ink-soft">{describeFix(f.fix)}</span>
+            {!inCaption && !isAlt && <span className="block text-xs text-ink-faint">This is in the image, so update the image and check again.</span>}
           </p>
 
           {decision ? (
@@ -97,9 +102,9 @@ export function FindingCard({
                       Accept fix
                     </Button>
                   )}
-                  {(f.quotes.length > 0 || f.fix.kind === "alt_text") && (
-                    <Button size="sm" disabled={busy} onClick={() => { setText(editDefault); setMode("edit"); }}>
-                      Edit
+                  {editable && (
+                    <Button size="sm" disabled={busy} onClick={() => { setText(isAlt && f.fix.kind !== "alt_text" ? "" : editDefault); setMode("edit"); }}>
+                      {isAlt && f.fix.kind !== "alt_text" ? "Write alt text" : "Edit"}
                     </Button>
                   )}
                   <Button size="sm" variant="ghost" disabled={busy} onClick={() => { setText(""); setMode("disagree"); }}>
@@ -116,7 +121,7 @@ export function FindingCard({
                   }}
                 >
                   <label className="block text-xs text-ink-soft">
-                    {mode === "edit" ? (f.fix.kind === "alt_text" ? "Alt text for the image" : `Replace “${f.quotes[0]}” with`) : "Why do you disagree? (the reviewer will see this)"}
+                    {mode === "edit" ? (isAlt ? "Alt text for the image" : `Replace “${f.quotes[0]}” with`) : "Why do you disagree? (the reviewer will see this)"}
                     <input
                       autoFocus
                       value={text}
