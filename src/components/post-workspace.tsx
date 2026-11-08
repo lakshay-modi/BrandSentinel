@@ -46,6 +46,8 @@ export function PostWorkspace() {
   const [error, setError] = useState<string | null>(null);
   const [caption, setCaption] = useState("");
   const [alts, setAlts] = useState<string[]>([]);
+  const [ocr, setOcr] = useState<string[]>([]); // text read from each image; the creator can correct OCR mistakes
+  const [ocrEdit, setOcrEdit] = useState<number | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [picked, setPicked] = useState<string | null>(null);
   const [goalEdit, setGoalEdit] = useState<Goal | null>(null);
@@ -54,6 +56,8 @@ export function PostWorkspace() {
     setData(d);
     setCaption(d.post.caption);
     setAlts(d.post.images.map((i) => i.alt_text));
+    setOcr(d.post.images.map((i) => i.analysis?.ocr_text ?? ""));
+    setOcrEdit(null);
     setError(null);
   }, []);
 
@@ -84,7 +88,11 @@ export function PostWorkspace() {
   const numbered = findings.map((f, i) => ({ f, ref: i + 1 }));
   const latestDecision = new Map<string, DecisionRow>();
   for (const d of decisions) if (d.review_id === review?.id) latestDecision.set(d.finding_id, d);
-  const unsaved = !!review && (caption !== review.caption || alts.some((a, i) => a !== (post.images[i]?.alt_text ?? "")));
+  const unsaved =
+    !!review &&
+    (caption !== review.caption ||
+      alts.some((a, i) => a !== (post.images[i]?.alt_text ?? "")) ||
+      ocr.some((t, i) => t !== (post.images[i]?.analysis?.ocr_text ?? "")));
   const goal: Goal | null = (post.goal && "message" in post.goal ? (post.goal as Goal) : null) ?? review?.goal ?? null;
 
   const pick = (fid: string) => {
@@ -153,7 +161,11 @@ export function PostWorkspace() {
           product: post.product,
           partner: post.partner,
           caption,
-          images: post.images.map((img, i) => ({ ...img, alt_text: alts[i] ?? img.alt_text })),
+          images: post.images.map((img, i) => ({
+            ...img,
+            alt_text: alts[i] ?? img.alt_text,
+            analysis: img.analysis && { ...img.analysis, ocr_text: ocr[i] ?? img.analysis.ocr_text },
+          })),
         },
       });
       await load();
@@ -230,7 +242,30 @@ export function PostWorkspace() {
                       <p className="mt-1 text-xs text-ink-soft">
                         <span className="font-medium text-ink">Image {i + 1}.</span> {alts[i] ? `Alt text: ${alts[i]}` : "No alt text yet."}
                       </p>
-                      {img.analysis?.ocr_text && <p className="text-xs text-ink-faint">Text found in image: “{img.analysis.ocr_text.replace(/\n/g, " / ")}”</p>}
+                      {ocrEdit === i ? (
+                        <label className="mt-1 block text-xs text-ink-soft">
+                          Text in the image (fix any reading mistakes, then re-check)
+                          <textarea
+                            autoFocus
+                            rows={3}
+                            value={ocr[i] ?? ""}
+                            onChange={(e) => setOcr((o) => o.map((v, j) => (j === i ? e.target.value : v)))}
+                            onBlur={() => setOcrEdit(null)}
+                            className="mt-0.5 w-full rounded border border-line-strong px-2 py-1 text-xs text-ink"
+                          />
+                        </label>
+                      ) : (
+                        (ocr[i] || img.analysis) && (
+                          <p className="text-xs text-ink-faint">
+                            {ocr[i] ? <>Text found in image: “{ocr[i].replace(/\n/g, " / ")}”</> : "No text found in this image."}
+                            {canAct && img.analysis && (
+                              <button type="button" onClick={() => setOcrEdit(i)} className="ml-1 underline hover:text-ink">
+                                Correct
+                              </button>
+                            )}
+                          </p>
+                        )
+                      )}
                     </li>
                   );
                 })}
