@@ -123,7 +123,32 @@ h3 {
   outline-offset: 2px;
 }
 
+.toast-in {
+  animation: toast-in 220ms ease-out both;
+}
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+/* a proof mark or a problem that is being pointed at (hover, focus or keyboard) */
+.mark[data-active="true"] {
+  outline: 2px solid currentColor;
+  outline-offset: 1px;
+  filter: saturate(1.5);
+}
+
+.thin-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-line-strong) transparent;
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .toast-in {
+    animation: none;
+  }
   .stamp {
     animation: none;
   }

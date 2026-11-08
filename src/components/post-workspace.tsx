@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { api, type BrandData, type DecisionRow, type HistoryRow, type PostRow, type ReviewRow } from "@/lib/client/api";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useBrand } from "@/lib/client/use-brand";
+import { api, type DecisionRow, type HistoryRow, type PostRow, type ReviewRow } from "@/lib/client/api";
 import { applyFix, canApply } from "@/lib/fixes";
 
 const endSentence = (t: string) => (/[.!?]$/.test(t.trim()) ? t.trim() : `${t.trim()}.`);
@@ -11,7 +12,8 @@ import { FindingCard } from "./finding-card";
 import { ProofText } from "./proof-text";
 import { ScorePanel } from "./score-panel";
 import { HistoryList, WorkflowPanel } from "./workflow-panel";
-import { Button, CHANNEL_LABEL, ErrorNote, Panel, StatusTag } from "./ui";
+import { Button, CHANNEL_LABEL, ErrorNote, Panel, Skeleton, StatusTag } from "./ui";
+import { useToast } from "./toast";
 import { useRole } from "./role-provider";
 
 interface Data {
@@ -21,21 +23,31 @@ interface Data {
   history: HistoryRow[];
 }
 
-let brandCache: Promise<BrandData> | null = null;
-function useBrand() {
-  const [brand, setBrand] = useState<BrandData | null>(null);
-  useEffect(() => {
-    brandCache ??= api.brand();
-    brandCache.then(setBrand).catch(() => (brandCache = null));
-  }, []);
-  return brand;
-}
 
 const AI_NOTE: Record<string, string> = {
   busy: "The AI checks are busy right now (free-tier limit), so this report has the fast checks only. Re-check in a minute to add the AI checks.",
   error: "The AI checks didn't finish this time, so this report has the fast checks only. Re-check to try again.",
   off: "AI checks are switched off on this server, so this report has the fast checks only.",
 };
+
+type Filter = "all" | "high" | "medium" | "low" | "caption" | "images";
+
+function PostSkeleton() {
+  return (
+    <div role="status" aria-label="Loading the post" className="space-y-5">
+      <Skeleton className="h-4 w-28" />
+      <Skeleton className="h-9 w-[32rem] max-w-full" />
+      <div className="grid gap-7 lg:grid-cols-[minmax(0,7fr)_minmax(0,6fr)]">
+        <Skeleton className="h-80 rounded-2xl" />
+        <div className="space-y-4">
+          <Skeleton className="h-36 rounded-xl" />
+          <Skeleton className="h-24 rounded-xl" />
+          <Skeleton className="h-40 rounded-xl" />
+        </div>
+      </div>
+    </div>
+  );
+}
 
 /** The approval stamp: who approved the post, and when. */
 function ApprovedStamp({ history }: { history: HistoryRow[] }) {
@@ -64,6 +76,31 @@ export function PostWorkspace({ id }: { id: string }) {
   const [ocrEdit, setOcrEdit] = useState<number | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [picked, setPicked] = useState<string | null>(null);
+  const [active, setActive] = useState<string | null>(null); // problem pointed at by hover or keyboard
+  const [filter, setFilter] = useState<Filter>("all");
+  const [hideDone, setHideDone] = useState(false);
+  const toast = useToast();
+  // j / k move between the problems shown in the list (read from the page, so filters are respected)
+  const activeRef = useRef<string | null>(null);
+  useEffect(() => {
+    activeRef.current = active;
+  }, [active]);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey || (e.key !== "j" && e.key !== "k")) return;
+      if ((e.target as HTMLElement | null)?.closest("input, textarea, select, [contenteditable]")) return;
+      const ids = [...document.querySelectorAll<HTMLElement>('li[id^="finding-"]')].map((el) => el.id.slice("finding-".length));
+      if (!ids.length) return;
+      e.preventDefault();
+      const cur = activeRef.current;
+      const i = cur ? ids.indexOf(cur) : -1;
+      const next = ids[e.key === "j" ? Math.min(ids.length - 1, i + 1) : Math.max(0, i - 1)] ?? ids[0];
+      setActive(next);
+      document.getElementById(`finding-${next}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
   const [goalEdit, setGoalEdit] = useState<Goal | null>(null);
 
   const apply = useCallback((d: Data) => {
@@ -93,7 +130,7 @@ export function PostWorkspace({ id }: { id: string }) {
 
   if (!id) return <ErrorNote>No post selected. Open a post from the review queue or check a new one.</ErrorNote>;
   if (error && !data) return <ErrorNote>{error}</ErrorNote>;
-  if (!data) return <p className="text-sm text-ink-soft">Loading the post…</p>;
+  if (!data) return <PostSkeleton />;
 
   const { post, review, decisions, history } = data;
   const editable = post.status === "draft" || post.status === "changes_requested";
@@ -108,6 +145,23 @@ export function PostWorkspace({ id }: { id: string }) {
       alts.some((a, i) => a !== (post.images[i]?.alt_text ?? "")) ||
       ocr.some((t, i) => t !== (post.images[i]?.analysis?.ocr_text ?? "")));
   const goal: Goal | null = (post.goal && "message" in post.goal ? (post.goal as Goal) : null) ?? review?.goal ?? null;
+
+  const visible = numbered.filter(({ f }) => {
+    if (hideDone && latestDecision.has(f.id)) return false;
+    if (filter === "all") return true;
+    if (filter === "caption") return f.location === "caption";
+    if (filter === "images") return f.location !== "caption";
+    return f.severity === filter;
+  });
+  const count = (fn: (f: Finding) => boolean) => findings.filter(fn).length;
+  const FILTERS: { key: Filter; label: string; n: number }[] = [
+    { key: "all", label: "All", n: findings.length },
+    { key: "high", label: "High", n: count((f) => f.severity === "high") },
+    { key: "medium", label: "Medium", n: count((f) => f.severity === "medium") },
+    { key: "low", label: "Low", n: count((f) => f.severity === "low") },
+    { key: "caption", label: "Caption", n: count((f) => f.location === "caption") },
+    { key: "images", label: "Images", n: count((f) => f.location !== "caption") },
+  ];
 
   const pick = (fid: string) => {
     setPicked(fid);
@@ -138,6 +192,7 @@ export function PostWorkspace({ id }: { id: string }) {
       setCaption(next);
     }
     await decide(f, "accept");
+    toast(f.fix.kind === "alt_text" ? "Alt text added. Re-check to update the score." : "Fix accepted. Re-check to update the score.");
   };
 
   const edit = async (f: Finding, text: string) => {
@@ -158,6 +213,7 @@ export function PostWorkspace({ id }: { id: string }) {
       return;
     }
     await decide(f, "edit", text);
+    toast("Edit applied. Re-check to update the score.");
   };
 
   const recheck = async () => {
@@ -183,6 +239,7 @@ export function PostWorkspace({ id }: { id: string }) {
         },
       });
       await load();
+      toast("Re-checked. The report is up to date.", "info");
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -191,8 +248,11 @@ export function PostWorkspace({ id }: { id: string }) {
   };
 
   const act = async (action: "submit" | "approve" | "request_changes", comment?: string) => {
-    await api.act(post.id, { action, role, actor: name, comment });
+    const res = await api.act(post.id, { action, role, actor: name, comment });
     await load();
+    if (action === "submit") toast(res.assigned_role === "expert" ? "Submitted. It goes to the expert reviewer first." : "Submitted to the brand manager.");
+    else if (action === "request_changes") toast("Sent back to the creator with your comment.", "info");
+    else toast(res.status === "approved" ? "Approved. Ready to publish." : "Claims approved. Sent to the brand manager.");
   };
 
   const confirmGoal = async (g: Goal) => {
@@ -201,6 +261,7 @@ export function PostWorkspace({ id }: { id: string }) {
     // refresh the post and history only: keep fixes the creator accepted but hasn't re-checked yet
     const d = await api.post(id);
     setData(d);
+    toast("Goal confirmed. Every fix keeps it.");
   };
 
   return (
@@ -223,14 +284,14 @@ export function PostWorkspace({ id }: { id: string }) {
 
       {/* On phones the report follows the post (order-*); on wide screens: post on the left, report on the right. */}
       <div className="flex flex-col gap-5 lg:grid lg:grid-cols-[minmax(0,7fr)_minmax(0,6fr)] lg:items-start lg:gap-7">
-        <div className="contents lg:block lg:space-y-5">
+        <div className="thin-scroll contents lg:sticky lg:top-4 lg:-m-1 lg:block lg:max-h-[calc(100vh-2rem)] lg:space-y-5 lg:overflow-y-auto lg:p-1">
           <section aria-label="The post as checked" className="order-1 rounded-2xl border border-line bg-surface p-6 shadow-[var(--shadow-sheet)] sm:p-8">
             <div className="mb-3 flex items-start justify-between gap-4">
               <p className="text-[13px] font-medium text-ink-soft">{review ? "Caption as checked" : "Caption"}</p>
               {post.status === "approved" && <ApprovedStamp history={history} />}
             </div>
             {review ? (
-              <ProofText text={review.caption} findings={numbered.filter((x) => x.f.location === "caption")} onPick={pick} />
+              <ProofText text={review.caption} findings={numbered.filter((x) => x.f.location === "caption")} onPick={pick} activeId={active} onHover={setActive} />
             ) : (
               <p className="font-serif text-[22px] leading-[1.6]">{post.caption}</p>
             )}
@@ -249,7 +310,9 @@ export function PostWorkspace({ id }: { id: string }) {
                               key={x.f.id}
                               type="button"
                               onClick={() => pick(x.f.id)}
-                              className={`flex size-7 items-center justify-center rounded-full text-[12px] font-bold text-white shadow-md ring-2 ring-white ${x.f.severity === "high" ? "bg-high" : x.f.severity === "medium" ? "bg-med" : "bg-low"}`}
+                              onMouseEnter={() => setActive(x.f.id)}
+                              onMouseLeave={() => setActive(null)}
+                              className={`flex size-7 items-center justify-center rounded-full text-[12px] font-bold text-white shadow-md ring-2 transition-transform ${active === x.f.id ? "scale-125 ring-ink" : "ring-white"} ${x.f.severity === "high" ? "bg-high" : x.f.severity === "medium" ? "bg-med" : "bg-low"}`}
                               aria-label={`Problem ${x.ref}`}
                             >
                               {x.ref}
@@ -403,11 +466,36 @@ export function PostWorkspace({ id }: { id: string }) {
                 <h2 id="problems-title" className="mb-2 px-1 text-[15px] font-semibold tracking-tight">
                   {findings.length === 0 ? "No problems found" : `${findings.length} problem${findings.length > 1 ? "s" : ""}, worst first`}
                 </h2>
+                {findings.length > 0 && (
+                  <div className="mb-3 flex flex-wrap items-center gap-1.5">
+                    {FILTERS.filter((x) => x.key === "all" || x.n > 0).map((x) => (
+                      <button
+                        key={x.key}
+                        type="button"
+                        aria-pressed={filter === x.key}
+                        onClick={() => setFilter(x.key)}
+                        className={`rounded-full border px-3 py-1 text-[13px] font-medium transition-colors ${filter === x.key ? "border-ink bg-ink text-white" : "border-line-strong bg-surface text-ink-soft hover:border-ink-faint hover:text-ink"}`}
+                      >
+                        {x.label} <span className={`tabular-nums ${filter === x.key ? "text-white/70" : "text-ink-faint"}`}>{x.n}</span>
+                      </button>
+                    ))}
+                    {latestDecision.size > 0 && (
+                      <label className="ml-1 flex items-center gap-1.5 text-[13px] text-ink-soft">
+                        <input type="checkbox" checked={hideDone} onChange={(e) => setHideDone(e.target.checked)} className="size-3.5 accent-[var(--color-ink)]" />
+                        Hide decided
+                      </label>
+                    )}
+                    <span className="ml-auto hidden text-[12px] text-ink-faint xl:inline">
+                      Press <kbd className="rounded border border-line-strong bg-surface px-1 font-sans">J</kbd> / <kbd className="rounded border border-line-strong bg-surface px-1 font-sans">K</kbd> to move between problems
+                    </span>
+                  </div>
+                )}
                 {findings.length === 0 ? (
                   <p className="rounded-xl border border-pass/30 bg-pass-bg p-5 text-[14px] text-pass">This post follows every rule, and every claim matches an approved fact.</p>
                 ) : (
                   <ul className="overflow-hidden rounded-xl border border-line bg-surface">
-                    {numbered.map(({ f, ref }) => (
+                    {visible.length === 0 && <li className="px-5 py-6 text-center text-[14px] text-ink-soft">No problems match this filter.</li>}
+                    {visible.map(({ f, ref }) => (
                       <FindingCard
                         key={f.id}
                         f={f}
@@ -419,7 +507,12 @@ export function PostWorkspace({ id }: { id: string }) {
                         highlighted={picked === f.id}
                         onAccept={() => accept(f)}
                         onEdit={(t) => edit(f, t)}
-                        onDisagree={(r) => decide(f, "disagree", r)}
+                        onDisagree={async (r) => {
+                          await decide(f, "disagree", r);
+                          toast("Disagreement saved. The reviewer will see your reason.", "info");
+                        }}
+                        active={active === f.id}
+                        onHover={(on) => setActive(on ? f.id : null)}
                       />
                     ))}
                   </ul>

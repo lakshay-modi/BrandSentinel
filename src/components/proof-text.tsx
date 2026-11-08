@@ -30,7 +30,22 @@ function spans(text: string, findings: { f: Finding; ref: number }[]): Span[] {
 }
 
 /** The caption as a marked-up proof: each problem underlined by severity, with its number from the findings list. */
-export function ProofText({ text, findings, onPick, className = "" }: { text: string; findings: { f: Finding; ref: number }[]; onPick?: (id: string) => void; className?: string }) {
+export function ProofText({
+  text,
+  findings,
+  onPick,
+  activeId,
+  onHover,
+  className = "",
+}: {
+  text: string;
+  findings: { f: Finding; ref: number }[];
+  onPick?: (id: string) => void;
+  /** the problem being pointed at elsewhere on the page: its mark is outlined */
+  activeId?: string | null;
+  onHover?: (id: string | null) => void;
+  className?: string;
+}) {
   const marks = spans(text, findings);
   const parts: React.ReactNode[] = [];
   let pos = 0;
@@ -40,8 +55,11 @@ export function ProofText({ text, findings, onPick, className = "" }: { text: st
       <mark
         key={i}
         className={`mark mark-${m.severity} text-inherit`}
+        data-active={activeId === m.id}
         onClick={() => onPick?.(m.id)}
-        title={`Problem ${m.ref}`}
+        onMouseEnter={() => onHover?.(m.id)}
+        onMouseLeave={() => onHover?.(null)}
+        title={`Problem ${m.ref}: click to open it`}
       >
         {text.slice(m.start, m.end)}
         <span className="mark-ref" aria-label={`problem ${m.ref}`}>

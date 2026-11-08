@@ -23,6 +23,8 @@ export function FindingCard({
   onDisagree,
   highlighted,
   stale,
+  active,
+  onHover,
 }: {
   f: Finding;
   n: number;
@@ -35,6 +37,9 @@ export function FindingCard({
   highlighted?: boolean;
   /** the text this fix changes is already gone (another fix or an edit changed it) */
   stale?: boolean;
+  /** pointed at from the post's marks, by hover or keyboard */
+  active?: boolean;
+  onHover?: (on: boolean) => void;
 }) {
   const [mode, setMode] = useState<"none" | "edit" | "disagree">("none");
   const [text, setText] = useState("");
@@ -58,7 +63,13 @@ export function FindingCard({
   };
 
   return (
-    <li id={`finding-${f.id}`} className={`scroll-mt-24 border-b border-line last:border-0 ${highlighted ? "flash bg-low-bg/40" : ""}`}>
+    <li
+      id={`finding-${f.id}`}
+      onMouseEnter={() => onHover?.(true)}
+      onMouseLeave={() => onHover?.(false)}
+      className={`relative scroll-mt-24 border-b border-line transition-colors last:border-0 ${highlighted ? "flash" : ""} ${active ? "bg-paper/70" : ""}`}
+    >
+      <span aria-hidden="true" className={`absolute inset-y-0 left-0 w-1 transition-opacity ${s.dot} ${active ? "opacity-100" : "opacity-0"}`} />
       <div className="flex gap-3.5 px-5 py-4">
         <span className={`mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full text-[12px] font-bold tabular-nums text-white ${s.dot}`} aria-hidden="true">
           {n}
