@@ -97,8 +97,8 @@ export function FactsView() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold">Fact Bank</h1>
-          <p className="max-w-2xl text-sm text-ink-soft">
+          <h1 className="text-[28px] font-bold leading-tight tracking-tight">Fact Bank</h1>
+          <p className="mt-1.5 max-w-2xl text-[15px] leading-relaxed text-ink-soft">
             The only facts posts may use. Every claim is compared with this list. Each fact has a source and an end date; after the end date it can no longer be used as proof.
           </p>
         </div>

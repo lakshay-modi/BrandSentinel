@@ -122,8 +122,8 @@ export function RulebookView() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold">Rulebook</h1>
-          <p className="max-w-2xl text-sm text-ink-soft">
+          <h1 className="text-[28px] font-bold leading-tight tracking-tight">Rulebook</h1>
+          <p className="mt-1.5 max-w-2xl text-[15px] leading-relaxed text-ink-soft">
             Oatvia&apos;s brand rules, built from the{" "}
             <a href="/demo/Oatvia_Brand_Guidelines.pdf" target="_blank" className="underline">
               guideline PDF

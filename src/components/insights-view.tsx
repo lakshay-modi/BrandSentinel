@@ -43,8 +43,8 @@ export function InsightsView() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold">Insights</h1>
-        <p className="max-w-2xl text-sm text-ink-soft">What goes wrong most often, and which rules people keep disagreeing with. Built from every check and every human decision in this workspace. The demo starts with a few posts checked by sample users (Priya, Rohan and Sana) so this page has data; your checks are added live.</p>
+        <h1 className="text-[28px] font-bold leading-tight tracking-tight">Insights</h1>
+        <p className="mt-1.5 max-w-2xl text-[15px] leading-relaxed text-ink-soft">What goes wrong most often, and which rules people keep disagreeing with. Built from every check and every human decision in this workspace. The demo starts with a few posts checked by sample users (Priya, Rohan and Sana) so this page has data; your checks are added live.</p>
       </div>
 
       {t.checks === 0 ? (

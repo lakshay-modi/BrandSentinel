@@ -73,8 +73,8 @@ export function TestResults() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold">Test results</h1>
-        <p className="mt-1 max-w-3xl text-sm text-ink-soft">
+        <h1 className="text-[28px] font-bold leading-tight tracking-tight">Test results</h1>
+        <p className="mt-1 max-w-3xl text-[15px] leading-relaxed text-ink-soft">
           The 10 sample posts contain planted mistakes, each labelled with the rule it breaks in an{" "}
           <a href={`${REPO}/demo/expected_findings.json`} target="_blank" className="underline">
             answer key
