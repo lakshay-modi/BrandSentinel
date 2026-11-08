@@ -5,6 +5,7 @@ import { api, type BrandData } from "@/lib/client/api";
 import type { Category, Rule, Severity } from "@/lib/types";
 import { Button, ErrorNote, SeverityTag } from "./ui";
 import { useRole } from "./role-provider";
+import { RuleImport } from "./rule-import";
 
 const CATEGORY_LABEL: Record<Category, string> = { tone: "Tone", words: "Words and names", claims: "Claims", visuals: "Visuals", readability: "Readability" };
 const CHECK_LABEL: Record<Rule["check_type"], string> = { code: "Fast check", ai: "AI check", "code+ai": "Fast check + AI" };
@@ -94,6 +95,7 @@ export function RulebookView() {
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
   const [filter, setFilter] = useState<Category | "all">("all");
+  const [importing, setImporting] = useState(false);
 
   const reload = () => api.brand().then(setData).catch((e) => setError(String(e.message ?? e)));
   useEffect(() => {
@@ -108,8 +110,11 @@ export function RulebookView() {
   }, []);
 
   const isManager = role === "brand_manager";
-  const rules = (data?.rules ?? []).filter((r) => filter === "all" || r.category === filter);
-  const drafts = (data?.rules ?? []).filter((r) => r.status === "draft");
+  const live = (data?.rules ?? []).filter((r) => r.status !== "rejected");
+  const rejected = (data?.rules ?? []).length - live.length;
+  // drafts first so imported rules are easy to review
+  const rules = live.filter((r) => filter === "all" || r.category === filter).sort((a, b) => Number(b.status === "draft") - Number(a.status === "draft"));
+  const drafts = live.filter((r) => r.status === "draft");
 
   return (
     <div className="space-y-4">
@@ -121,19 +126,23 @@ export function RulebookView() {
             <a href="/demo/Oatvia_Brand_Guidelines.pdf" target="_blank" className="underline">
               guideline PDF
             </a>
-            . Every finding cites one of these IDs. {data && `Rulebook version ${data.brand.rulebook_version}; ${data.rules.length} rules.`}
+            . Every finding cites one of these IDs. {data && `Rulebook version ${data.brand.rulebook_version}; ${live.length - drafts.length} approved rules.`}
           </p>
         </div>
         {isManager ? (
-          <Button variant="primary" onClick={() => setEditing("new")}>
-            Add a rule
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={() => setImporting(true)}>Import from PDF</Button>
+            <Button variant="primary" onClick={() => setEditing("new")}>
+              Add a rule
+            </Button>
+          </div>
         ) : (
           <p className="text-xs text-ink-faint">Switch to Brand manager to edit rules.</p>
         )}
       </div>
 
       {error && <ErrorNote>{error}</ErrorNote>}
+      {importing && isManager && <RuleImport role={role} actor={name} onDone={async () => { await reload(); }} onClose={() => setImporting(false)} />}
       {editing === "new" && (
         <RuleEditor
           rule={{ category: "tone", severity: "medium", scope: "all" }}
@@ -149,6 +158,7 @@ export function RulebookView() {
       {drafts.length > 0 && (
         <p className="rounded-md bg-med-bg px-3 py-2 text-sm text-med">
           {drafts.length} draft rule{drafts.length > 1 ? "s" : ""} waiting for approval. Drafts are not used in checks until the brand manager approves them.
+          {!isManager && " Switch to Brand manager to approve or reject them."}
         </p>
       )}
 
@@ -186,6 +196,18 @@ export function RulebookView() {
                       Approve
                     </Button>
                   )}
+                  {r.status === "draft" && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={async () => {
+                        await send(`/api/rules/${r.id}`, "PATCH", { role, actor: name, changes: { status: "rejected" } });
+                        await reload();
+                      }}
+                    >
+                      Reject
+                    </Button>
+                  )}
                   <Button size="sm" variant="ghost" onClick={() => setEditing(r.id)}>
                     Edit
                   </Button>
@@ -208,6 +230,7 @@ export function RulebookView() {
             ) : (
               <>
                 <p className="mt-2 font-medium">{r.rule}</p>
+                {r.source && <p className="mt-1 text-xs text-ink-faint">Drafted by AI from {r.source}</p>}
                 {r.guideline && <p className="mt-1 text-sm text-ink-soft">{r.guideline}</p>}
                 {(r.good || r.bad) && (
                   <div className="mt-2 grid gap-2 text-sm sm:grid-cols-2">
@@ -220,6 +243,7 @@ export function RulebookView() {
           </li>
         ))}
       </ul>
+      {rejected > 0 && <p className="text-xs text-ink-faint">{rejected} rejected draft{rejected > 1 ? "s" : ""} hidden. Rejected drafts are kept for the record but never used.</p>}
     </div>
   );
 }
