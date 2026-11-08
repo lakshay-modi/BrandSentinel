@@ -13,7 +13,7 @@ const bodySchema = z.object({
       guideline: z.string().trim().max(1500),
       good: z.string().trim().max(300),
       bad: z.string().trim().max(300),
-      status: z.enum(["approved", "draft"]),
+      status: z.enum(["approved", "draft", "rejected"]),
     })
     .partial(),
 });

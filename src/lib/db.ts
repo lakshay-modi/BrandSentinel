@@ -27,7 +27,7 @@ export async function getBrandContext(slug = DEMO_BRAND): Promise<BrandContext> 
   const { data: brand, error } = await db().from("brands").select("id, slug, name, settings, rulebook_version").eq("slug", slug).single();
   if (error || !brand) throw new Error(`Brand not found: ${error?.message ?? slug}`);
   const [rules, facts] = await Promise.all([
-    db().from("rules").select("id, category, severity, check_type, scope, rule, guideline, good, bad, params, status, version").eq("brand_id", brand.id).order("id"),
+    db().from("rules").select("id, category, severity, check_type, scope, rule, guideline, good, bad, params, status, version, source").eq("brand_id", brand.id).order("id"),
     db().from("facts").select("id, product, fact, source, valid_until, type").eq("brand_id", brand.id).order("id"),
   ]);
   if (rules.error) throw new Error(rules.error.message);

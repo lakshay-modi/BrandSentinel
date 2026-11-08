@@ -40,8 +40,10 @@ export interface Rule {
   bad: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   params: Record<string, any>;
-  status: "approved" | "draft";
+  status: "approved" | "draft" | "rejected";
   version: number;
+  /** where an imported rule came from (file name and the sentence it was drafted from) */
+  source?: string;
 }
 
 export interface Fact {
