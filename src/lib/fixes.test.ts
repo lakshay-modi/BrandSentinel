@@ -24,3 +24,17 @@ describe("applying fixes", () => {
     expect(applyFix("hello", { kind: "replace", pairs: [{ from: "bye", to: "x" }] })).toBeNull();
   });
 });
+
+describe("exclamation mark fix (TONE-02)", () => {
+  it("keeps the allowed number, one at a time, and turns the rest into full stops", async () => {
+    const { runCodeChecks } = await import("./checks/code-checks");
+    const { demoBrand, demoFacts, demoRules, samplePosts } = await import("./demo/load-demo");
+    const rules = new Map(demoRules.map((r) => [r.id, r]));
+    const p01 = samplePosts(true).find((p) => p.id === "P01")!;
+    const f = runCodeChecks({ input: p01, rules, facts: demoFacts, brand: demoBrand, today: "2026-11-08" }).find((x) => x.rule_id === "TONE-02")!;
+    expect(applyFix(p01.caption, f.fix)).toBe("India's No. 1 protein bar! 100% natural, eco-friendly pack. Grab yours NOW! #protein #OatviaEveryday");
+    const p = { ...p01, post_type: "product", caption: "So good! Try it! Now!" };
+    const g = runCodeChecks({ input: p, rules, facts: demoFacts, brand: demoBrand, today: "2026-11-08" }).find((x) => x.rule_id === "TONE-02")!;
+    expect(applyFix(p.caption, g.fix)).toBe("So good! Try it. Now.");
+  });
+});

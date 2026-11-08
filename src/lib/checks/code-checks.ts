@@ -121,11 +121,20 @@ export function runCodeChecks(ctx: CheckContext): Finding[] {
     const count = (caption.text.match(/!/g) ?? []).length;
     const launch = input.post_type.toLowerCase().includes("launch");
     const limit: number = launch ? r.params.max_exclamations_launch ?? 2 : r.params.max_exclamations ?? 1;
-    if (count > limit)
-      out.push(finding(r, "caption", [], `${count} exclamation marks; the limit is ${limit}${launch ? " for launch posts" : ""}.`, {
-        kind: "manual",
-        advice: `Keep at most ${limit} exclamation mark${limit > 1 ? "s" : ""} and never two in a row.`,
-      }));
+    if (count > limit) {
+      // fix: keep the first allowed "!" (one at a time), turn the rest into full stops
+      let budget = limit;
+      const pairs: { from: string; to: string }[] = [];
+      for (const m of caption.text.matchAll(/[^\s!]*!+/g)) {
+        const word = m[0].replace(/!+$/, "");
+        const keep = budget > 0;
+        if (keep) budget--;
+        const to = word + (keep ? "!" : ".");
+        if (to !== m[0] && !pairs.some((p) => p.from === m[0])) pairs.push({ from: m[0], to });
+      }
+      const advice = `Keep at most ${limit} exclamation mark${limit > 1 ? "s" : ""} and never two in a row.`;
+      out.push(finding(r, "caption", [], `${count} exclamation marks; the limit is ${limit}${launch ? " for launch posts" : ""}.`, pairs.length ? { kind: "replace", pairs } : { kind: "manual", advice }));
+    }
   }
 
   if ((r = activeRule(ctx, "TONE-03"))) {
