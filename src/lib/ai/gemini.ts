@@ -13,7 +13,7 @@ export interface AiPart {
 
 const ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models";
 
-function models(): string[] {
+export function aiModels(): string[] {
   const primary = process.env.GEMINI_MODEL?.trim();
   // Flash first for quality, Flash-Lite as the fast fallback when Flash is overloaded.
   return [...new Set([primary, "gemini-3.8-flash", "gemini-flash-lite-latest", "gemini-flash-latest"].filter((m): m is string => !!m))];
@@ -49,7 +49,7 @@ export async function callGemini(system: string, parts: AiPart[], budgetMs = 500
   const tried: string[] = [];
   let sawBusy = false;
 
-  for (const model of models()) {
+  for (const model of aiModels()) {
     for (let attempt = 0; attempt < 2; attempt++) {
       const left = deadline - Date.now();
       if (left < 3000) return { ok: false, status: "busy", detail: `Out of time. Tried: ${tried.join(", ")}` };

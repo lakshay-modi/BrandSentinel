@@ -1,45 +1,45 @@
+import { timingSafeEqual } from "node:crypto";
 import { connection } from "next/server";
-import { db } from "@/lib/db";
-import { clientId, json } from "@/lib/api";
-import { allowAiCall } from "@/lib/review/rate-limit";
+import { db, dbAccessMode } from "@/lib/db";
+import { json } from "@/lib/api";
+import { aiModels } from "@/lib/ai/gemini";
 
 const ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models";
 
-async function probe(model: string, key: string, thinking: object | null) {
+async function probe(model: string, key: string) {
   const t0 = Date.now();
   try {
     const res = await fetch(`${ENDPOINT}/${model}:generateContent`, {
       method: "POST",
       headers: { "content-type": "application/json", "x-goog-api-key": key },
-      body: JSON.stringify({
-        contents: [{ role: "user", parts: [{ text: 'Reply with exactly {"ok":true}' }] }],
-        generationConfig: { responseMimeType: "application/json", ...(thinking ? { thinkingConfig: thinking } : {}) },
-      }),
+      body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: 'Reply with exactly {"ok":true}' }] }], generationConfig: { responseMimeType: "application/json" } }),
       signal: AbortSignal.timeout(20000),
     });
-    const text = res.ok ? "" : (await res.text()).slice(0, 160);
-    return { model, thinking, status: res.status, ms: Date.now() - t0, error: text || undefined };
+    return { model, status: res.status, ms: Date.now() - t0 };
   } catch (e) {
-    return { model, thinking, status: 0, ms: Date.now() - t0, error: e instanceof Error ? e.name : String(e) };
+    return { model, status: 0, ms: Date.now() - t0, error: e instanceof Error ? e.name : "error" };
   }
 }
 
-/** Health check: database reachable, and (with ?ai=1) which Gemini models answer and how fast. Never returns keys. */
+function tokenOk(req: Request): boolean {
+  const want = process.env.HEALTH_TOKEN;
+  const got = req.headers.get("x-health-token");
+  if (!want || !got || want.length !== got.length) return false;
+  return timingSafeEqual(Buffer.from(want), Buffer.from(got));
+}
+
+/**
+ * Health check for uptime monitors: is the database reachable and is AI set up. Never returns keys or errors.
+ * Probing the AI models (which uses the AI quota) needs the HEALTH_TOKEN secret in an x-health-token header.
+ */
 export async function GET(req: Request) {
   await connection();
-  const out: Record<string, unknown> = {};
   const t0 = Date.now();
   const { error } = await db().from("brands").select("id").limit(1);
-  out.db = error ? `error: ${error.message}` : `ok (${Date.now() - t0} ms)`;
-  out.ai_key = !!process.env.GEMINI_API_KEY;
-  const url = new URL(req.url);
-  if (url.searchParams.get("ai") === "1" && process.env.GEMINI_API_KEY) {
-    if (!allowAiCall(clientId(req))) return json({ ...out, ai: "rate limited, try in a minute" });
-    const key = process.env.GEMINI_API_KEY;
-    const models = (url.searchParams.get("models") ?? `${process.env.GEMINI_MODEL ?? "gemini-3.8-flash"},gemini-flash-lite-latest,gemini-flash-latest`).split(",").slice(0, 4);
-    const mode = url.searchParams.get("thinking");
-    const thinking = mode === "level" ? { thinkingLevel: "low" } : mode === "budget" ? { thinkingBudget: 0 } : null;
-    out.ai = await Promise.all(models.map((m) => probe(m.trim(), key, thinking)));
+  const out: Record<string, unknown> = { db: error ? "error" : "ok", db_ms: Date.now() - t0, db_access: dbAccessMode(), ai_configured: !!process.env.GEMINI_API_KEY };
+  if (new URL(req.url).searchParams.get("ai") === "1" && process.env.GEMINI_API_KEY) {
+    if (!tokenOk(req)) return json({ ...out, ai: "model probe needs the health token" }, 401);
+    out.ai = await Promise.all(aiModels().map((m) => probe(m, process.env.GEMINI_API_KEY!)));
   }
-  return json(out);
+  return json(out, error ? 503 : 200);
 }
