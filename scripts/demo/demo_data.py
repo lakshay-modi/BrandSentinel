@@ -27,6 +27,8 @@ BRAND = {
     ],
     "brand_hashtag": "#OatviaEveryday",
     "confidential_terms": ["Project Harvest"],
+    "guidelines_pdf": "/demo/Oatvia_Brand_Guidelines.pdf",
+    "import_sample": {"url": "/demo/Oatvia_Social_Addendum.pdf", "name": "Oatvia_Social_Addendum.pdf", "label": "Try the sample addendum"},
 }
 
 SEVERITY_POINTS = {"high": 15, "medium": 7, "low": 3}
