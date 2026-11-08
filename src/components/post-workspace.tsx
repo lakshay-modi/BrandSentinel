@@ -37,6 +37,22 @@ const AI_NOTE: Record<string, string> = {
   off: "AI checks are switched off on this server, so this report has the fast checks only.",
 };
 
+/** The approval stamp: who approved the post, and when. */
+function ApprovedStamp({ history }: { history: HistoryRow[] }) {
+  const h = [...history].reverse().find((x) => x.action === "approved");
+  const when = h ? new Date(h.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : "";
+  return (
+    <div aria-label={h ? `Approved by ${h.actor} on ${when}` : "Approved"} className="stamp pointer-events-none -mt-2 shrink-0 rounded-lg border-[3px] border-double border-pass bg-surface px-3 py-1.5 text-center text-pass">
+      <p className="text-[20px] font-bold leading-none tracking-tight">Approved</p>
+      {h && (
+        <p className="mt-1 text-[12px] font-semibold leading-none">
+          {h.actor}, {when}
+        </p>
+      )}
+    </div>
+  );
+}
+
 export function PostWorkspace({ id }: { id: string }) {
   const { role, name } = useRole();
   const brand = useBrand();
@@ -190,14 +206,14 @@ export function PostWorkspace({ id }: { id: string }) {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <Link href="/queue" className="text-sm text-ink-soft hover:text-ink">
+        <div className="min-w-0">
+          <Link href="/queue" className="text-[13px] font-medium text-ink-soft hover:text-ink">
             ‹ Review queue
           </Link>
-          <h1 className="mt-1 text-xl font-semibold">{post.title || "Untitled post"}</h1>
-          <p className="mt-1 text-sm text-ink-soft">
-            {CHANNEL_LABEL[post.channel] ?? post.channel}, {post.post_type} post about {post.product || "the brand"}
-            {post.partner ? ", paid partner" : ""}. By {post.created_by}.
+          <h1 className="mt-1 text-[28px] font-bold leading-tight tracking-tight">{post.title || "Untitled post"}</h1>
+          <p className="mt-1 text-[14px] text-ink-soft">
+            {CHANNEL_LABEL[post.channel] ?? post.channel} {post.post_type} post about {post.product || "the brand"}
+            {post.partner ? ", paid partner" : ""}. Created by {post.created_by}.
           </p>
         </div>
         <StatusTag status={post.status} />
@@ -205,23 +221,27 @@ export function PostWorkspace({ id }: { id: string }) {
 
       {error && <ErrorNote>{error}</ErrorNote>}
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]">
-        {/* Left: the post itself */}
-        <div className="space-y-4">
-          <Panel title="Post as checked">
+      {/* On phones the report follows the post (order-*); on wide screens: post on the left, report on the right. */}
+      <div className="flex flex-col gap-5 lg:grid lg:grid-cols-[minmax(0,7fr)_minmax(0,6fr)] lg:items-start lg:gap-7">
+        <div className="contents lg:block lg:space-y-5">
+          <section aria-label="The post as checked" className="order-1 rounded-2xl border border-line bg-surface p-6 shadow-[var(--shadow-sheet)] sm:p-8">
+            <div className="mb-3 flex items-start justify-between gap-4">
+              <p className="text-[13px] font-medium text-ink-soft">{review ? "Caption as checked" : "Caption"}</p>
+              {post.status === "approved" && <ApprovedStamp history={history} />}
+            </div>
             {review ? (
               <ProofText text={review.caption} findings={numbered.filter((x) => x.f.location === "caption")} onPick={pick} />
             ) : (
-              <p className="font-serif text-lg">{post.caption}</p>
+              <p className="font-serif text-[22px] leading-[1.6]">{post.caption}</p>
             )}
             {post.images.length > 0 && (
-              <ul className="mt-4 grid grid-cols-2 gap-3">
+              <ul className="mt-6 grid grid-cols-2 gap-4 border-t border-line pt-6">
                 {post.images.map((img, i) => {
                   const refs = numbered.filter((x) => x.f.location === `image ${i + 1}`);
                   return (
                     <li key={i} className="relative">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={img.src} alt={alts[i] || ""} className="aspect-square w-full rounded-md border border-line object-cover" />
+                      <img src={img.src} alt={alts[i] || ""} className="aspect-square w-full rounded-lg border border-line object-cover" />
                       {refs.length > 0 && (
                         <div className="absolute left-2 top-2 flex flex-wrap gap-1">
                           {refs.map((x) => (
@@ -229,7 +249,7 @@ export function PostWorkspace({ id }: { id: string }) {
                               key={x.f.id}
                               type="button"
                               onClick={() => pick(x.f.id)}
-                              className={`flex size-6 items-center justify-center rounded-full text-xs font-bold text-white shadow ${x.f.severity === "high" ? "bg-high" : x.f.severity === "medium" ? "bg-med" : "bg-low"}`}
+                              className={`flex size-7 items-center justify-center rounded-full text-[12px] font-bold text-white shadow-md ring-2 ring-white ${x.f.severity === "high" ? "bg-high" : x.f.severity === "medium" ? "bg-med" : "bg-low"}`}
                               aria-label={`Problem ${x.ref}`}
                             >
                               {x.ref}
@@ -237,8 +257,8 @@ export function PostWorkspace({ id }: { id: string }) {
                           ))}
                         </div>
                       )}
-                      <p className="mt-1 text-xs text-ink-soft">
-                        <span className="font-medium text-ink">Image {i + 1}.</span> {alts[i] ? `Alt text: ${alts[i]}` : "No alt text yet."}
+                      <p className="mt-2 text-[13px] text-ink-soft">
+                        <span className="font-semibold text-ink">Image {i + 1}.</span> {alts[i] ? `Alt text: ${alts[i]}` : "No alt text yet."}
                       </p>
                       {ocrEdit === i ? (
                         <label className="mt-1 block text-xs text-ink-soft">
@@ -254,7 +274,7 @@ export function PostWorkspace({ id }: { id: string }) {
                         </label>
                       ) : (
                         (ocr[i] || img.analysis) && (
-                          <p className="text-xs text-ink-faint">
+                          <p className="mt-0.5 text-[13px] text-ink-faint">
                             {ocr[i] ? <>Text found in image: “{ocr[i].replace(/\n/g, " / ")}”</> : "No text found in this image."}
                             {canAct && img.analysis && (
                               <button type="button" onClick={() => setOcrEdit(i)} className="ml-1 underline hover:text-ink">
@@ -269,11 +289,12 @@ export function PostWorkspace({ id }: { id: string }) {
                 })}
               </ul>
             )}
-          </Panel>
+          </section>
 
           {canAct && (
             <Panel
-              title="Edit the post"
+              className="order-5"
+              title="Edit and re-check"
               action={
                 <Button size="sm" variant={unsaved ? "primary" : "secondary"} disabled={!!busy || !unsaved} onClick={recheck}>
                   {busy ?? "Re-check"}
@@ -284,16 +305,17 @@ export function PostWorkspace({ id }: { id: string }) {
                 value={caption}
                 onChange={(e) => setCaption(e.target.value)}
                 rows={5}
-                className="w-full rounded-md border border-line-strong px-3 py-2 font-serif text-[17px] leading-7"
+                className="w-full rounded-lg border border-line-strong px-3 py-2 font-serif text-[18px] leading-[1.6]"
                 aria-label="Caption"
               />
               <p className="mt-2 text-xs text-ink-soft">
                 {unsaved ? "You've made changes. Re-check to update the score and the findings." : "Accepted fixes appear here. Nothing changes without you."}
               </p>
               {review?.suggested_caption && review.suggested_caption !== caption && (
-                <div className="mt-3 rounded-md border border-line bg-paper p-3">
-                  <p className="text-xs font-semibold">AI-suggested version with all fixes (keeps your goal)</p>
-                  <p className="mt-1 font-serif text-[15px] leading-6">{review.suggested_caption}</p>
+                <div className="mt-4 rounded-lg bg-paper p-4">
+                  <p className="text-[13px] font-semibold">Suggested version with every fix applied</p>
+                  <p className="mt-1 font-serif text-[17px] leading-[1.55]">{review.suggested_caption}</p>
+                  <p className="mt-1 text-[12px] text-ink-faint">Written by AI to keep the post&apos;s goal. Check it before you use it.</p>
                   <Button size="sm" className="mt-2" onClick={() => setCaption(review.suggested_caption!)}>
                     Use this version
                   </Button>
@@ -302,15 +324,15 @@ export function PostWorkspace({ id }: { id: string }) {
             </Panel>
           )}
 
-          <WorkflowPanel post={post} review={review} decisions={decisions} role={role} unsaved={unsaved} onAction={act} />
-          <HistoryList history={history} />
+          <WorkflowPanel className="order-6" post={post} review={review} decisions={decisions} role={role} unsaved={unsaved} onAction={act} />
+          <HistoryList className="order-7" history={history} />
         </div>
 
-        {/* Right: the report */}
-        <div className="space-y-4">
+        {/* The report */}
+        <div className="contents lg:block lg:space-y-5">
           {review ? (
             <>
-              <Panel>
+              <Panel className="order-2">
                 <ScorePanel score={review.score} band={review.band} findings={findings} onPick={pick} />
                 {review.ai_status !== "ok" && <p className="mt-3 rounded-md bg-med-bg px-3 py-2 text-sm text-med">{AI_NOTE[review.ai_status] ?? AI_NOTE.error}</p>}
                 {(review.redacted ?? 0) > 0 && (
@@ -323,7 +345,7 @@ export function PostWorkspace({ id }: { id: string }) {
                 )}
               </Panel>
 
-              <Panel title="Post goal" action={goal && !goalEdit && canAct && <Button size="sm" variant="ghost" onClick={() => setGoalEdit(goal)}>Edit</Button>}>
+              <Panel className="order-3" title="Post goal" action={goal && !goalEdit && canAct && <Button size="sm" variant="ghost" onClick={() => setGoalEdit(goal)}>Edit</Button>}>
                 {goalEdit ? (
                   <form
                     className="space-y-2 text-sm"
@@ -377,14 +399,14 @@ export function PostWorkspace({ id }: { id: string }) {
                 )}
               </Panel>
 
-              <section aria-label="Problems found">
-                <h2 className="mb-2 text-sm font-semibold">
-                  {findings.length === 0 ? "No problems found" : `${findings.length} problem${findings.length > 1 ? "s" : ""} found`}
+              <section aria-labelledby="problems-title" className="order-4">
+                <h2 id="problems-title" className="mb-2 px-1 text-[15px] font-semibold tracking-tight">
+                  {findings.length === 0 ? "No problems found" : `${findings.length} problem${findings.length > 1 ? "s" : ""}, worst first`}
                 </h2>
                 {findings.length === 0 ? (
-                  <p className="rounded-lg border border-pass/30 bg-pass-bg p-4 text-sm text-pass">This post follows every rule and every claim matches an approved fact.</p>
+                  <p className="rounded-xl border border-pass/30 bg-pass-bg p-5 text-[14px] text-pass">This post follows every rule, and every claim matches an approved fact.</p>
                 ) : (
-                  <ul className="space-y-3">
+                  <ul className="overflow-hidden rounded-xl border border-line bg-surface">
                     {numbered.map(({ f, ref }) => (
                       <FindingCard
                         key={f.id}
@@ -405,7 +427,7 @@ export function PostWorkspace({ id }: { id: string }) {
               </section>
 
               {review.ask_human.length > 0 && (
-                <Panel title="For a human to decide">
+                <Panel className="order-4" title="For a human to decide">
                   <ul className="space-y-2 text-sm">
                     {review.ask_human.map((h, i) => (
                       <li key={i}>
@@ -418,7 +440,7 @@ export function PostWorkspace({ id }: { id: string }) {
               )}
             </>
           ) : (
-            <Panel>
+            <Panel className="order-2">
               <p className="text-sm text-ink-soft">This post hasn&apos;t been checked yet.</p>
             </Panel>
           )}

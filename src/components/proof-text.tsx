@@ -52,5 +52,5 @@ export function ProofText({ text, findings, onPick, className = "" }: { text: st
     pos = m.end;
   });
   if (pos < text.length) parts.push(text.slice(pos));
-  return <p className={`whitespace-pre-wrap font-serif text-[18px] leading-8 ${className}`}>{parts}</p>;
+  return <p className={`whitespace-pre-wrap font-serif text-[22px] leading-[1.65] text-ink ${className}`}>{parts}</p>;
 }

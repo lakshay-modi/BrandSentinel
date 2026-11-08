@@ -4,7 +4,7 @@ import { useState } from "react";
 import type { Fact, Finding } from "@/lib/types";
 import type { DecisionRow } from "@/lib/client/api";
 import { canApply, describeFix } from "@/lib/fixes";
-import { Button, SEVERITY_STYLE, SeverityTag } from "./ui";
+import { Button, IdLink, SEVERITY_STYLE, SeverityTag } from "./ui";
 
 const SOURCE_LABEL: Record<Finding["source"], string> = {
   code: "Found by fast check",
@@ -58,43 +58,41 @@ export function FindingCard({
   };
 
   return (
-    <li id={`finding-${f.id}`} className={`rounded-lg border bg-surface ${highlighted ? "flash border-low" : "border-line"} ${decision ? "opacity-80" : ""}`}>
-      <div className="flex gap-3 p-4">
-        <span className={`flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white ${s.dot}`} aria-hidden="true">
+    <li id={`finding-${f.id}`} className={`scroll-mt-24 border-b border-line last:border-0 ${highlighted ? "flash bg-low-bg/40" : ""}`}>
+      <div className="flex gap-3.5 px-5 py-4">
+        <span className={`mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full text-[12px] font-bold tabular-nums text-white ${s.dot}`} aria-hidden="true">
           {n}
         </span>
-        <div className="min-w-0 flex-1 space-y-2">
-          <div className="flex flex-wrap items-center gap-2 text-xs">
+        <div className={`min-w-0 flex-1 space-y-2.5 ${decision ? "opacity-70" : ""}`}>
+          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[13px]">
             <SeverityTag severity={f.severity} />
-            <a href={`/rulebook#${f.rule_id}`} className="font-mono font-semibold text-ink hover:underline" title="Open this rule in the Rulebook">
-              {f.rule_id}
-            </a>
-            <span className="text-ink-faint">{f.location === "caption" ? "Caption" : f.location[0].toUpperCase() + f.location.slice(1)}</span>
+            <IdLink kind="rule" id={f.rule_id} />
+            <span className="text-ink-faint">{f.location === "caption" ? "in the caption" : `in ${f.location}`}</span>
           </div>
-          <p className="text-sm leading-6">{f.message}</p>
-          <div className="rounded-md bg-paper px-3 py-2 text-xs leading-5 text-ink-soft">
+          <p className="text-[15px] leading-relaxed">{f.message}</p>
+          <div className="space-y-1 border-l-2 border-line-strong pl-3 text-[13px] leading-relaxed text-ink-soft">
             <p>
-              <span className="font-semibold text-ink">Rule {f.rule_id}:</span> {f.evidence}
+              <span className="font-semibold text-ink">Rule:</span> {f.evidence}
             </p>
             {f.fact_ids.map((id) => {
               const fact = facts.get(id);
               return (
-                <p key={id} className="mt-1">
-                  <a href={`/facts#${id}`} className="font-semibold text-ink hover:underline">Fact {id}:</a> {fact ? `${fact.fact} (${fact.source})` : "not found"}
+                <p key={id}>
+                  <span className="font-semibold text-ink">Fact</span> <IdLink kind="fact" id={id} />: {fact ? `${fact.fact} (${fact.source})` : "not found"}
                 </p>
               );
             })}
-            <p className="mt-1 text-ink-faint">{SOURCE_LABEL[f.source]}</p>
+            <p className="text-ink-faint">{SOURCE_LABEL[f.source]}</p>
           </div>
-          <p className="text-sm">
-            <span className="font-medium">{acceptable ? "Suggested fix: " : "How to fix: "}</span>
+          <p className="text-[14px] leading-relaxed">
+            <span className="font-semibold">{acceptable ? "Suggested fix: " : "How to fix: "}</span>
             <span className="text-ink-soft">{describeFix(f.fix)}</span>
-            {!inCaption && !isAlt && <span className="block text-xs text-ink-faint">This is in the image, so update the image and check again.</span>}
-            {stale && <span className="block text-xs text-ink-faint">This text has already changed in your edits. Re-check to confirm it&apos;s fixed.</span>}
+            {!inCaption && !isAlt && <span className="block text-[13px] text-ink-faint">This is inside the image, so change the image and check again.</span>}
+            {stale && <span className="block text-[13px] text-ink-faint">This text has already changed in your edits. Re-check to confirm it&apos;s fixed.</span>}
           </p>
 
           {decision ? (
-            <p className={`text-sm font-medium ${decision.action === "disagree" ? "text-med" : "text-pass"}`}>
+            <p className={`text-[14px] font-semibold ${decision.action === "disagree" ? "text-med" : "text-pass"}`}>
               {decision.action === "accept" && `Fix accepted by ${decision.actor}`}
               {decision.action === "edit" && `Edited by ${decision.actor}`}
               {decision.action === "disagree" && `${decision.actor} disagreed: “${decision.reason}”`}
@@ -126,13 +124,13 @@ export function FindingCard({
                     run(() => (mode === "edit" ? onEdit(text) : onDisagree(text)));
                   }}
                 >
-                  <label className="block text-xs text-ink-soft">
+                  <label className="block text-[13px] text-ink-soft">
                     {mode === "edit" ? (isAlt ? "Alt text for the image" : `Replace “${f.quotes[0]}” with`) : "Why do you disagree? (the reviewer will see this)"}
                     <input
                       autoFocus
                       value={text}
                       onChange={(e) => setText(e.target.value)}
-                      className="mt-1 w-full rounded-md border border-line-strong px-2 py-1.5 text-sm text-ink"
+                      className="mt-1 w-full rounded-lg border border-line-strong px-2.5 py-1.5 text-[14px] text-ink"
                       required={mode === "disagree"}
                       minLength={mode === "disagree" ? 3 : 0}
                     />

@@ -8,6 +8,7 @@ import { Button, ErrorNote, Panel, timeAgo } from "./ui";
 import { ROLE_LABEL } from "./role-provider";
 
 export function WorkflowPanel({
+  className = "",
   post,
   review,
   decisions,
@@ -15,6 +16,7 @@ export function WorkflowPanel({
   unsaved,
   onAction,
 }: {
+  className?: string;
   post: PostRow;
   review: ReviewRow | null;
   decisions: DecisionRow[];
@@ -52,17 +54,23 @@ export function WorkflowPanel({
   ];
 
   return (
-    <Panel title="Approval">
-      <ol className="mb-4 flex flex-wrap items-center gap-2 text-xs">
+    <Panel title="Approval" className={className}>
+      <ol className="mb-5 flex items-start" aria-label="Approval steps">
         {steps.map((s, i) => {
           const current = post.status === "in_review" && post.assigned_role === s.key;
+          const state = s.done ? "done" : current ? "current" : "todo";
           return (
-            <li key={s.key} className="flex items-center gap-2">
-              <span className={`rounded-full px-2.5 py-1 font-medium ${s.done ? "bg-pass-bg text-pass" : current ? "bg-low-bg text-low" : "bg-paper text-ink-soft"}`}>
-                {s.done ? "✓ " : ""}
-                {s.label}
+            <li key={s.key} className="relative flex flex-1 flex-col items-center text-center" aria-current={current ? "step" : undefined}>
+              {i > 0 && <span className={`absolute right-1/2 top-3.5 h-0.5 w-full ${steps[i - 1].done ? "bg-pass" : "bg-line"}`} aria-hidden="true" />}
+              <span
+                className={`relative z-10 flex size-7 items-center justify-center rounded-full text-[12px] font-bold ${
+                  state === "done" ? "bg-pass text-white" : state === "current" ? "bg-surface text-low ring-2 ring-low" : "bg-surface text-ink-faint ring-1 ring-line-strong"
+                }`}
+              >
+                {state === "done" ? "✓" : i + 1}
               </span>
-              {i < steps.length - 1 && <span className="text-ink-faint">›</span>}
+              <span className={`mt-1.5 px-1 text-[12.5px] leading-tight ${state === "todo" ? "text-ink-faint" : "font-semibold text-ink"}`}>{s.label}</span>
+              {current && <span className="text-[12px] text-low">Waiting</span>}
             </li>
           );
         })}
@@ -80,7 +88,7 @@ export function WorkflowPanel({
                   : "This will go straight to the brand manager: no open claims or serious problems."}
               </p>
               {unsaved && <p className="text-med">You&apos;ve changed the post since the last check. Re-check it before submitting.</p>}
-              <textarea value={comment} onChange={(e) => setComment(e.target.value)} rows={2} placeholder="Note for the reviewer (optional)" className="w-full rounded-md border border-line-strong px-2 py-1.5" />
+              <textarea value={comment} onChange={(e) => setComment(e.target.value)} rows={2} placeholder="Note for the reviewer (optional)" className="w-full rounded-lg border border-line-strong px-2.5 py-2" />
               <Button variant="primary" disabled={busy || unsaved || !review} onClick={() => run("submit")}>
                 Submit for review
               </Button>
@@ -97,7 +105,7 @@ export function WorkflowPanel({
             Waiting for the <strong>{ROLE_LABEL[post.assigned_role]}</strong>.
           </p>
           {disputes.length > 0 && (
-            <div className="rounded-md border border-med/30 bg-med-bg p-3">
+            <div className="rounded-lg border border-med/30 bg-med-bg p-3">
               <p className="font-medium text-med">The creator disagreed with {disputes.length === 1 ? "a finding" : `${disputes.length} findings`}:</p>
               <ul className="mt-1 list-disc pl-5 text-ink">
                 {disputes.map((d) => (
@@ -110,7 +118,7 @@ export function WorkflowPanel({
           )}
           {role === post.assigned_role ? (
             <>
-              <textarea value={comment} onChange={(e) => setComment(e.target.value)} rows={2} placeholder="Comment (required when sending back)" className="w-full rounded-md border border-line-strong px-2 py-1.5" />
+              <textarea value={comment} onChange={(e) => setComment(e.target.value)} rows={2} placeholder="Comment (needed when sending it back)" className="w-full rounded-lg border border-line-strong px-2.5 py-2" />
               <div className="flex flex-wrap gap-2">
                 <Button variant="success" disabled={busy} onClick={() => run("approve")}>
                   {role === "expert" ? "Approve claims" : "Approve post"}
@@ -152,9 +160,9 @@ const ACTION_LABEL: Record<string, string> = {
   approved: "approved the post",
 };
 
-export function HistoryList({ history }: { history: HistoryRow[] }) {
+export function HistoryList({ history, className = "" }: { history: HistoryRow[]; className?: string }) {
   return (
-    <Panel title="History">
+    <Panel title="History" className={className}>
       {history.length === 0 ? (
         <p className="text-sm text-ink-faint">Nothing yet.</p>
       ) : (
@@ -171,7 +179,7 @@ export function HistoryList({ history }: { history: HistoryRow[] }) {
               d.ai === "busy" || d.ai === "error" ? "AI checks skipped" : null,
             ].filter(Boolean);
             return (
-              <li key={h.id} className="border-l-2 border-line pl-3">
+              <li key={h.id} className="relative border-l-2 border-line pl-4 before:absolute before:-left-[5px] before:top-1.5 before:size-2 before:rounded-full before:bg-line-strong">
                 <p>
                   <strong>{h.actor}</strong> <span className="text-ink-faint">({ROLE_LABEL[h.role] ?? h.role})</span> {ACTION_LABEL[h.action] ?? h.action}
                 </p>
