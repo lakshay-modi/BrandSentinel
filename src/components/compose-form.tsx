@@ -78,6 +78,8 @@ export function ComposeForm() {
       router.push(`/post?id=${res.post_id}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      // the page stays mounted in the background after navigating, so always reset the button
       setBusy(null);
     }
   }
