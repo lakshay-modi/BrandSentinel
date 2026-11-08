@@ -78,3 +78,16 @@ describe("proof check with count-type findings", () => {
     expect(r.findings.find((f) => f.rule_id === "TONE-05")?.source).toBe("code+ai");
   });
 });
+
+describe("proof check with missing-element findings", () => {
+  it("keeps an AI finding about something missing (empty quote) under an AI-checked rule", () => {
+    const p4 = { ...samplePosts(true).find((p) => p.id === "P08")!, caption: "Loving this snack! #OatviaEveryday", partner: true };
+    const c4 = assignIds(runCodeChecks({ input: p4, rules, facts: demoFacts, brand: demoBrand, today: "2026-11-08" }).filter((f) => f.rule_id !== "CLAIM-08"));
+    // as for an imported brand, where every rule is checked by the AI
+    const aiRules = new Map([...rules].map(([k, v]) => [k, { ...v, check_type: "ai" as const }]));
+    const r = proofCheck(ai([{ rule_id: "CLAIM-08", location: "caption", quote: "", message: "Paid post without #ad" }]), c4, p4, aiRules, demoFacts);
+    const f = r.findings.find((x) => x.rule_id === "CLAIM-08");
+    expect(f?.source).toBe("ai");
+    expect(f?.quotes).toEqual([]);
+  });
+});
