@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { actorSchema, fail, json, readJson, ROLE_LABEL, roleSchema } from "@/lib/api";
+import { actorSchema, fail, json, readJson, ROLE_LABEL, roleSchema, serverError } from "@/lib/api";
 import { addHistory, db } from "@/lib/db";
 import { needsExpert } from "@/lib/review/score";
 import type { Finding } from "@/lib/types";
@@ -25,6 +25,8 @@ export async function POST(req: Request, ctx: RouteContext<"/api/posts/[id]/acti
     const now = new Date().toISOString();
 
     if (action === "confirm_goal") {
+      if (role !== "creator") return fail("Only the creator confirms the post's goal.", 403);
+      if (post.status !== "draft" && post.status !== "changes_requested") return fail("The goal can't change while the post is in review or approved.", 409);
       if (!goal) return fail("Send the goal to confirm");
       await db().from("posts").update({ goal, goal_confirmed: true, updated_at: now }).eq("id", id);
       await addHistory(id, "confirmed goal", role, actor, goal);
@@ -70,6 +72,6 @@ export async function POST(req: Request, ctx: RouteContext<"/api/posts/[id]/acti
     await addHistory(id, "approved", role, actor, { comment });
     return json({ ok: true, status: "approved" });
   } catch (e) {
-    return fail(String(e instanceof Error ? e.message : e), 500);
+    return serverError(e, "posts/[id]/action");
   }
 }

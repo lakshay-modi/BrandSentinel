@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { fail, json } from "@/lib/api";
+import { fail, json, serverError } from "@/lib/api";
 
 /** One post with its latest review, every human decision and the full history. */
 export async function GET(_req: Request, ctx: RouteContext<"/api/posts/[id]">) {
@@ -15,6 +15,6 @@ export async function GET(_req: Request, ctx: RouteContext<"/api/posts/[id]">) {
     if (!post.data) return fail("Post not found", 404);
     return json({ post: post.data, review: review.data, decisions: decisions.data ?? [], history: history.data ?? [] });
   } catch (e) {
-    return fail(String(e instanceof Error ? e.message : e), 500);
+    return serverError(e, "posts/[id]");
   }
 }

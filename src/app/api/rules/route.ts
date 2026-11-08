@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { actorSchema, fail, json, readJson, roleSchema } from "@/lib/api";
+import { actorSchema, fail, json, readJson, roleSchema, serverError } from "@/lib/api";
 import { db, getBrandContext } from "@/lib/db";
 
 const PREFIX = { tone: "TONE", words: "WORD", claims: "CLAIM", visuals: "VIS", readability: "READ" } as const;
@@ -39,6 +39,6 @@ export async function POST(req: Request) {
     await db().from("brands").update({ rulebook_version: brand.rulebook_version + 1 }).eq("id", brand.id);
     return json({ rule: data, rulebook_version: brand.rulebook_version + 1 });
   } catch (e) {
-    return fail(String(e instanceof Error ? e.message : e), 500);
+    return serverError(e, "rules");
   }
 }

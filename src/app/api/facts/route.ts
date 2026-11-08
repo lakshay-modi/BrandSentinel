@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { actorSchema, fail, json, readJson, roleSchema } from "@/lib/api";
+import { actorSchema, fail, json, readJson, roleSchema, serverError } from "@/lib/api";
 import { db, getBrandContext } from "@/lib/db";
 import { factFields } from "@/lib/schemas";
 
@@ -20,6 +20,6 @@ export async function POST(req: Request) {
     if (error) throw new Error(error.message);
     return json({ fact: data });
   } catch (e) {
-    return fail(String(e instanceof Error ? e.message : e), 500);
+    return serverError(e, "facts");
   }
 }

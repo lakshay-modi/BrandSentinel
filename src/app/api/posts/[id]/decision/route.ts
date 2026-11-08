@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { actorSchema, fail, json, readJson, roleSchema } from "@/lib/api";
+import { actorSchema, fail, json, readJson, roleSchema, serverError } from "@/lib/api";
 import { addHistory, db } from "@/lib/db";
 
 const bodySchema = z
@@ -21,9 +21,13 @@ export async function POST(req: Request, ctx: RouteContext<"/api/posts/[id]/deci
   if (!body.ok) return body.res;
   const b = body.data;
   try {
+    if (b.role !== "creator") return fail("Only the creator accepts, edits or disagrees with findings.", 403);
     const { data: post } = await db().from("posts").select("status").eq("id", id).maybeSingle();
     if (!post) return fail("Post not found", 404);
-    if (post.status === "approved") return fail("This post is already approved.", 409);
+    if (post.status !== "draft" && post.status !== "changes_requested") return fail("This post is in review or approved, so its findings can't change.", 409);
+    // the decision must be about this post's latest check
+    const { data: latest } = await db().from("reviews").select("id").eq("post_id", id).order("created_at", { ascending: false }).limit(1).maybeSingle();
+    if (!latest || latest.id !== b.review_id) return fail("The post was re-checked. Reload to see the latest findings.", 409);
     const { data, error } = await db()
       .from("decisions")
       .insert({ post_id: id, review_id: b.review_id, finding_id: b.finding_id, rule_id: b.rule_id, action: b.action, reason: b.reason ?? null, role: b.role, actor: b.actor })
@@ -37,6 +41,6 @@ export async function POST(req: Request, ctx: RouteContext<"/api/posts/[id]/deci
     });
     return json({ decision: data });
   } catch (e) {
-    return fail(String(e instanceof Error ? e.message : e), 500);
+    return serverError(e, "posts/[id]/decision");
   }
 }

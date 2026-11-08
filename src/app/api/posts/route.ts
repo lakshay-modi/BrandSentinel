@@ -1,6 +1,6 @@
 import { connection } from "next/server";
 import { db, getBrandContext } from "@/lib/db";
-import { fail, json } from "@/lib/api";
+import { json, serverError } from "@/lib/api";
 
 /** All posts for the demo brand, newest first, with their latest brand score. */
 export async function GET() {
@@ -22,6 +22,6 @@ export async function GET() {
     for (const r of reviews ?? []) if (!latest.has(r.post_id)) latest.set(r.post_id, { score: r.score, band: r.band, problems: (r.findings ?? []).length });
     return json({ posts: (posts ?? []).map((p) => ({ ...p, latest: latest.get(p.id) ?? null })) });
   } catch (e) {
-    return fail(String(e instanceof Error ? e.message : e), 500);
+    return serverError(e, "posts");
   }
 }

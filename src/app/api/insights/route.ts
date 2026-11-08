@@ -1,6 +1,6 @@
 import { connection } from "next/server";
 import { db, getBrandContext } from "@/lib/db";
-import { fail, json } from "@/lib/api";
+import { json, serverError } from "@/lib/api";
 import { computeInsights } from "@/lib/insights";
 import { todayIST } from "@/lib/checks/text-utils";
 
@@ -19,6 +19,6 @@ export async function GET() {
       : [{ data: [] }, { data: [] }];
     return json(computeInsights({ posts: posts ?? [], reviews: reviews.data ?? [], decisions: decisions.data ?? [], rules, facts, today: todayIST() }));
   } catch (e) {
-    return fail(String(e instanceof Error ? e.message : e), 500);
+    return serverError(e, "insights");
   }
 }

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { actorSchema, clientId, fail, json, postInputSchema, readJson, roleSchema } from "@/lib/api";
+import { actorSchema, clientId, fail, json, postInputSchema, readJson, roleSchema, serverError } from "@/lib/api";
 import { addHistory, db, getBrandContext } from "@/lib/db";
 import { runReview } from "@/lib/review/run-review";
 import type { PostInput } from "@/lib/types";
@@ -36,6 +36,7 @@ export async function POST(req: Request) {
 
     let postId = post_id;
     if (postId) {
+      if (role !== "creator") return fail("Only the creator changes and re-checks a post.", 403);
       const { data: existing } = await db().from("posts").select("id, status").eq("id", postId).single();
       if (!existing) return fail("Post not found", 404);
       if (existing.status === "in_review" || existing.status === "approved")
@@ -87,6 +88,6 @@ export async function POST(req: Request) {
 
     return json({ post_id: postId, review: { ...result, id: review.id, created_at: review.created_at } });
   } catch (e) {
-    return fail(String(e instanceof Error ? e.message : e), 500);
+    return serverError(e, "review");
   }
 }

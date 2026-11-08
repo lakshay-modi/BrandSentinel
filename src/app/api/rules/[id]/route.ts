@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { actorSchema, fail, json, readJson, roleSchema } from "@/lib/api";
+import { actorSchema, fail, json, readJson, roleSchema, serverError } from "@/lib/api";
 import { db, getBrandContext } from "@/lib/db";
 
 const bodySchema = z.object({
@@ -40,6 +40,6 @@ export async function PATCH(req: Request, ctx: RouteContext<"/api/rules/[id]">) 
     await db().from("brands").update({ rulebook_version: brand.rulebook_version + 1 }).eq("id", brand.id);
     return json({ rule: data, rulebook_version: brand.rulebook_version + 1 });
   } catch (e) {
-    return fail(String(e instanceof Error ? e.message : e), 500);
+    return serverError(e, "rules/[id]");
   }
 }

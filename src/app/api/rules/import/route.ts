@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
-import { actorSchema, clientId, fail, json, readJson, roleSchema } from "@/lib/api";
+import { actorSchema, clientId, fail, json, readJson, roleSchema, serverError } from "@/lib/api";
 import { db, getBrandContext, getCache, setCache } from "@/lib/db";
 import { callGemini, parseJson } from "@/lib/ai/gemini";
 import { IMPORT_SYSTEM_PROMPT, buildImportPrompt, importResponseSchema, quoteInDocument, type ImportedRule } from "@/lib/ai/import-prompt";
@@ -114,6 +114,6 @@ export async function POST(req: Request) {
     }
     return json({ added: rows.map((r) => r.id), duplicates, unproven, pages: doc.pages, chars: clipped.length, truncated: text.length > MAX_TEXT, model: drafted.model, actor });
   } catch (e) {
-    return fail(String(e instanceof Error ? e.message : e), 500);
+    return serverError(e, "rules/import");
   }
 }
