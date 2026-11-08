@@ -58,6 +58,7 @@ export interface ImageAnalysis {
   ocr_text: string;
   lines: { text: string; contrast: number; fg: string; bg: string; large: boolean }[];
   dominant: { hex: string; share: number }[]; // colours covering a big share of the image
+  ocr_error?: string; // set when the text in the image couldn't be read
 }
 
 export interface PostImage {

@@ -14,6 +14,7 @@ const analysisSchema = z.object({
     .max(40)
     .default([]),
   dominant: z.array(z.object({ hex: z.string().max(9), share: z.number() })).max(10).default([]),
+  ocr_error: z.string().max(300).optional(),
 });
 
 export const postInputSchema = z.object({

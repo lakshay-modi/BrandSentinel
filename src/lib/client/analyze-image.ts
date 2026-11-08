@@ -71,7 +71,11 @@ function textColours(ctx: CanvasRenderingContext2D, box: { x0: number; y0: numbe
 
 let workerPromise: Promise<import("tesseract.js").Worker> | null = null;
 async function ocrWorker() {
-  if (!workerPromise) workerPromise = import("tesseract.js").then((t) => t.createWorker("eng"));
+  // The OCR engine and English language data are served from /public/tesseract, so OCR never depends on a CDN.
+  if (!workerPromise)
+    workerPromise = import("tesseract.js").then((t) =>
+      t.createWorker("eng", 1, { workerPath: "/tesseract/worker.min.js", corePath: "/tesseract/core", langPath: "/tesseract/lang" }),
+    );
   return workerPromise;
 }
 
@@ -91,8 +95,14 @@ export async function analyzeImage(src: string, onStatus?: (s: string) => void):
 
   // text: OCR, then contrast per line
   onStatus?.("Reading text in the image…");
-  const worker = await ocrWorker();
-  const { data } = await worker.recognize(canvas, {}, { blocks: true, text: true });
+  let data: { blocks: import("tesseract.js").Block[] | null; text: string };
+  try {
+    const worker = await ocrWorker();
+    data = (await worker.recognize(canvas, {}, { blocks: true, text: true })).data;
+  } catch (e) {
+    workerPromise = null;
+    return { ocr_text: "", lines: [], dominant, ocr_error: e instanceof Error ? e.message : String(e) };
+  }
   const lines: ImageAnalysis["lines"] = [];
   for (const block of data.blocks ?? [])
     for (const para of block.paragraphs)
