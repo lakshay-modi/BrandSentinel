@@ -6,10 +6,15 @@ import "./globals.css";
 import { RoleProvider } from "@/components/role-provider";
 import { AppShell } from "@/components/app-shell";
 
+const DESCRIPTION = "Check posts against brand rules and approved facts, see the proof behind every problem, and approve with a human in control.";
+
 export const metadata: Metadata = {
-  title: "BrandSentinel: catch brand mistakes before they go live",
-  description:
-    "Check posts against brand rules and approved facts, see the proof behind every problem, and approve with a human in control.",
+  metadataBase: new URL("https://brand-sentinel-delta.vercel.app"),
+  title: { default: "BrandSentinel: catch brand mistakes before they go live", template: "%s · BrandSentinel" },
+  description: DESCRIPTION,
+  // a clean preview when the link is shared (for example in a chat)
+  openGraph: { type: "website", siteName: "BrandSentinel", title: "BrandSentinel: catch brand mistakes before they go live", description: DESCRIPTION, url: "/" },
+  twitter: { card: "summary", title: "BrandSentinel", description: DESCRIPTION },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
