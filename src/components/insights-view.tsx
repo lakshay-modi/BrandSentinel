@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { Insights } from "@/lib/insights";
-import { ErrorNote, Panel, SeverityTag } from "./ui";
+import { ErrorNote, Panel, SeverityTag, PageSkeleton } from "./ui";
 
 const CATEGORY_LABEL: Record<string, string> = { tone: "Tone", words: "Words and names", claims: "Claims", visuals: "Visuals", readability: "Readability" };
 
@@ -36,7 +36,7 @@ export function InsightsView() {
   }, []);
 
   if (error) return <ErrorNote>{error}</ErrorNote>;
-  if (!data) return <p className="text-sm text-ink-soft">Loading…</p>;
+  if (!data) return <PageSkeleton rows={5} />;
   const t = data.totals;
   const maxCount = Math.max(1, ...data.top_rules.map((r) => r.count));
 

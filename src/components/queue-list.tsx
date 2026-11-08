@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { api, type PostRow } from "@/lib/client/api";
-import { CHANNEL_LABEL, ErrorNote, StatusTag, timeAgo } from "./ui";
+import { CHANNEL_LABEL, ErrorNote, StatusTag, timeAgo, PageSkeleton } from "./ui";
 import { ROLE_LABEL, useRole } from "./role-provider";
 
 type Row = PostRow & { latest: { score: number; band: string; problems: number } | null };
@@ -45,7 +45,7 @@ export function QueueList() {
       </div>
 
       {error && <ErrorNote>{error}</ErrorNote>}
-      {!rows && !error && <p className="text-sm text-ink-soft">Loading…</p>}
+      {!rows && !error && <PageSkeleton rows={4} />}
       {rows && shown.length === 0 && (
         <div className="rounded-xl border border-dashed border-line-strong bg-surface p-10 text-center text-[14px]">
           <p className="text-[16px] font-semibold">Nothing waiting for you</p>

@@ -85,3 +85,23 @@ export function IdLink({ kind, id, className = "" }: { kind: "rule" | "fact"; id
     </a>
   );
 }
+
+/** A grey placeholder block shown while data loads. */
+export function Skeleton({ className = "" }: { className?: string }) {
+  return <div aria-hidden="true" className={`animate-pulse rounded-lg bg-line/70 motion-reduce:animate-none ${className}`} />;
+}
+
+/** Placeholder for a whole page while its data loads. */
+export function PageSkeleton({ rows = 4 }: { rows?: number }) {
+  return (
+    <div role="status" aria-label="Loading" className="space-y-4">
+      <Skeleton className="h-9 w-72" />
+      <Skeleton className="h-4 w-[28rem] max-w-full" />
+      <div className="space-y-3 pt-2">
+        {Array.from({ length: rows }, (_, i) => (
+          <Skeleton key={i} className="h-20 w-full" />
+        ))}
+      </div>
+    </div>
+  );
+}

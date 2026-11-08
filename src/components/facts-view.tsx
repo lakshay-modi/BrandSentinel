@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useHashScroll } from "@/lib/client/use-hash-scroll";
 import { api, type BrandData } from "@/lib/client/api";
 import type { Fact } from "@/lib/types";
-import { Button, ErrorNote } from "./ui";
+import { Button, ErrorNote, PageSkeleton } from "./ui";
 import { useRole } from "./role-provider";
 
 const TYPES = ["nutrition", "allergen", "diet", "origin", "environment", "price", "availability", "offer", "company", "restriction", "general"];
@@ -122,7 +122,7 @@ export function FactsView() {
           }}
         />
       )}
-      {!data && !error && <p className="text-sm text-ink-soft">Loading…</p>}
+      {!data && !error && <PageSkeleton rows={6} />}
       {data && (
         <div className="overflow-x-auto rounded-lg border border-line bg-surface">
           <table className="w-full min-w-[720px] text-left text-sm">
