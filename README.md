@@ -14,7 +14,8 @@ Built for the CodeTitans India 2026 hackathon (problem statement by Inkloom AI).
 4. **Accept** a fix, **Edit** it, or **Disagree** with a reason. Then **Re-check** and **Submit for review**.
 5. Switch to **Expert reviewer** or **Brand manager** and approve it or send it back from the **Review queue**.
 6. Open **Insights** to see the most common problems and the rules people disagree with.
-7. As **Brand manager**, open **Rulebook → Import from PDF → Try the sample addendum**. The AI drafts new rules from the PDF, skips the ones the Rulebook already has, and you approve or reject each draft. Approved rules are used in the next check.
+7. Open **Test results** (link in the footer) to see the fast checks run on all 10 sample posts in your browser, compared with the answer key.
+8. As **Brand manager**, open **Rulebook → Import from PDF → Try the sample addendum**. The AI drafts new rules from the PDF, skips the ones the Rulebook already has, and you approve or reject each draft. Approved rules are used in the next check.
 
 The demo brand, **Oatvia Foods**, is fictional. Its [brand guidelines PDF](public/demo/Oatvia_Brand_Guidelines.pdf) defines 26 rules and 16 approved facts.
 

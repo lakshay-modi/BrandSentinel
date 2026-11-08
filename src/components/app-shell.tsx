@@ -76,7 +76,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </header>
       <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6">{children}</main>
       <footer className="border-t border-line py-4 text-center text-xs text-ink-faint">
-        BrandSentinel prototype. AI checks use the Gemini API free tier, on fictional demo data only. Every AI finding is checked against real rules and facts before it&apos;s shown.
+        BrandSentinel prototype. AI checks use the Gemini API free tier, on fictional demo data only. Every AI finding is checked against real rules and facts before it&apos;s shown.{" "}
+        <a href="/tests" className="underline hover:text-ink">
+          Test results
+        </a>
+        {" · "}
+        <a href="https://github.com/lakshay-modi/BrandSentinel" target="_blank" className="underline hover:text-ink">
+          Source code
+        </a>
       </footer>
     </div>
   );

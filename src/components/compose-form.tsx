@@ -229,6 +229,9 @@ export function ComposeForm() {
             <li>A proof check drops any AI finding that doesn&apos;t point to a real rule, quote and fact.</li>
             <li>You accept, edit or disagree with each fix. A person approves the post.</li>
           </ol>
+          <a href="/tests" className="mt-3 inline-block text-sm font-medium underline">
+            See how it scores on the test posts
+          </a>
         </section>
         <a href="/demo/Oatvia_Brand_Guidelines.pdf" target="_blank" className="block rounded-lg border border-line bg-surface p-4 hover:border-ink">
           <span className="font-semibold">Oatvia brand guidelines (PDF)</span>
