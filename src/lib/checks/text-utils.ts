@@ -56,6 +56,16 @@ export function clauseAround(text: string, m: Match): string {
     .trim();
 }
 
+/** A short quote for a comparison: up to two words before the match, to the end of the clause ("way tastier than other snacks"). */
+export function comparisonAround(text: string, m: Match): string {
+  const clause = clauseAround(text, m);
+  const start = text.indexOf(clause);
+  const before = text.slice(start, m.index).trimEnd().split(/\s+/).filter(Boolean);
+  const lead = before.slice(-2).join(" ");
+  const rest = clause.slice(m.index - start);
+  return (lead ? lead + " " : "") + rest.trim();
+}
+
 export function hashtags(text: string): string[] {
   return findAll(text, /#[\p{L}\p{N}_]+/gu).map((m) => m.text);
 }

@@ -1,6 +1,6 @@
 // Fast checks: plain code, no AI. Same input always gives the same result.
 import type { BrandSettings, Fact, Finding, Fix, Location, PostInput, Rule } from "../types";
-import { clauseAround, emojis, escapeRegex, findAll, findPhrases, formatDate, hashtags, phraseRegex, type Match } from "./text-utils";
+import { clauseAround, comparisonAround, emojis, escapeRegex, findAll, findPhrases, formatDate, hashtags, phraseRegex, type Match } from "./text-utils";
 import { extractNumbers, sameNumber } from "./numbers";
 
 export interface CheckContext {
@@ -341,8 +341,8 @@ export function runCodeChecks(ctx: CheckContext): Finding[] {
     for (const s of srcs) {
       const clauses: string[] = [];
       for (const m of findPhrases(s.text, r.params.phrases ?? [])) {
-        const c = clauseAround(s.text, m);
-        if (!clauses.includes(c)) clauses.push(c);
+        const c = comparisonAround(s.text, m);
+        if (!clauses.some((k) => k.includes(c) || c.includes(k))) clauses.push(c);
       }
       report(out, r, s, clauses.map((c) => ({
         quote: c,
