@@ -81,8 +81,16 @@ body {
   }
 }
 
+/* a rule or fact opened from a link (/rulebook#CLAIM-01) is highlighted */
+.target-flash:target {
+  animation: flash 1.6s ease-out;
+  outline: 2px solid var(--color-low);
+  outline-offset: 2px;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .flash {
+  .flash,
+  .target-flash:target {
     animation: none;
   }
 }

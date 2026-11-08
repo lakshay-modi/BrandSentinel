@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useHashScroll } from "@/lib/client/use-hash-scroll";
 import { api, type BrandData } from "@/lib/client/api";
 import type { Fact } from "@/lib/types";
 import { Button, ErrorNote } from "./ui";
@@ -73,6 +74,7 @@ function FactForm({ fact, onSave, onCancel }: { fact: Partial<Fact>; onSave: (f:
 export function FactsView() {
   const { role, name } = useRole();
   const [data, setData] = useState<BrandData | null>(null);
+  useHashScroll(!!data);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
 
@@ -152,7 +154,7 @@ export function FactsView() {
                     </td>
                   </tr>
                 ) : (
-                  <tr key={f.id} className={f.valid_until < today ? "bg-paper text-ink-faint" : ""}>
+                  <tr key={f.id} id={f.id} className={`target-flash scroll-mt-24 ${f.valid_until < today ? "bg-paper text-ink-faint" : ""}`}>
                     <td className="px-3 py-2 font-mono font-semibold">{f.id}</td>
                     <td className="px-3 py-2">{f.product}</td>
                     <td className="px-3 py-2">{f.fact}</td>

@@ -66,7 +66,9 @@ export function FindingCard({
         <div className="min-w-0 flex-1 space-y-2">
           <div className="flex flex-wrap items-center gap-2 text-xs">
             <SeverityTag severity={f.severity} />
-            <span className="font-mono font-semibold text-ink">{f.rule_id}</span>
+            <a href={`/rulebook#${f.rule_id}`} className="font-mono font-semibold text-ink hover:underline" title="Open this rule in the Rulebook">
+              {f.rule_id}
+            </a>
             <span className="text-ink-faint">{f.location === "caption" ? "Caption" : f.location[0].toUpperCase() + f.location.slice(1)}</span>
           </div>
           <p className="text-sm leading-6">{f.message}</p>
@@ -78,7 +80,7 @@ export function FindingCard({
               const fact = facts.get(id);
               return (
                 <p key={id} className="mt-1">
-                  <span className="font-semibold text-ink">Fact {id}:</span> {fact ? `${fact.fact} (${fact.source})` : "not found"}
+                  <a href={`/facts#${id}`} className="font-semibold text-ink hover:underline">Fact {id}:</a> {fact ? `${fact.fact} (${fact.source})` : "not found"}
                 </p>
               );
             })}

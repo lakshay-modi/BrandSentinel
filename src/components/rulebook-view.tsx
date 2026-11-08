@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useHashScroll } from "@/lib/client/use-hash-scroll";
 import { api, type BrandData } from "@/lib/client/api";
 import type { Category, Rule, Severity } from "@/lib/types";
 import { Button, ErrorNote, SeverityTag } from "./ui";
@@ -92,6 +93,7 @@ function RuleEditor({ rule, onSave, onCancel }: { rule: Partial<Rule>; onSave: (
 export function RulebookView() {
   const { role, name } = useRole();
   const [data, setData] = useState<BrandData | null>(null);
+  useHashScroll(!!data);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
   const [filter, setFilter] = useState<Category | "all">("all");
@@ -173,7 +175,7 @@ export function RulebookView() {
       {!data && !error && <p className="text-sm text-ink-soft">Loading…</p>}
       <ul className="space-y-3">
         {rules.map((r) => (
-          <li key={r.id} className={`rounded-lg border bg-surface p-4 ${r.status === "draft" ? "border-med/40" : "border-line"}`}>
+          <li key={r.id} id={r.id} className={`target-flash scroll-mt-24 rounded-lg border bg-surface p-4 ${r.status === "draft" ? "border-med/40" : "border-line"}`}>
             <div className="flex flex-wrap items-center gap-2 text-xs">
               <span className="font-mono text-sm font-semibold">{r.id}</span>
               <SeverityTag severity={r.severity} />
