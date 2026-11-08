@@ -15,19 +15,25 @@ const ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models";
 
 function models(): string[] {
   const primary = process.env.GEMINI_MODEL?.trim();
-  return [...new Set([primary, "gemini-3.8-flash", "gemini-flash-latest", "gemini-2.5-flash"].filter((m): m is string => !!m))];
+  return [...new Set([primary, "gemini-3.8-flash", "gemini-flash-latest", "gemini-2.5-flash", "gemini-flash-lite-latest"].filter((m): m is string => !!m))];
 }
 
 export function aiConfigured(): boolean {
   return !!process.env.GEMINI_API_KEY;
 }
 
-/** Calls Gemini and returns the raw JSON text. Tries fallback model names if one isn't available. */
-export async function callGemini(system: string, parts: AiPart[], timeoutMs = 25000): Promise<AiCallResult> {
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Calls Gemini and returns the raw JSON text.
+ * Free-tier limits and outages are per model, so on "busy" answers (429, 5xx) or an unknown model (404)
+ * it retries once and then falls back to the next Flash model, within a total time budget.
+ */
+export async function callGemini(system: string, parts: AiPart[], budgetMs = 45000): Promise<AiCallResult> {
   const key = process.env.GEMINI_API_KEY;
   if (!key) return { ok: false, status: "off", detail: "GEMINI_API_KEY is not set" };
 
-  const body = {
+  const body = JSON.stringify({
     systemInstruction: { parts: [{ text: system }] },
     contents: [
       {
@@ -36,38 +42,54 @@ export async function callGemini(system: string, parts: AiPart[], timeoutMs = 25
       },
     ],
     generationConfig: { temperature: 0.1, responseMimeType: "application/json" },
-  };
+  });
 
-  let lastDetail = "";
+  const deadline = Date.now() + budgetMs;
+  const tried: string[] = [];
+  let sawBusy = false;
+
   for (const model of models()) {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
-    try {
-      const res = await fetch(`${ENDPOINT}/${model}:generateContent`, {
-        method: "POST",
-        headers: { "content-type": "application/json", "x-goog-api-key": key },
-        body: JSON.stringify(body),
-        signal: controller.signal,
-      });
-      if (res.status === 429) return { ok: false, status: "busy", detail: "Gemini rate limit reached" };
-      if (res.status === 404 || res.status === 400) {
-        lastDetail = `${model}: ${res.status} ${(await res.text()).slice(0, 200)}`;
-        if (res.status === 404) continue; // model name not available: try the next one
-        return { ok: false, status: "error", detail: lastDetail };
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const left = deadline - Date.now();
+      if (left < 3000) return { ok: false, status: "busy", detail: `Out of time. Tried: ${tried.join(", ")}` };
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), Math.min(25000, left));
+      try {
+        const res = await fetch(`${ENDPOINT}/${model}:generateContent`, {
+          method: "POST",
+          headers: { "content-type": "application/json", "x-goog-api-key": key },
+          body,
+          signal: controller.signal,
+        });
+        if (res.ok) {
+          const json = await res.json();
+          const text: string = (json?.candidates?.[0]?.content?.parts ?? []).map((p: { text?: string }) => p.text ?? "").join("");
+          if (text) return { ok: true, text, model };
+          tried.push(`${model}: empty (${json?.candidates?.[0]?.finishReason ?? "unknown"})`);
+          break;
+        }
+        tried.push(`${model}: ${res.status}`);
+        if (res.status === 404) break; // this model name isn't available: next model
+        if (res.status === 429 || res.status >= 500) {
+          sawBusy = true;
+          if (attempt === 0 && res.status >= 500) {
+            await sleep(800);
+            continue; // one quick retry on a temporary outage
+          }
+          break; // next model has its own free-tier limit
+        }
+        return { ok: false, status: "error", detail: `${model}: ${res.status} ${(await res.text()).slice(0, 200)}` };
+      } catch (e) {
+        const aborted = e instanceof Error && e.name === "AbortError";
+        tried.push(`${model}: ${aborted ? "timeout" : "network error"}`);
+        sawBusy = true;
+        break;
+      } finally {
+        clearTimeout(timer);
       }
-      if (!res.ok) return { ok: false, status: res.status >= 500 ? "busy" : "error", detail: `${model}: HTTP ${res.status}` };
-      const json = await res.json();
-      const text: string = (json?.candidates?.[0]?.content?.parts ?? []).map((p: { text?: string }) => p.text ?? "").join("");
-      if (!text) return { ok: false, status: "error", detail: `${model}: empty response (${json?.candidates?.[0]?.finishReason ?? "unknown"})` };
-      return { ok: true, text, model };
-    } catch (e) {
-      const aborted = e instanceof Error && e.name === "AbortError";
-      return { ok: false, status: aborted ? "busy" : "error", detail: aborted ? "Gemini timed out" : String(e) };
-    } finally {
-      clearTimeout(timer);
     }
   }
-  return { ok: false, status: "error", detail: lastDetail || "No Gemini model available" };
+  return { ok: false, status: sawBusy ? "busy" : "error", detail: `No model answered. Tried: ${tried.join(", ")}` };
 }
 
 /** Pulls the first JSON object out of a model reply (handles stray ```json fences). */
