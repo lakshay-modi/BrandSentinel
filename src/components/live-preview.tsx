@@ -19,6 +19,9 @@ export function LivePreview({ input }: { input: PostInput }) {
   const brand = useBrand();
   const deferred = useDeferredValue(input);
 
+  // rules with a fast check; a brand whose rules were all imported from a PDF has only AI-checked rules
+  const fastRules = useMemo(() => (brand?.rules ?? []).filter((r) => r.status === "approved" && r.check_type.includes("code")).length, [brand]);
+
   const result = useMemo(() => {
     if (!brand || !deferred.caption.trim()) return null;
     const rules = new Map(brand.rules.filter((r) => r.status === "approved").map((r) => [r.id, r]));
@@ -27,6 +30,15 @@ export function LivePreview({ input }: { input: PostInput }) {
   }, [brand, deferred]);
 
   if (!input.caption.trim()) return null;
+
+  if (brand && fastRules === 0) {
+    return (
+      <p className="mx-5 mt-4 rounded-xl border border-line bg-paper/50 px-4 py-3 text-[13px] text-ink-soft">
+        <span className="font-semibold text-ink">No live preview for {brand.brand.name}.</span> Its rules were imported from its guidelines and are checked by the AI, which
+        runs when you press Check post.
+      </p>
+    );
+  }
 
   return (
     <section aria-label="Live preview" className="mx-5 mt-4 rounded-xl border border-line bg-paper/50">
@@ -56,7 +68,7 @@ export function LivePreview({ input }: { input: PostInput }) {
         <div className="px-4 py-3">
           <ProofText text={deferred.caption} findings={result.findings.map((f, i) => ({ f, ref: i + 1 }))} className="!text-[17px]" />
           {result.findings.length === 0 ? (
-            <p className="mt-2 text-[13px] text-pass">No problems in the caption so far.</p>
+            <p className="mt-2 text-[13px] text-pass">The fast checks find no problems in the caption so far.</p>
           ) : (
             <ol className="mt-3 space-y-1.5">
               {result.findings.map((f, i) => {
@@ -72,7 +84,9 @@ export function LivePreview({ input }: { input: PostInput }) {
               })}
             </ol>
           )}
-          <p className="mt-3 text-[12px] text-ink-faint">Fast checks on the caption, as you type. Images, the AI check and the proof check run when you press Check post.</p>
+          <p className="mt-3 text-[12px] text-ink-faint">
+            Fast checks on the caption ({fastRules} rules), as you type. Images, the AI check and the proof check run when you press Check post, so the final score can be lower.
+          </p>
         </div>
       )}
     </section>
