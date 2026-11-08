@@ -9,15 +9,16 @@ Built for the CodeTitans India 2026 hackathon (problem statement by Inkloom AI).
 ## Try it in 2 minutes
 
 1. Open the live demo. You're the **Creator** (switch roles at the top right).
-2. Click a sample post, for example **Launch post**, then **Check post**.
-3. Every problem is underlined in the caption and numbered. Each one shows the rule ID, the fact that proves it, and a fix.
+2. Click a sample post, for example **Launch post**. The **live preview** underlines problems in the caption as you type. Then click **Check post**.
+3. Every problem is underlined in the post and numbered. Each one shows the rule ID, the fact that proves it, and a fix. Filter by severity, point at a mark to find its problem, or press **J** and **K** to move between problems.
 4. **Accept** a fix, **Edit** it, or **Disagree** with a reason. Then **Re-check** and **Submit for review**.
 5. Switch to **Expert reviewer** or **Brand manager** and approve it or send it back from the **Review queue**.
 6. Open **Insights** to see the most common problems and the rules people disagree with.
 7. Open **Test results** (link in the footer) to see the fast checks run on all 10 sample posts in your browser, compared with the answer key.
 8. As **Brand manager**, open **Rulebook → Import from PDF → Try the sample addendum**. The AI drafts new rules from the PDF, skips the ones the Rulebook already has, and you approve or reject each draft. Approved rules are used in the next check.
+9. Switch the **Brand** (top left, under the header) to **Solvira Skincare**, a second brand whose Rulebook was imported from its own PDF, and check its sample posts.
 
-The demo brand, **Oatvia Foods**, is fictional. Its [brand guidelines PDF](public/demo/Oatvia_Brand_Guidelines.pdf) defines 26 rules and 16 approved facts.
+Both demo brands are fictional. **Oatvia Foods**' [guidelines PDF](public/demo/Oatvia_Brand_Guidelines.pdf) defines 26 rules and 16 approved facts; **Solvira Skincare**'s [guidelines PDF](public/demo/solvira/Solvira_Brand_Guidelines.pdf) became 18 rules through the import, plus 7 facts.
 
 ## What makes it different
 
@@ -61,6 +62,7 @@ npm test
 - The fast checks alone catch **all 41 planted mistakes with zero false flags** on these posts. (The same rules and posts were written by the same team, so this proves the checks work, not that they catch everything. The AI layer exists for reworded and new cases.)
 - The proof check is tested to drop hallucinated quotes, unknown rules and fake fact IDs, and to merge duplicates.
 - Fix application and insights (unclear-rule detection, expiring facts) have their own tests.
+- 41 automated tests in total (`npm test`), plus a live run of all 10 posts with the AI on: every score matches the answer key.
 - The PDF import's quote check is tested against the sample PDF.
 
 ## Works for any brand: tested with a second brand
