@@ -54,6 +54,7 @@ export interface HistoryRow {
 
 export interface BrandData {
   brand: Brand;
+  brands: { slug: string; name: string }[];
   rules: Rule[];
   facts: Fact[];
   today: string;

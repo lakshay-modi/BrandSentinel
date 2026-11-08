@@ -20,6 +20,25 @@ export interface BrandSettings {
   brand_hashtag: string;
   /** internal names (projects, partners) that must never be sent to the AI */
   confidential_terms?: string[];
+  /** link to the brand's guidelines document */
+  guidelines_pdf?: string;
+  /** a guidelines document visitors can import into the Rulebook in one click */
+  import_sample?: { url: string; name: string; label: string };
+  /** sample posts shown on the check page (the demo brand's samples are built in) */
+  samples?: BrandSample[];
+}
+
+export interface BrandSample {
+  id: string;
+  label: string;
+  hint: string;
+  title: string;
+  channel: Channel;
+  post_type: string;
+  product: string;
+  partner: boolean;
+  caption: string;
+  images: { src: string; alt_text: string }[];
 }
 
 export interface Brand {

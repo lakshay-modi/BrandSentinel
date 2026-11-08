@@ -1,5 +1,6 @@
 // Server-side database access. The Supabase key never reaches the browser.
 import "server-only";
+import { cookies } from "next/headers";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { Brand, Fact, Rule } from "./types";
 
@@ -76,6 +77,24 @@ export function db(): SupabaseClient {
 }
 
 export const DEMO_BRAND = "oatvia";
+export const BRAND_COOKIE = "bs-brand";
+
+/** The brand this visitor is working on (chosen in the header, kept in a cookie). Falls back to the demo brand. */
+export async function currentBrandSlug(): Promise<string> {
+  try {
+    const v = (await cookies()).get(BRAND_COOKIE)?.value;
+    if (v && /^[a-z0-9-]{1,40}$/.test(v)) return v;
+  } catch {
+    /* outside a request */
+  }
+  return DEMO_BRAND;
+}
+
+export async function listBrands(): Promise<{ slug: string; name: string }[]> {
+  const { data, error } = await db().from("brands").select("slug, name").order("created_at");
+  if (error) throw new Error(error.message);
+  return data ?? [];
+}
 
 export interface BrandContext {
   brand: Brand;
@@ -83,9 +102,11 @@ export interface BrandContext {
   facts: Fact[];
 }
 
-export async function getBrandContext(slug = DEMO_BRAND): Promise<BrandContext> {
-  const { data: brand, error } = await db().from("brands").select("id, slug, name, settings, rulebook_version").eq("slug", slug).single();
-  if (error || !brand) throw new Error(`Brand not found: ${error?.message ?? slug}`);
+export async function getBrandContext(slug?: string): Promise<BrandContext> {
+  const wanted = slug ?? (await currentBrandSlug());
+  let { data: brand } = await db().from("brands").select("id, slug, name, settings, rulebook_version").eq("slug", wanted).maybeSingle();
+  if (!brand && wanted !== DEMO_BRAND) ({ data: brand } = await db().from("brands").select("id, slug, name, settings, rulebook_version").eq("slug", DEMO_BRAND).maybeSingle());
+  if (!brand) throw new Error(`Brand not found: ${wanted}`);
   const [rules, facts] = await Promise.all([
     db().from("rules").select("id, category, severity, check_type, scope, rule, guideline, good, bad, params, status, version, source").eq("brand_id", brand.id).order("id"),
     db().from("facts").select("id, product, fact, source, valid_until, type").eq("brand_id", brand.id).order("id"),
