@@ -40,14 +40,14 @@ Hard rules for your answer:
 6. Fixes must be minimal edits that keep the creator's goal (post type, main message, call to action). "fix" replaces the quote; use "" to delete it; null when the quote can't simply be replaced.
 7. For every caption code finding whose fix is "manual", give a replacement in "code_fixes" when a small edit fixes it (finding = its id, quote = the exact text to replace, fix = new text, or "" to delete an unsupported claim). Prefer wording from the Fact Bank, e.g. replace a ranking with an approved fact.
 8. Write a one-sentence "alt_text" for each image that has no alt text, describing what is visible.
-9. "suggested_caption" is the full caption with all fixes applied (code findings and yours), keeping the goal, tone and hashtags that are allowed.
+9. "suggested_caption" is the full caption with all fixes applied (code findings and yours), keeping the goal, tone and hashtags that are allowed. It must read as complete, natural sentences: when you remove a claim, rewrite that sentence so nothing is left dangling.
 10. Your own text (goal, fixes, alt text, suggested caption) must follow the rules too: units like "20 g", Indian/British spelling, product names exactly as approved, no claims the Fact Bank doesn't support.
 11. Use plain, simple English. Reply with JSON only.
 
 JSON shape:
 {"goal":{"post_type":"","message":"","call_to_action":""},
  "findings":[{"rule_id":"","location":"caption | image 1","quote":"","message":"","fact_ids":[],"fix":null,"fix_advice":""}],
- "code_fixes":[{"finding":"","quote":"","fix":""}],
+ "code_fixes":[{"finding":"CLAIM-01:caption:1","quote":"India's No. 1 protein bar","fix":"A protein bar with 20 g of protein"}],
  "ask_human":[{"quote":"","location":"caption","note":""}],
  "alt_text":[{"image":1,"text":""}],
  "suggested_caption":""}`;
@@ -82,6 +82,8 @@ export function buildUserPrompt(opts: {
     (f) => `${f.id} | ${f.rule_id} | ${f.location} | ${f.quotes.map((q) => JSON.stringify(q)).join(", ") || "(missing text)"} | fix: ${f.fix.kind}`,
   );
 
+  const needFix = codeFindings.filter((f) => f.location === "caption" && f.fix.kind === "manual" && f.quotes.length).map((f) => `${f.id}: ${JSON.stringify(f.quotes[0])}`);
+
   return [
     `Brand: ${brandName}. Today: ${today}.`,
     `Post: channel=${input.channel}; post type=${input.post_type}; product=${input.product || "not given"}; paid/partner post=${input.partner ? "yes" : "no"}.`,
@@ -90,5 +92,8 @@ export function buildUserPrompt(opts: {
     `Rules:\n${ruleLines.join("\n")}`,
     `Fact Bank:\n${factLines.join("\n")}`,
     `Already found by code checks:\n${codeLines.join("\n") || "(none)"}`,
-  ].join("\n\n");
+    needFix.length ? `These code findings have no replacement yet. Give one "code_fixes" entry for each where a small edit fixes it:\n${needFix.join("\n")}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n\n");
 }

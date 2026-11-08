@@ -68,3 +68,13 @@ describe("proof check", () => {
     expect(r.findings.find((x) => x.source === "ai")?.quotes).toEqual(["keeps your heart happy"]);
   });
 });
+
+describe("proof check with count-type findings", () => {
+  it("treats an AI repeat of an emoji-count problem as agreement", () => {
+    const p2 = samplePosts(true).find((p) => p.id === "P02")!;
+    const c2 = assignIds(runCodeChecks({ input: p2, rules, facts: demoFacts, brand: demoBrand, today: "2026-11-08" }));
+    const r = proofCheck(ai([{ rule_id: "TONE-05", quote: "🎉🚀", message: "Too many emojis" }]), c2, p2, rules, demoFacts);
+    expect(r.ask_human).toHaveLength(0);
+    expect(r.findings.find((f) => f.rule_id === "TONE-05")?.source).toBe("code+ai");
+  });
+});

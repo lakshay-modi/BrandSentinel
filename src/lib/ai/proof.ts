@@ -58,7 +58,8 @@ export function proofCheck(ai: AiResponse, codeFindings: Finding[], input: PostI
     // 1. the rule must exist, be approved and allow AI checks
     if (!rule || rule.status !== "approved" || !rule.check_type.includes("ai")) {
       // a code-only rule the fast checks already flagged on this text: the AI agrees, nothing new to show
-      const agreed = rule && quote && merged.find((f) => f.rule_id === rule.id && f.quotes.some((q) => overlaps(q, quote)));
+      // (count-type findings like "3 emojis" have no quote, so any finding of that rule counts)
+      const agreed = rule && merged.find((f) => f.rule_id === rule.id && (f.quotes.length === 0 || (!!quote && f.quotes.some((q) => overlaps(q, quote)))));
       if (agreed) {
         agreed.source = "code+ai";
         continue;
