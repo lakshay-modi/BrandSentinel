@@ -14,6 +14,7 @@ Built for the CodeTitans India 2026 hackathon (problem statement by Inkloom AI).
 4. **Accept** a fix, **Edit** it, or **Disagree** with a reason. Then **Re-check** and **Submit for review**.
 5. Switch to **Expert reviewer** or **Brand manager** and approve it or send it back from the **Review queue**.
 6. Open **Insights** to see the most common problems and the rules people disagree with.
+7. As **Brand manager**, open **Rulebook → Import from PDF → Try the sample addendum**. The AI drafts new rules from the PDF, skips the ones the Rulebook already has, and you approve or reject each draft. Approved rules are used in the next check.
 
 The demo brand, **Oatvia Foods**, is fictional. Its [brand guidelines PDF](public/demo/Oatvia_Brand_Guidelines.pdf) defines 25 rules and 16 approved facts.
 
@@ -27,6 +28,7 @@ The demo brand, **Oatvia Foods**, is fictional. Its [brand guidelines PDF](publi
 | Everything checked by AI | **Code first, AI second**: exact checks run as plain code; AI looks for reworded claims and tone |
 | Counts mistakes per person | **Unclear-rule alerts**: when people keep disagreeing with a rule, the rule is flagged, not the people |
 | Same approver for everything | **Risk-based approval**: posts with claims, serious problems or disputes go to an expert first |
+| Copy rules out of the PDF by hand | **PDF to Rulebook**: AI drafts rules from a guidelines PDF; each must quote a real sentence from it, duplicates are skipped, a person approves each one |
 
 ## How a check works
 
@@ -58,6 +60,7 @@ npm test
 - The fast checks alone catch **all 41 planted mistakes with zero false flags** on these posts. (The same rules and posts were written by the same team, so this proves the checks work, not that they catch everything. The AI layer exists for reworded and new cases.)
 - The proof check is tested to drop hallucinated quotes, unknown rules and fake fact IDs, and to merge duplicates.
 - Fix application and insights (unclear-rule detection, expiring facts) have their own tests.
+- The PDF import's quote check is tested against the sample PDF.
 
 ## Tech
 
@@ -67,6 +70,7 @@ npm test
 | Database | Supabase Postgres with row level security |
 | AI | Gemini Flash API, called only from the server; one call per post; JSON answers validated with zod |
 | Image text | tesseract.js, self-hosted in `/public/tesseract`, runs in the browser |
+| PDF text | unpdf, on the server |
 | Colour and contrast | Canvas pixel maths in the browser, WCAG contrast formula |
 | Tests | Vitest |
 | Hosting | Vercel |
@@ -78,6 +82,7 @@ Key files:
 - `src/lib/ai/prompt.ts`, `src/lib/ai/gemini.ts`: the single AI call
 - `src/lib/ai/proof.ts`: the proof check
 - `src/lib/review/run-review.ts`: the full pipeline
+- `src/app/api/rules/import/route.ts`, `src/lib/ai/import-prompt.ts`: PDF to Rulebook drafts
 - `src/app/api/posts/[id]/action/route.ts`: approval workflow and routing
 - `supabase/migrations/`: database schema
 
