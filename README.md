@@ -63,6 +63,25 @@ npm test
 - Fix application and insights (unclear-rule detection, expiring facts) have their own tests.
 - The PDF import's quote check is tested against the sample PDF.
 
+## Works for any brand: tested with a second brand
+
+A second fictional brand, **Solvira Skincare**, was set up only through the product itself (pick it with the **Brand** switcher at the top):
+
+1. Its [guidelines PDF](public/demo/solvira/Solvira_Brand_Guidelines.pdf) was imported into an empty Rulebook. The AI drafted 15 rules, each quoting a real sentence from the PDF. A second import added the 3 rules the first one left out and recognised the other 15 as duplicates. The brand manager approved all 18.
+2. Its 7 approved facts were added through the Fact Bank.
+3. Its 6 sample posts (21 planted mistakes and one clean post, answer key in [`demo/solvira/answer_key.json`](demo/solvira/answer_key.json)) were checked live.
+
+| Post | Planted | Caught | Note |
+| --- | --- | --- | --- |
+| Sunscreen launch | 5 | 5 | |
+| Influencer post | 4 | 4 | after a fix: missing things (#ad) are now reported with an empty quote |
+| Weekend offer | 4 | 4 | the missing "T&C apply" is part of the same offer finding |
+| Clean post | 0 | 0 flags | |
+| Barrier Cream claims | 4 | 3 | "chemical-free" was only flagged inside the comparison finding |
+| LinkedIn update | 4 | 4 | plus 1 false flag (exclamation rule on a post with one "!") |
+
+**20 of 21 caught, 1 false flag.** For a new brand every rule starts as an AI check; the demo brand's rules also have exact fast checks, which is why its answer key scores perfectly. Turning imported rules into fast checks is a planned improvement.
+
 ## Tech
 
 | Part | Choice |
