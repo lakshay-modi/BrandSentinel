@@ -3,7 +3,7 @@ import { z } from "zod";
 import { actorSchema, clientId, fail, json, readJson, roleSchema, serverError } from "@/lib/api";
 import { db, getBrandContext, getCache, setCache } from "@/lib/db";
 import { callGemini, parseJson } from "@/lib/ai/gemini";
-import { IMPORT_SYSTEM_PROMPT, buildImportPrompt, importResponseSchema, quoteInDocument, type ImportedRule } from "@/lib/ai/import-prompt";
+import { IMPORT_SYSTEM_PROMPT, buildImportPrompt, parseImportReply, quoteInDocument, type ImportedRule } from "@/lib/ai/import-prompt";
 import { allowAiCall } from "@/lib/review/rate-limit";
 
 export const maxDuration = 60;
@@ -60,9 +60,19 @@ export async function POST(req: Request) {
       if (!allowAiCall(clientId(req))) return fail("The AI is busy (free-tier limit). Try again in a minute.", 429);
       const res = await callGemini(IMPORT_SYSTEM_PROMPT, [{ text: buildImportPrompt(clipped, ctx.rules) }], 55_000);
       if (!res.ok) return fail(res.status === "off" ? "AI is not set up on this server." : "The AI is busy right now. Try again in a minute.", res.status === "off" ? 503 : 429);
-      const parsed = importResponseSchema.safeParse(parseJson(res.text));
-      if (!parsed.success) return fail("The AI reply wasn't in the expected format. Try again.", 502);
-      drafted = { rules: parsed.data.rules, model: res.model };
+      let raw: unknown = null;
+      try {
+        raw = parseJson(res.text);
+      } catch {
+        /* handled below */
+      }
+      const parsed = parseImportReply(raw);
+      if (!parsed) {
+        console.error("[rules/import] AI reply had no rule list:", res.text.slice(0, 300));
+        return fail("The AI reply wasn't in the expected format. Try again.", 502);
+      }
+      if (parsed.malformed) console.warn(`[rules/import] dropped ${parsed.malformed} malformed rule(s)`);
+      drafted = { rules: parsed.rules, model: res.model };
       await setCache(cacheKey, drafted);
     }
 

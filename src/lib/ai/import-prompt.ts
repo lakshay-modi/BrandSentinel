@@ -22,25 +22,35 @@ Guidance:
 
 const str = (max: number) => z.string().trim().max(max).catch("");
 
-export const importResponseSchema = z.object({
-  rules: z
-    .array(
-      z.object({
-        category: z.enum(["tone", "words", "claims", "visuals", "readability"]).catch("tone"),
-        severity: z.enum(["high", "medium", "low"]).catch("medium"),
-        scope: z.string().trim().max(120).catch("all"),
-        rule: z.string().trim().min(5).max(300),
-        guideline: str(1500),
-        good: str(300),
-        bad: str(300),
-        source_quote: z.string().trim().max(400),
-        duplicate_of: z.string().trim().max(20).nullish(),
-      }),
-    )
-    .max(25)
-    .catch([]),
+const ruleSchema = z.object({
+  category: z.enum(["tone", "words", "claims", "visuals", "readability"]).catch("tone"),
+  severity: z.enum(["high", "medium", "low"]).catch("medium"),
+  scope: z.string().trim().max(120).catch("all"),
+  rule: z.string().trim().min(5).max(300),
+  guideline: str(1500),
+  good: str(300),
+  bad: str(300),
+  source_quote: z.string().trim().min(1).max(600),
+  duplicate_of: z.string().trim().max(20).nullish().catch(null),
 });
-export type ImportedRule = z.infer<typeof importResponseSchema>["rules"][number];
+
+export const importResponseSchema = z.object({ rules: z.array(ruleSchema).max(25).catch([]) });
+
+/**
+ * Reads the AI's reply leniently: a {"rules": [...]} object or a bare array, and each rule on its own,
+ * so one malformed rule is dropped instead of the whole import. Returns null when there is no rule list at all.
+ */
+export function parseImportReply(raw: unknown): { rules: ImportedRule[]; malformed: number } | null {
+  // {"rules": [...]}, a bare array, or (some models rename the key) the first list in the object
+  const obj = raw && typeof raw === "object" && !Array.isArray(raw) ? (raw as Record<string, unknown>) : null;
+  const list = Array.isArray(raw) ? raw : obj ? ((Array.isArray(obj.rules) ? obj.rules : Object.values(obj).find(Array.isArray)) as unknown[] | undefined) ?? null : null;
+  if (!list) return null;
+  const parsed = list.slice(0, 25).map((x) => ruleSchema.safeParse(x));
+  const rules = parsed.filter((r) => r.success).map((r) => r.data as ImportedRule);
+  return { rules, malformed: parsed.length - rules.length };
+}
+
+export type ImportedRule = z.infer<typeof ruleSchema>;
 
 export function buildImportPrompt(docText: string, existing: Rule[]): string {
   const current = existing.filter((r) => r.status !== "rejected").map((r) => `${r.id}: ${r.rule}`);

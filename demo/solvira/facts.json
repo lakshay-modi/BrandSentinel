@@ -4,7 +4,7 @@
     "fact": "SPF 50, PA++++ broad-spectrum protection.",
     "source": "Lab report SPF-2026-07",
     "valid_until": "2027-06-30",
-    "type": "claim"
+    "type": "general"
   },
   {
     "product": "Daily Shield Sunscreen",
@@ -18,21 +18,21 @@
     "fact": "Dermatologist tested.",
     "source": "Study DT-221 (2026)",
     "valid_until": "2027-12-31",
-    "type": "claim"
+    "type": "general"
   },
   {
     "product": "Barrier Cream",
     "fact": "Fragrance-free.",
     "source": "Formulation sheet FS-12",
     "valid_until": "2027-12-31",
-    "type": "claim"
+    "type": "general"
   },
   {
     "product": "Vitamin C Serum",
     "fact": "Contains 10% vitamin C (ascorbic acid).",
     "source": "Formulation sheet FS-31",
     "valid_until": "2027-12-31",
-    "type": "claim"
+    "type": "general"
   },
   {
     "product": "All products",
@@ -46,6 +46,6 @@
     "fact": "Available in 120 stores across 18 cities.",
     "source": "Retail report Q3 2026",
     "valid_until": "2027-03-31",
-    "type": "claim"
+    "type": "availability"
   }
 ]

@@ -96,13 +96,13 @@ ANSWER_KEY = {
 }
 
 FACTS = [
-    dict(product="Daily Shield Sunscreen", fact="SPF 50, PA++++ broad-spectrum protection.", source="Lab report SPF-2026-07", valid_until="2027-06-30", type="claim"),
+    dict(product="Daily Shield Sunscreen", fact="SPF 50, PA++++ broad-spectrum protection.", source="Lab report SPF-2026-07", valid_until="2027-06-30", type="general"),
     dict(product="Daily Shield Sunscreen", fact="Price: ₹649 for 50 ml.", source="Price list, November 2026", valid_until="2026-12-31", type="price"),
-    dict(product="Barrier Cream", fact="Dermatologist tested.", source="Study DT-221 (2026)", valid_until="2027-12-31", type="claim"),
-    dict(product="Barrier Cream", fact="Fragrance-free.", source="Formulation sheet FS-12", valid_until="2027-12-31", type="claim"),
-    dict(product="Vitamin C Serum", fact="Contains 10% vitamin C (ascorbic acid).", source="Formulation sheet FS-31", valid_until="2027-12-31", type="claim"),
+    dict(product="Barrier Cream", fact="Dermatologist tested.", source="Study DT-221 (2026)", valid_until="2027-12-31", type="general"),
+    dict(product="Barrier Cream", fact="Fragrance-free.", source="Formulation sheet FS-12", valid_until="2027-12-31", type="general"),
+    dict(product="Vitamin C Serum", fact="Contains 10% vitamin C (ascorbic acid).", source="Formulation sheet FS-31", valid_until="2027-12-31", type="general"),
     dict(product="All products", fact="Offer: 15% off on solvira.in with code SOLVIRA15, valid 1-30 Nov 2026. T&C apply.", source="Offer brief OB-11", valid_until="2026-11-30", type="offer"),
-    dict(product="Solvira", fact="Available in 120 stores across 18 cities.", source="Retail report Q3 2026", valid_until="2027-03-31", type="claim"),
+    dict(product="Solvira", fact="Available in 120 stores across 18 cities.", source="Retail report Q3 2026", valid_until="2027-03-31", type="availability"),
 ]
 
 BRAND = {
