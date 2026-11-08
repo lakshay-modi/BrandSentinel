@@ -127,7 +127,7 @@ Set up the database by running `supabase/migrations/*.sql` and then `supabase/se
 - **Prompt injection.** Post text and imported PDFs are marked as content to review, never instructions, and the proof check drops anything without a real rule, quote and fact.
 - **Security headers.** A Content Security Policy allows only the site's own scripts, styles, fonts (self-hosted), images, workers and API; framing is blocked; HSTS, `nosniff`, a strict referrer policy and a locked-down permissions policy are on.
 - **Health check.** Public health shows only whether the database answers and AI is set up; probing AI models needs a secret token.
-- **Database access.** With `BRANDSENTINEL_DB_KEY` set to a Supabase secret key, the public policies can be removed so the tables can't be read or changed directly at all; until then the publishable key is used on the server only.
+- **Database access.** With `BRANDSENTINEL_DB_KEY` set to a Supabase secret key, the public policies are removed (`supabase/migrations/0006_server_only_access.sql`) so the tables can't be read or changed directly at all. If the database ever rejects that key, the server falls back to the publishable key instead of going down, and `/api/health` reports it.
 
 ## Pages
 
