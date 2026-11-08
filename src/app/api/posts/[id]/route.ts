@@ -1,4 +1,4 @@
-import { db } from "@/lib/db";
+import { db, getBrandContextForBrandId } from "@/lib/db";
 import { fail, json, serverError } from "@/lib/api";
 
 /** One post with its latest review, every human decision and the full history. */
@@ -13,7 +13,16 @@ export async function GET(_req: Request, ctx: RouteContext<"/api/posts/[id]">) {
       db().from("history").select("*").eq("post_id", id).order("created_at", { ascending: true }),
     ]);
     if (!post.data) return fail("Post not found", 404);
-    return json({ post: post.data, review: review.data, decisions: decisions.data ?? [], history: history.data ?? [] });
+    // the post's own brand: its facts prove its findings even when another brand is selected in the header
+    const ctx = await getBrandContextForBrandId(post.data.brand_id);
+    return json({
+      post: post.data,
+      review: review.data,
+      decisions: decisions.data ?? [],
+      history: history.data ?? [],
+      brand: { slug: ctx.brand.slug, name: ctx.brand.name },
+      facts: ctx.facts,
+    });
   } catch (e) {
     return serverError(e, "posts/[id]");
   }

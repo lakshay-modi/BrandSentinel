@@ -21,6 +21,9 @@ interface Data {
   review: ReviewRow | null;
   decisions: DecisionRow[];
   history: HistoryRow[];
+  /** the post's own brand and its facts */
+  brand?: { slug: string; name: string };
+  facts?: Fact[];
 }
 
 
@@ -126,7 +129,8 @@ export function PostWorkspace({ id }: { id: string }) {
 
   const load = async () => apply(await api.post(id));
 
-  const facts = useMemo(() => new Map<string, Fact>((brand?.facts ?? []).map((f) => [f.id, f])), [brand]);
+  // facts of the post's own brand (sent with the post), so proof shows even when another brand is selected
+  const facts = useMemo(() => new Map<string, Fact>((data?.facts ?? brand?.facts ?? []).map((f) => [f.id, f])), [data, brand]);
 
   if (!id) return <ErrorNote>No post selected. Open a post from the review queue or check a new one.</ErrorNote>;
   if (error && !data) return <ErrorNote>{error}</ErrorNote>;
@@ -274,7 +278,8 @@ export function PostWorkspace({ id }: { id: string }) {
           <h1 className="mt-1 text-[28px] font-bold leading-tight tracking-tight">{post.title || "Untitled post"}</h1>
           <p className="mt-1 text-[14px] text-ink-soft">
             {CHANNEL_LABEL[post.channel] ?? post.channel} {post.post_type} post about {post.product || "the brand"}
-            {post.partner ? ", paid partner" : ""}. Created by {post.created_by}.
+            {post.partner ? ", paid partner" : ""}
+            {data.brand ? ` for ${data.brand.name}` : ""}. Created by {post.created_by}.
           </p>
         </div>
         <StatusTag status={post.status} />

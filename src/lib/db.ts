@@ -102,6 +102,13 @@ export interface BrandContext {
   facts: Fact[];
 }
 
+/** The brand a post belongs to, whatever brand the visitor has selected. */
+export async function getBrandContextForBrandId(brandId: string): Promise<BrandContext> {
+  const { data } = await db().from("brands").select("slug").eq("id", brandId).maybeSingle();
+  if (!data) throw new Error(`Brand not found: ${brandId}`);
+  return getBrandContext(data.slug as string);
+}
+
 export async function getBrandContext(slug?: string): Promise<BrandContext> {
   const wanted = slug ?? (await currentBrandSlug());
   let { data: brand } = await db().from("brands").select("id, slug, name, settings, rulebook_version").eq("slug", wanted).maybeSingle();
