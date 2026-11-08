@@ -4,7 +4,7 @@
 
 Built for the CodeTitans India 2026 hackathon (problem statement by Inkloom AI).
 
-**Live demo:** _link added after deployment_ · No sign-in needed
+**Live demo:** https://brand-sentinel-delta.vercel.app · No sign-in needed
 
 ## Try it in 2 minutes
 
@@ -45,7 +45,7 @@ caption + images
    └─ 4. brand score                          100 minus 15 / 7 / 3 per high / medium / low problem
 ```
 
-If the AI is busy (free-tier limit) or off, the fast checks still return a full report. AI results are cached by content, so repeat checks cost nothing.
+If the AI is busy (free-tier limit) or off, the fast checks still return a full report. The app tries Gemini Flash first and falls back to Flash-Lite when Flash is overloaded. AI results are cached by content, so repeat checks cost nothing.
 
 ## Tested against an answer key
 
