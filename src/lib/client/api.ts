@@ -7,6 +7,7 @@ export interface ReviewRow extends ReviewResult {
   caption: string;
   created_at: string;
   dropped: number;
+  redacted?: number;
   ai_detail?: string;
 }
 

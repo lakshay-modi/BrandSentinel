@@ -280,6 +280,11 @@ export function PostWorkspace() {
               <Panel>
                 <ScorePanel score={review.score} band={review.band} findings={findings} onPick={pick} />
                 {review.ai_status !== "ok" && <p className="mt-3 rounded-md bg-med-bg px-3 py-2 text-sm text-med">{AI_NOTE[review.ai_status] ?? AI_NOTE.error}</p>}
+                {(review.redacted ?? 0) > 0 && (
+                  <p className="mt-3 text-xs text-ink-soft">
+                    {review.redacted} personal or confidential detail{review.redacted === 1 ? " was" : "s were"} hidden from the AI (shown to it as placeholders like [EMAIL 1]).
+                  </p>
+                )}
                 {review.ai_status === "ok" && review.dropped > 0 && (
                   <p className="mt-3 text-xs text-ink-soft">The proof check removed {review.dropped} AI suggestion{review.dropped > 1 ? "s" : ""} that didn&apos;t match a real rule, quote or fact.</p>
                 )}

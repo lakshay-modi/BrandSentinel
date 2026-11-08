@@ -69,6 +69,7 @@ export async function POST(req: Request) {
         goal: result.goal,
         suggested_caption: result.suggested_caption,
         dropped: result.dropped,
+        redacted: result.redacted,
         rulebook_version: result.rulebook_version,
         model: result.model,
         ai_status: result.ai_status,

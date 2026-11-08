@@ -18,6 +18,8 @@ export interface BrandSettings {
   products: string[];
   product_misspellings: string[];
   brand_hashtag: string;
+  /** internal names (projects, partners) that must never be sent to the AI */
+  confidential_terms?: string[];
 }
 
 export interface Brand {

@@ -8,12 +8,15 @@ import { todayIST } from "../checks/text-utils";
 import { aiConfigured, callGemini, parseJson, type AiPart } from "../ai/gemini";
 import { aiResponseSchema, buildUserPrompt, SYSTEM_PROMPT, type AiResponse } from "../ai/prompt";
 import { proofCheck } from "../ai/proof";
+import { createRedactor, restore } from "../ai/redact";
 import { assignIds, brandScore } from "./score";
 import { getCache, setCache, type BrandContext } from "../db";
 import { allowAiCall } from "./rate-limit";
 
 export interface ReviewOutput extends ReviewResult {
   dropped: number;
+  /** personal or confidential details hidden from the AI */
+  redacted: number;
   ai_detail?: string;
 }
 
@@ -48,6 +51,7 @@ export async function runReview(input: PostInput, ctx: BrandContext, opts: { ori
   let aiStatus: ReviewResult["ai_status"] = "off";
   let model: string | null = null;
   let detail: string | undefined;
+  let redacted = 0;
 
   if (aiConfigured()) {
     const factsHash = createHash("sha256").update(JSON.stringify(ctx.facts)).digest("hex").slice(0, 12);
@@ -70,7 +74,20 @@ export async function runReview(input: PostInput, ctx: BrandContext, opts: { ori
       aiStatus = "busy";
       detail = "Too many AI checks right now";
     } else {
-      const parts: AiPart[] = [{ text: buildUserPrompt({ brandName: ctx.brand.name, input, rules: ctx.rules, facts: ctx.facts, codeFindings: code, today }) }];
+      // personal details and confidential terms never leave the server: the AI sees placeholders
+      const redactor = createRedactor(settings.confidential_terms);
+      const aiInput: PostInput = {
+        ...input,
+        caption: redactor.redact(input.caption),
+        images: input.images.map((img) => ({
+          ...img,
+          alt_text: redactor.redact(img.alt_text),
+          analysis: img.analysis && { ...img.analysis, ocr_text: redactor.redact(img.analysis.ocr_text) },
+        })),
+      };
+      const aiCode = code.map((f) => ({ ...f, quotes: f.quotes.map((q) => redactor.redact(q)) }));
+      redacted = redactor.map.size;
+      const parts: AiPart[] = [{ text: buildUserPrompt({ brandName: ctx.brand.name, input: aiInput, rules: ctx.rules, facts: ctx.facts, codeFindings: aiCode, today }) }];
       for (const [i, img] of input.images.entries()) {
         if (img.alt_text.trim()) continue; // the AI only needs to see images that need alt text
         const part = await imagePart(img.src, opts.origin);
@@ -79,7 +96,7 @@ export async function runReview(input: PostInput, ctx: BrandContext, opts: { ori
       const res = await callGemini(SYSTEM_PROMPT, parts);
       if (res.ok) {
         try {
-          ai = aiResponseSchema.parse(parseJson(res.text));
+          ai = restore(aiResponseSchema.parse(parseJson(res.text)), redactor.map);
           aiStatus = "ok";
           model = res.model;
           await setCache(cacheKey, ai).catch(() => undefined);
@@ -110,6 +127,7 @@ export async function runReview(input: PostInput, ctx: BrandContext, opts: { ori
     model,
     rulebook_version: ctx.brand.rulebook_version,
     dropped: proof.dropped,
+    redacted,
     ai_detail: detail,
   };
 }
