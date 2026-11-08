@@ -4,7 +4,9 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, type BrandData, type DecisionRow, type HistoryRow, type PostRow, type ReviewRow } from "@/lib/client/api";
-import { applyFix } from "@/lib/fixes";
+import { applyFix, canApply } from "@/lib/fixes";
+
+const endSentence = (t: string) => (/[.!?]$/.test(t.trim()) ? t.trim() : `${t.trim()}.`);
 import type { Fact, Finding, Goal } from "@/lib/types";
 import { FindingCard } from "./finding-card";
 import { ProofText } from "./proof-text";
@@ -170,7 +172,9 @@ export function PostWorkspace() {
   const confirmGoal = async (g: Goal) => {
     await api.act(post.id, { action: "confirm_goal", role, actor: name, goal: g });
     setGoalEdit(null);
-    await load();
+    // refresh the post and history only: keep fixes the creator accepted but hasn't re-checked yet
+    const d = await api.post(id);
+    setData(d);
   };
 
   return (
@@ -303,8 +307,14 @@ export function PostWorkspace() {
                 ) : goal ? (
                   <div className="text-sm">
                     <p>
-                      <span className="text-ink-soft">This is a</span> <strong>{goal.post_type}</strong> <span className="text-ink-soft">post. Main message:</span> <strong>{goal.message}</strong>.{" "}
-                      <span className="text-ink-soft">Call to action:</span> <strong>{goal.call_to_action}</strong>.
+                      <span className="text-ink-soft">This is a</span> <strong>{goal.post_type}</strong> <span className="text-ink-soft">post. Main message:</span> <strong>{endSentence(goal.message)}</strong>{" "}
+                      {goal.call_to_action ? (
+                        <>
+                          <span className="text-ink-soft">Call to action:</span> <strong>{endSentence(goal.call_to_action)}</strong>
+                        </>
+                      ) : (
+                        <span className="text-ink-soft">No call to action.</span>
+                      )}
                     </p>
                     {post.goal_confirmed ? (
                       <p className="mt-2 text-xs text-pass">Confirmed. Every suggested fix keeps this goal.</p>
@@ -345,6 +355,7 @@ export function PostWorkspace() {
                         facts={facts}
                         decision={latestDecision.get(f.id)}
                         canAct={canAct}
+                        stale={f.location === "caption" && canApply(f.fix) && applyFix(caption, f.fix) === null}
                         highlighted={picked === f.id}
                         onAccept={() => accept(f)}
                         onEdit={(t) => edit(f, t)}

@@ -22,6 +22,7 @@ export function FindingCard({
   onEdit,
   onDisagree,
   highlighted,
+  stale,
 }: {
   f: Finding;
   n: number;
@@ -32,6 +33,8 @@ export function FindingCard({
   onEdit: (text: string) => Promise<void>;
   onDisagree: (reason: string) => Promise<void>;
   highlighted?: boolean;
+  /** the text this fix changes is already gone (another fix or an edit changed it) */
+  stale?: boolean;
 }) {
   const [mode, setMode] = useState<"none" | "edit" | "disagree">("none");
   const [text, setText] = useState("");
@@ -40,8 +43,8 @@ export function FindingCard({
   const inCaption = f.location === "caption";
   const isAlt = f.rule_id === "READ-02" || f.fix.kind === "alt_text";
   // text inside an image can't be changed here, so only caption fixes and alt text are one-click
-  const acceptable = (inCaption && canApply(f.fix)) || f.fix.kind === "alt_text";
-  const editable = (inCaption && f.quotes.length > 0) || isAlt;
+  const acceptable = (inCaption && canApply(f.fix) && !stale) || f.fix.kind === "alt_text";
+  const editable = (inCaption && f.quotes.length > 0 && !stale) || isAlt;
   const editDefault = f.fix.kind === "replace" ? f.fix.pairs[0].to : f.fix.kind === "alt_text" ? f.fix.text : f.quotes[0] ?? "";
 
   const run = async (fn: () => Promise<void>) => {
@@ -85,6 +88,7 @@ export function FindingCard({
             <span className="font-medium">{acceptable ? "Suggested fix: " : "How to fix: "}</span>
             <span className="text-ink-soft">{describeFix(f.fix)}</span>
             {!inCaption && !isAlt && <span className="block text-xs text-ink-faint">This is in the image, so update the image and check again.</span>}
+            {stale && <span className="block text-xs text-ink-faint">This text has already changed in your edits. Re-check to confirm it&apos;s fixed.</span>}
           </p>
 
           {decision ? (
