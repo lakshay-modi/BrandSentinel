@@ -2,9 +2,11 @@
 import brandJson from "../../../demo/brand.json";
 import rulesJson from "../../../demo/rules.json";
 import factsJson from "../../../demo/facts.json";
-import postsJson from "../../../demo/sample_posts.json";
 import analysisJson from "../../../demo/image_analysis.json";
-import type { BrandSettings, Fact, ImageAnalysis, PostInput, Rule } from "../types";
+import type { BrandSettings, Fact, ImageAnalysis, Rule } from "../types";
+import { samplePosts as baseSamples, type SamplePost } from "./samples";
+
+export type { SamplePost };
 
 const STANDARD = new Set(["id", "category", "severity", "check", "scope", "rule", "guideline", "good", "bad"]);
 
@@ -27,20 +29,12 @@ export const demoRules: Rule[] = (rulesJson as Record<string, unknown>[]).map((r
 
 export const demoFacts = factsJson as Fact[];
 
-export interface SamplePost extends PostInput {
-  id: string;
-  title: string;
-}
-
 const analysis = analysisJson as Record<string, ImageAnalysis>;
 
-/** Sample posts with image paths pointing at /public/demo. `withAnalysis` attaches the reference image analysis (for tests). */
+/** Sample posts with the reference image analysis attached (what the browser analysis should produce). */
 export function samplePosts(withAnalysis = false): SamplePost[] {
-  return (postsJson as unknown as (Omit<SamplePost, "images"> & { images: { file: string; alt_text: string }[] })[]).map((p) => ({
+  return baseSamples().map((p) => ({
     ...p,
-    images: p.images.map((img) => {
-      const name = img.file.replace(/^images\//, "");
-      return { src: `/demo/${name}`, alt_text: img.alt_text, ...(withAnalysis ? { analysis: analysis[name] } : {}) };
-    }),
+    images: p.images.map((img) => (withAnalysis ? { ...img, analysis: analysis[img.src.replace("/demo/", "")] } : img)),
   }));
 }
