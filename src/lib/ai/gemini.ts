@@ -30,7 +30,13 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
  * Free-tier limits and outages are per model, so on "busy" answers (429, 5xx) or an unknown model (404)
  * it retries once and then falls back to the next Flash model, within a total time budget.
  */
-export async function callGemini(system: string, parts: AiPart[], budgetMs = 50000): Promise<AiCallResult> {
+export async function callGemini(
+  system: string,
+  parts: AiPart[],
+  budgetMs = 50000,
+  /** time allowed for the first model, then for each fallback (long answers like a whole Rulebook need more) */
+  limits: { firstMs: number; laterMs: number } = { firstMs: 14000, laterMs: 20000 },
+): Promise<AiCallResult> {
   const key = process.env.GEMINI_API_KEY;
   if (!key) return { ok: false, status: "off", detail: "GEMINI_API_KEY is not set" };
 
@@ -55,7 +61,7 @@ export async function callGemini(system: string, parts: AiPart[], budgetMs = 500
       if (left < 3000) return { ok: false, status: "busy", detail: `Out of time. Tried: ${tried.join(", ")}` };
       const controller = new AbortController();
       // the first model gets a short limit so an overloaded model doesn't eat the whole budget
-      const limit = tried.length === 0 ? 14000 : 20000;
+      const limit = tried.length === 0 ? limits.firstMs : limits.laterMs;
       const timer = setTimeout(() => controller.abort(), Math.min(limit, left));
       try {
         const res = await fetch(`${ENDPOINT}/${model}:generateContent`, {
