@@ -64,6 +64,11 @@ from public.brands b where b.slug = 'oatvia'
 on conflict (brand_id, id) do update set category = excluded.category, severity = excluded.severity, check_type = excluded.check_type, scope = excluded.scope, rule = excluded.rule, guideline = excluded.guideline, good = excluded.good, bad = excluded.bad, params = excluded.params;
 
 insert into public.rules (brand_id, id, category, severity, check_type, scope, rule, guideline, good, bad, params)
+select b.id, 'WORD-08', 'words', 'high', 'code', 'all', 'Never mention confidential internal names.', 'Project code names, unreleased products and partners we are still talking to are confidential (the current list is kept in BrandSentinel''s brand settings, for example ''Project Harvest''). They must never appear in a caption or an image.', 'Something new is coming soon. Stay tuned.', 'Sneak peek of Project Harvest', '{}'::jsonb
+from public.brands b where b.slug = 'oatvia'
+on conflict (brand_id, id) do update set category = excluded.category, severity = excluded.severity, check_type = excluded.check_type, scope = excluded.scope, rule = excluded.rule, guideline = excluded.guideline, good = excluded.good, bad = excluded.bad, params = excluded.params;
+
+insert into public.rules (brand_id, id, category, severity, check_type, scope, rule, guideline, good, bad, params)
 select b.id, 'CLAIM-01', 'claims', 'high', 'code+ai', 'all', 'No rankings or superlatives without an approved fact.', 'Don''t call us ''No. 1'', ''#1'', ''the best'', ''India''s favourite'', ''most loved'' or ''healthiest'' unless an approved fact with a source says so. Right now, no such fact exists.', 'A protein bar with 20 g of protein.', 'India''s No. 1 protein bar', '{"patterns":["\\bno\\.?\\s?1\\b","#1\\b","\\bnumber one\\b","\\bthe best\\b","\\bbest\\s+(?:bar|snack|oat|protein|in)\\b","\\bindia''?s favou?rite\\b","\\bmost loved\\b","\\bhealthiest\\b","\\btastiest\\b"]}'::jsonb
 from public.brands b where b.slug = 'oatvia'
 on conflict (brand_id, id) do update set category = excluded.category, severity = excluded.severity, check_type = excluded.check_type, scope = excluded.scope, rule = excluded.rule, guideline = excluded.guideline, good = excluded.good, bad = excluded.bad, params = excluded.params;

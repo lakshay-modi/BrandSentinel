@@ -44,3 +44,13 @@ describe("fast checks against the demo answer key", () => {
     console.log(`caught ${caught}/${total}; ${extra} unexpected of ${flagged} flags`);
   });
 });
+
+describe("confidential names (WORD-08)", () => {
+  it("flags a confidential term from the brand settings, in any letter case", () => {
+    const post = { ...samplePosts(true).find((p) => p.id === "P08")!, caption: "A sneak peek of project harvest, coming soon. #OatviaEveryday", images: [] };
+    const found = runCodeChecks({ input: post, rules, facts: demoFacts, brand: demoBrand, today: TODAY }).filter((f) => f.rule_id === "WORD-08");
+    expect(found).toHaveLength(1);
+    expect(found[0].quotes).toEqual(["project harvest"]);
+    expect(found[0].severity).toBe("high");
+  });
+});

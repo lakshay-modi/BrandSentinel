@@ -224,6 +224,18 @@ export function runCodeChecks(ctx: CheckContext): Finding[] {
     out.push(finding(r, "caption", [], `${tags.length} hashtags; the limit is 5.`, { kind: "manual", advice: "Keep the 5 most relevant hashtags, including the brand hashtag." }));
   }
 
+  if ((r = activeRule(ctx, "WORD-08"))) {
+    const terms = (brand.confidential_terms ?? []).filter((t) => t.trim().length >= 3);
+    for (const s of srcs) {
+      const hits = terms.flatMap((t) => findAll(s.text, new RegExp(`\\b${t.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "gi")));
+      report(out, r, s, hits.map((m) => ({
+        quote: m.text,
+        message: `“${m.text}” is a confidential internal name and must not appear in a post.`,
+        advice: "Remove the internal name, for example say “something new is coming soon”.",
+      })), "Confidential names", "Remove the internal name.");
+    }
+  }
+
   // ---------------- Claims ----------------
   if ((r = activeRule(ctx, "CLAIM-01"))) {
     const pats: string[] = r.params.patterns ?? [];

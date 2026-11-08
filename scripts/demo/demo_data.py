@@ -26,6 +26,7 @@ BRAND = {
         "Oatmilk", "Oat-milk", "OatMilk",
     ],
     "brand_hashtag": "#OatviaEveryday",
+    "confidential_terms": ["Project Harvest"],
 }
 
 SEVERITY_POINTS = {"high": 15, "medium": 7, "low": 3}
@@ -90,6 +91,10 @@ RULES = [
          rule="At most 5 hashtags per post.",
          guideline="Use at most 5 hashtags in a post.",
          good="#OatviaEveryday #ProteinSnack", bad="7 or more hashtags"),
+    dict(id="WORD-08", category="words", severity="high", check="code", scope="all",
+         rule="Never mention confidential internal names.",
+         guideline="Project code names, unreleased products and partners we are still talking to are confidential (the current list is kept in BrandSentinel's brand settings, for example 'Project Harvest'). They must never appear in a caption or an image.",
+         good="Something new is coming soon. Stay tuned.", bad="Sneak peek of Project Harvest"),
 
     # ---------------- Claims ----------------
     dict(id="CLAIM-01", category="claims", severity="high", check="code+ai", scope="all",
