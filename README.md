@@ -67,7 +67,8 @@ npm test
 
 | Part | Choice |
 | --- | --- |
-| Web app | Next.js 16 (App Router) + TypeScript, Tailwind CSS |
+| Web app | Next.js 16 (App Router) + TypeScript, Tailwind CSS v4 |
+| Type | Schibsted Grotesk, Newsreader and IBM Plex Mono, self-hosted via Fontsource |
 | Database | Supabase Postgres with row level security |
 | AI | Gemini Flash API, called only from the server; one call per post; JSON answers validated with zod |
 | Image text | tesseract.js, self-hosted in `/public/tesseract`, runs in the browser |
@@ -100,9 +101,11 @@ Environment variables:
 | Name | What it is |
 | --- | --- |
 | `SUPABASE_URL` | Supabase project URL |
-| `SUPABASE_PUBLISHABLE_KEY` | Supabase publishable key (used only on the server) |
+| `BRANDSENTINEL_DB_KEY` | Supabase secret key, server only (recommended: lets the database refuse all direct public access) |
+| `SUPABASE_PUBLISHABLE_KEY` | Supabase publishable key, server only (fallback when no secret key is set) |
 | `GEMINI_API_KEY` | Gemini API key (optional: without it, only fast checks run) |
 | `GEMINI_MODEL` | Optional model name override |
+| `HEALTH_TOKEN` | Optional: lets `/api/health?ai=1` probe the AI models (sent as an `x-health-token` header) |
 
 Set up the database by running `supabase/migrations/*.sql` and then `supabase/seed.sql`.
 
@@ -110,5 +113,30 @@ Set up the database by running `supabase/migrations/*.sql` and then `supabase/se
 
 - AI never publishes or changes anything by itself. Every fix is a suggestion; a named person approves every post.
 - Every AI finding is labelled and must cite a real rule and quote; severity always comes from the rule, never the AI.
-- The AI key and database key stay on the server. Nothing can be deleted through the API.
+- Emails, phone numbers and the brand's confidential terms are replaced with placeholders before any AI call.
 - The demo uses the Gemini free tier, where Google may use prompts to improve its products, so the demo uses fictional data only. A production version would use a paid tier where customer data isn't used for training.
+
+## Security
+
+- **Keys stay on the server.** The AI key and the database key are only read by API routes; the browser never talks to the database.
+- **Strict input checks.** Every API body is validated with zod: image sources must be data URLs (PNG, JPEG, WebP) or bundled demo images, colours must be hex, names can't hold markup, sizes are capped.
+- **Writes only from this site.** Requests that change data must be JSON and come from the app's own origin (checked with `Origin` and `Sec-Fetch-Site`), and are limited to 60 a minute per visitor; AI calls have their own per-visitor and global limits.
+- **Roles and states are enforced on the server.** Only the creator can re-check, confirm the goal or decide on findings, and only while the post is a draft or sent back; only the assigned reviewer can approve or send back; only the brand manager can change the Rulebook.
+- **No deletes.** Nothing can be deleted through the app; rejected rules are kept and hidden.
+- **Errors don't leak.** Server errors are logged; the browser only sees a plain message.
+- **Prompt injection.** Post text and imported PDFs are marked as content to review, never instructions, and the proof check drops anything without a real rule, quote and fact.
+- **Security headers.** A Content Security Policy allows only the site's own scripts, styles, fonts (self-hosted), images, workers and API; framing is blocked; HSTS, `nosniff`, a strict referrer policy and a locked-down permissions policy are on.
+- **Health check.** Public health shows only whether the database answers and AI is set up; probing AI models needs a secret token.
+- **Database access.** With `BRANDSENTINEL_DB_KEY` set to a Supabase secret key, the public policies can be removed so the tables can't be read or changed directly at all; until then the publishable key is used on the server only.
+
+## Pages
+
+| Path | What it is |
+| --- | --- |
+| `/` | Check a post |
+| `/posts/<id>` | The report for one post (old `/post?id=` links redirect here) |
+| `/queue` | Review queue |
+| `/rulebook` (`/rulebook#CLAIM-01` opens one rule) | Rulebook |
+| `/facts` (`/facts#F-10` opens one fact) | Fact Bank |
+| `/insights` | Insights |
+| `/tests` | Test results on the sample posts |
