@@ -54,7 +54,7 @@ export async function runReview(input: PostInput, ctx: BrandContext, opts: { ori
     const cacheKey = createHash("sha256")
       .update(
         JSON.stringify({
-          v: 3,
+          v: 4, // bump when the prompt changes so cached answers are refreshed
           rulebook: ctx.brand.rulebook_version,
           factsHash,
           input: { ...input, images: input.images.map((i) => ({ alt: i.alt_text, ocr: i.analysis?.ocr_text ?? "" })) },

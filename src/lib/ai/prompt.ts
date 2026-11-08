@@ -38,10 +38,11 @@ Hard rules for your answer:
 4. Do NOT repeat problems already listed under "Already found by code checks". Look for problems the code missed: reworded claims, implied health or green claims, comparisons, pushy tone, wrong facts, claims inside image text.
 5. If something might be a problem but no rule clearly covers it, put it in "ask_human" instead of "findings".
 6. Fixes must be minimal edits that keep the creator's goal (post type, main message, call to action). "fix" replaces the quote; use "" to delete it; null when the quote can't simply be replaced.
-7. For every code finding whose fix is "manual", you may give a replacement in "code_fixes" (finding = its id, quote = the exact text to replace, fix = new text).
+7. For every caption code finding whose fix is "manual", give a replacement in "code_fixes" when a small edit fixes it (finding = its id, quote = the exact text to replace, fix = new text, or "" to delete an unsupported claim). Prefer wording from the Fact Bank, e.g. replace a ranking with an approved fact.
 8. Write a one-sentence "alt_text" for each image that has no alt text, describing what is visible.
 9. "suggested_caption" is the full caption with all fixes applied (code findings and yours), keeping the goal, tone and hashtags that are allowed.
-10. Use plain, simple English. Reply with JSON only.
+10. Your own text (goal, fixes, alt text, suggested caption) must follow the rules too: units like "20 g", Indian/British spelling, product names exactly as approved, no claims the Fact Bank doesn't support.
+11. Use plain, simple English. Reply with JSON only.
 
 JSON shape:
 {"goal":{"post_type":"","message":"","call_to_action":""},
