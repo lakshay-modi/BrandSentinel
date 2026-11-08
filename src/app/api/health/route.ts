@@ -1,6 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 import { connection } from "next/server";
-import { db, dbAccessMode } from "@/lib/db";
+import { db, dbAccessMode, dbKeyDiagnostics } from "@/lib/db";
 import { json } from "@/lib/api";
 import { aiModels } from "@/lib/ai/gemini";
 
@@ -37,6 +37,7 @@ export async function GET(req: Request) {
   const t0 = Date.now();
   const { error } = await db().from("brands").select("id").limit(1);
   const out: Record<string, unknown> = { db: error ? "error" : "ok", db_ms: Date.now() - t0, db_access: dbAccessMode(), ai_configured: !!process.env.GEMINI_API_KEY };
+  if (dbAccessMode() !== "secret key") out.db_key = dbKeyDiagnostics();
   if (new URL(req.url).searchParams.get("ai") === "1" && process.env.GEMINI_API_KEY) {
     if (!tokenOk(req)) return json({ ...out, ai: "model probe needs the health token" }, 401);
     out.ai = await Promise.all(aiModels().map((m) => probe(m, process.env.GEMINI_API_KEY!)));

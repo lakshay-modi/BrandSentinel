@@ -13,6 +13,27 @@ let client: SupabaseClient | null = null;
  * instead of taking the site down, and the health check reports it.
  */
 let secretRejected = false;
+let rejectReason = "";
+
+/** What kind of server key is set and why the database refused it, without revealing the key. */
+export function dbKeyDiagnostics() {
+  const k = process.env.BRANDSENTINEL_DB_KEY?.trim() ?? "";
+  if (!k) return null;
+  const kind = k.startsWith("sb_secret_") ? "secret key (sb_secret_)" : k.startsWith("sb_publishable_") ? "publishable key, not a secret key" : k.startsWith("eyJ") ? "legacy JWT key" : "unknown format";
+  let jwtProject: string | undefined;
+  let jwtRole: string | undefined;
+  if (k.startsWith("eyJ")) {
+    try {
+      const payload = JSON.parse(Buffer.from(k.split(".")[1], "base64url").toString());
+      jwtProject = payload.ref; // project refs are public (they are in the project URL)
+      jwtRole = payload.role;
+    } catch {
+      /* not a readable JWT */
+    }
+  }
+  const urlProject = process.env.SUPABASE_URL?.match(/https:\/\/([a-z0-9]+)\.supabase\.co/)?.[1];
+  return { kind, length: k.length, url_project: urlProject, jwt_project: jwtProject, jwt_role: jwtRole, rejected_because: rejectReason || undefined };
+}
 
 export function dbAccessMode(): "secret key" | "publishable key" | "publishable key (secret key rejected)" {
   if (!process.env.BRANDSENTINEL_DB_KEY) return "publishable key";
@@ -32,7 +53,8 @@ function fallbackFetch(secret: string, publishable: string | undefined): typeof 
       const res = await fetch(input, secretRejected ? init : withKey(init, secret));
       if (res.status !== 401 || !publishable || secretRejected) return res;
       secretRejected = true;
-      console.error("[db] BRANDSENTINEL_DB_KEY was rejected by the database; using the publishable key instead.");
+      rejectReason = (await res.clone().text().catch(() => "")).slice(0, 160);
+      console.error("[db] BRANDSENTINEL_DB_KEY was rejected by the database; using the publishable key instead.", rejectReason);
     }
     return fetch(input, withKey(init, publishable!));
   };
