@@ -2,14 +2,14 @@ import type { NextConfig } from "next";
 
 const isDev = process.env.NODE_ENV !== "production";
 
-// Content Security Policy: only this site's own scripts, images, workers and API; Google Fonts for type.
+// Content Security Policy: only this site's own scripts, styles, fonts, images, workers and API.
 // 'wasm-unsafe-eval' lets the in-browser OCR (tesseract, WebAssembly) run; 'unsafe-eval' only in development.
 const csp = [
   "default-src 'self'",
   `script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'${isDev ? " 'unsafe-eval'" : ""}`,
   "worker-src 'self' blob:",
-  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-  "font-src 'self' https://fonts.gstatic.com",
+  "style-src 'self' 'unsafe-inline'",
+  "font-src 'self'",
   "img-src 'self' data: blob:",
   "connect-src 'self' blob: data:",
   "object-src 'none'",

@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+import "@fontsource-variable/schibsted-grotesk";
+import "@fontsource-variable/newsreader/opsz.css";
+import "@fontsource/ibm-plex-mono/500.css";
 import "./globals.css";
 import { RoleProvider } from "@/components/role-provider";
 import { AppShell } from "@/components/app-shell";
