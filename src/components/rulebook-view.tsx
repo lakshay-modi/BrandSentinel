@@ -4,9 +4,10 @@ import { useEffect, useState } from "react";
 import { useHashScroll } from "@/lib/client/use-hash-scroll";
 import { api, type BrandData } from "@/lib/client/api";
 import type { Category, Rule, Severity } from "@/lib/types";
-import { Button, ErrorNote, SeverityTag } from "./ui";
+import { Button, ErrorNote, SeverityTag, PageSkeleton } from "./ui";
 import { useRole } from "./role-provider";
 import { RuleImport } from "./rule-import";
+import { useToast } from "./toast";
 
 const CATEGORY_LABEL: Record<Category, string> = { tone: "Tone", words: "Words and names", claims: "Claims", visuals: "Visuals", readability: "Readability" };
 const CHECK_LABEL: Record<Rule["check_type"], string> = { code: "Fast check", ai: "AI check", "code+ai": "Fast check + AI" };
@@ -98,6 +99,7 @@ export function RulebookView() {
   const [editing, setEditing] = useState<string | null>(null);
   const [filter, setFilter] = useState<Category | "all">("all");
   const [importing, setImporting] = useState(false);
+  const toast = useToast();
 
   const reload = () => api.brand().then(setData).catch((e) => setError(String(e.message ?? e)));
   useEffect(() => {
@@ -172,7 +174,7 @@ export function RulebookView() {
         ))}
       </div>
 
-      {!data && !error && <p className="text-sm text-ink-soft">Loading…</p>}
+      {!data && !error && <PageSkeleton rows={6} />}
       <ul className="space-y-3">
         {rules.map((r) => (
           <li key={r.id} id={r.id} className={`target-flash scroll-mt-24 rounded-lg border bg-surface p-4 ${r.status === "draft" ? "border-med/40" : "border-line"}`}>
@@ -193,6 +195,7 @@ export function RulebookView() {
                       onClick={async () => {
                         await send(`/api/rules/${r.id}`, "PATCH", { role, actor: name, changes: { status: "approved" } });
                         await reload();
+                        toast(`${r.id} approved. It's used in the next check.`);
                       }}
                     >
                       Approve
@@ -205,6 +208,7 @@ export function RulebookView() {
                       onClick={async () => {
                         await send(`/api/rules/${r.id}`, "PATCH", { role, actor: name, changes: { status: "rejected" } });
                         await reload();
+                        toast(`${r.id} rejected and hidden.`, "info");
                       }}
                     >
                       Reject
