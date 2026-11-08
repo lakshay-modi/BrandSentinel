@@ -1,0 +1,151 @@
+{
+  "p01_launch_banner.png": {
+    "ocr_text": "NEW Oatvia ProBar\n20g protein",
+    "lines": [
+      {
+        "text": "NEW Oatvia ProBar",
+        "contrast": 1.83,
+        "fg": "#E8A33D",
+        "bg": "#F5EBDD",
+        "large": true
+      },
+      {
+        "text": "20g protein",
+        "contrast": 1.83,
+        "fg": "#E8A33D",
+        "bg": "#F5EBDD",
+        "large": true
+      }
+    ],
+    "dominant": [
+      {
+        "hex": "#F5EBDD",
+        "share": 0.968
+      },
+      {
+        "hex": "#E8A33D",
+        "share": 0.028
+      }
+    ]
+  },
+  "p05_peanut_butter.png": {
+    "ocr_text": "ProBar Peanut Butter\n20 g protein",
+    "lines": [
+      {
+        "text": "ProBar Peanut Butter",
+        "contrast": 7.64,
+        "fg": "#FFFFFF",
+        "bg": "#2F5D3A",
+        "large": true
+      },
+      {
+        "text": "20 g protein",
+        "contrast": 7.64,
+        "fg": "#FFFFFF",
+        "bg": "#2F5D3A",
+        "large": true
+      }
+    ],
+    "dominant": [
+      {
+        "hex": "#2F5D3A",
+        "share": 0.971
+      },
+      {
+        "hex": "#FFFFFF",
+        "share": 0.024
+      }
+    ]
+  },
+  "p06_green_claim.png": {
+    "ocr_text": "100% Plastic-Free\nPackaging",
+    "lines": [
+      {
+        "text": "100% Plastic-Free",
+        "contrast": 12.09,
+        "fg": "#1F2A44",
+        "bg": "#F5EBDD",
+        "large": true
+      },
+      {
+        "text": "Packaging",
+        "contrast": 12.09,
+        "fg": "#1F2A44",
+        "bg": "#F5EBDD",
+        "large": true
+      }
+    ],
+    "dominant": [
+      {
+        "hex": "#F5EBDD",
+        "share": 0.969
+      },
+      {
+        "hex": "#1F2A44",
+        "share": 0.026
+      }
+    ]
+  },
+  "p08_clean.png": {
+    "ocr_text": "ProBar Choco Almond\n20 g protein",
+    "lines": [
+      {
+        "text": "ProBar Choco Almond",
+        "contrast": 12.09,
+        "fg": "#1F2A44",
+        "bg": "#F5EBDD",
+        "large": true
+      },
+      {
+        "text": "20 g protein",
+        "contrast": 12.09,
+        "fg": "#1F2A44",
+        "bg": "#F5EBDD",
+        "large": true
+      }
+    ],
+    "dominant": [
+      {
+        "hex": "#F5EBDD",
+        "share": 0.954
+      },
+      {
+        "hex": "#1F2A44",
+        "share": 0.024
+      },
+      {
+        "hex": "#E8A33D",
+        "share": 0.018
+      }
+    ]
+  },
+  "p09_off_brand.png": {
+    "ocr_text": "Oativa Probar\n20 g protein",
+    "lines": [
+      {
+        "text": "Oativa Probar",
+        "contrast": 2.69,
+        "fg": "#FFF3A0",
+        "bg": "#FF4FA3",
+        "large": true
+      },
+      {
+        "text": "20 g protein",
+        "contrast": 2.69,
+        "fg": "#FFF3A0",
+        "bg": "#FF4FA3",
+        "large": true
+      }
+    ],
+    "dominant": [
+      {
+        "hex": "#FF4FA3",
+        "share": 0.974
+      },
+      {
+        "hex": "#FFF3A0",
+        "share": 0.022
+      }
+    ]
+  }
+}
