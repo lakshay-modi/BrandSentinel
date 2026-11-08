@@ -5,11 +5,20 @@ import type { Brand, Fact, Rule } from "./types";
 
 let client: SupabaseClient | null = null;
 
+/**
+ * The server prefers a Supabase secret key. With it, the database can refuse all direct public access
+ * (see supabase/migrations/0006_server_only_access.sql), so every change has to go through this app's
+ * API and its checks. The publishable key is the fallback for local setups.
+ */
+export function dbAccessMode(): "secret key" | "publishable key" {
+  return process.env.SUPABASE_SECRET_KEY ? "secret key" : "publishable key";
+}
+
 export function db(): SupabaseClient {
   if (!client) {
     const url = process.env.SUPABASE_URL;
-    const key = process.env.SUPABASE_PUBLISHABLE_KEY;
-    if (!url || !key) throw new Error("SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY must be set");
+    const key = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_PUBLISHABLE_KEY;
+    if (!url || !key) throw new Error("SUPABASE_URL and SUPABASE_SECRET_KEY (or SUPABASE_PUBLISHABLE_KEY) must be set");
     client = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
   }
   return client;
