@@ -1,0 +1,80 @@
+"use client";
+
+import { useDeferredValue, useMemo } from "react";
+import { runCodeChecks } from "@/lib/checks/code-checks";
+import { assignIds, brandScore } from "@/lib/review/score";
+import type { PostInput } from "@/lib/types";
+import { useBrand } from "@/lib/client/use-brand";
+import { ProofText } from "./proof-text";
+import { SEVERITY_STYLE } from "./ui";
+
+const BAND_TEXT = { green: "text-pass", amber: "text-med", red: "text-high" } as const;
+const BAND_BAR = { green: "bg-pass", amber: "bg-med", red: "bg-high" } as const;
+
+/**
+ * Runs the same fast checks as the server, in the browser, on every keystroke.
+ * Only the caption is checked here: images, the AI and the proof check run when the post is checked.
+ */
+export function LivePreview({ input }: { input: PostInput }) {
+  const brand = useBrand();
+  const deferred = useDeferredValue(input);
+
+  const result = useMemo(() => {
+    if (!brand || !deferred.caption.trim()) return null;
+    const rules = new Map(brand.rules.filter((r) => r.status === "approved").map((r) => [r.id, r]));
+    const findings = assignIds(runCodeChecks({ input: { ...deferred, images: [] }, rules, facts: brand.facts, brand: brand.brand.settings, today: brand.today }));
+    return { findings, ...brandScore(findings) };
+  }, [brand, deferred]);
+
+  if (!input.caption.trim()) return null;
+
+  return (
+    <section aria-label="Live preview" className="mx-5 mt-4 rounded-xl border border-line bg-paper/50">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-4 py-3">
+        <p className="flex items-center gap-2 text-[13px] font-semibold">
+          <span className="relative flex size-2">
+            <span className="absolute inline-flex size-full animate-ping rounded-full bg-pass opacity-60 motion-reduce:animate-none" />
+            <span className="relative inline-flex size-2 rounded-full bg-pass" />
+          </span>
+          Live preview
+        </p>
+        {result && (
+          <div className="flex items-center gap-3" aria-live="polite">
+            <div className="h-2 w-28 overflow-hidden rounded-full bg-line" aria-hidden="true">
+              <div className={`h-full rounded-full transition-[width] duration-300 ${BAND_BAR[result.band]}`} style={{ width: `${result.score}%` }} />
+            </div>
+            <p className="text-[13px] tabular-nums">
+              <span className={`text-[18px] font-bold ${BAND_TEXT[result.band]}`}>{result.score}</span>
+              <span className="text-ink-faint">/100</span>
+            </p>
+          </div>
+        )}
+      </div>
+      {!result ? (
+        <p className="px-4 py-3 text-[13px] text-ink-faint">Loading the rules…</p>
+      ) : (
+        <div className="px-4 py-3">
+          <ProofText text={deferred.caption} findings={result.findings.map((f, i) => ({ f, ref: i + 1 }))} className="!text-[17px]" />
+          {result.findings.length === 0 ? (
+            <p className="mt-2 text-[13px] text-pass">No problems in the caption so far.</p>
+          ) : (
+            <ol className="mt-3 space-y-1.5">
+              {result.findings.map((f, i) => {
+                const s = SEVERITY_STYLE[f.severity];
+                return (
+                  <li key={f.id} className="flex gap-2 text-[13px] leading-snug">
+                    <span className={`mt-px flex size-[18px] shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white ${s.dot}`}>{i + 1}</span>
+                    <span>
+                      <span className="font-mono text-[12px] font-medium">{f.rule_id}</span> <span className="text-ink-soft">{f.message}</span>
+                    </span>
+                  </li>
+                );
+              })}
+            </ol>
+          )}
+          <p className="mt-3 text-[12px] text-ink-faint">Fast checks on the caption, as you type. Images, the AI check and the proof check run when you press Check post.</p>
+        </div>
+      )}
+    </section>
+  );
+}

@@ -7,6 +7,7 @@ import { analyzeImage, shrinkImage } from "@/lib/client/analyze-image";
 import { SAMPLE_HINT, SAMPLE_LABEL, samplePosts, type SamplePost } from "@/lib/demo/samples";
 import type { Channel, PostImage, PostInput } from "@/lib/types";
 import { Button, ErrorNote } from "./ui";
+import { LivePreview } from "./live-preview";
 import { useRole } from "./role-provider";
 
 const POST_TYPES = ["product", "launch", "offer", "partner", "sustainability", "company update", "promo"];
@@ -145,6 +146,8 @@ export function ComposeForm() {
               className="mt-2 w-full resize-y rounded-lg border-0 bg-paper/60 px-4 py-3 font-serif text-[20px] leading-[1.6] placeholder:text-ink-faint focus:bg-surface focus:outline-2 focus:outline-low"
             />
           </label>
+
+          <LivePreview input={input} />
 
           <div className="px-5 pt-5">
             <div className="flex items-center justify-between">
