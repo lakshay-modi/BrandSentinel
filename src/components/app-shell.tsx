@@ -62,15 +62,14 @@ function RoleSwitcher() {
   const { role, setRole, name, setName } = useRole();
   return (
     <div className="flex items-center gap-2 text-[13px]">
-      <div role="radiogroup" aria-label="Acting as" className="flex rounded-lg border border-line-strong bg-paper p-0.5">
+      <div role="group" aria-label="Acting as" className="flex rounded-lg border border-line-strong bg-paper p-0.5">
         {ROLES.map((r) => {
           const on = r.role === role;
           return (
             <button
               key={r.role}
               type="button"
-              role="radio"
-              aria-checked={on}
+              aria-pressed={on}
               title={ROLE_HINT[r.role]}
               onClick={() => setRole(r.role)}
               className={`whitespace-nowrap rounded-md px-2.5 py-1 font-medium transition-colors ${on ? "bg-ink text-white shadow-sm" : "text-ink-soft hover:text-ink"}`}
@@ -106,7 +105,7 @@ function BrandSwitcher() {
         }}
         className="rounded-lg border border-line-strong bg-surface px-2 py-1 font-semibold text-ink"
       >
-        {data.brands.map((b) => (
+        {(data.brands?.length ? data.brands : [{ slug: data.brand.slug, name: data.brand.name }]).map((b) => (
           <option key={b.slug} value={b.slug}>
             {b.name}
           </option>

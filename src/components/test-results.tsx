@@ -75,7 +75,7 @@ export function TestResults() {
       <div>
         <h1 className="text-[28px] font-bold leading-tight tracking-tight">Test results</h1>
         <p className="mt-1 max-w-3xl text-[15px] leading-relaxed text-ink-soft">
-          The 10 sample posts contain planted mistakes, each labelled with the rule it breaks in an{" "}
+          The demo brand Oatvia Foods has 10 sample posts with planted mistakes, each labelled with the rule it breaks in an{" "}
           <a href={`${REPO}/demo/expected_findings.json`} target="_blank" className="underline">
             answer key
           </a>
