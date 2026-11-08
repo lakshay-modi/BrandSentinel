@@ -3,7 +3,7 @@
     "id": "TONE-01",
     "category": "tone",
     "severity": "medium",
-    "check": "ai",
+    "check": "code+ai",
     "scope": "all",
     "rule": "Friendly and calm, never pushy. No pressure or urgency language.",
     "guideline": "We talk like a friend who loves good food, not a salesperson. We never pressure people: no 'hurry', 'last chance', 'don't miss out', 'grab it NOW' or 'limited time only'. A simple call to action like 'shop now' or 'pick yours up' is fine.",
@@ -196,7 +196,18 @@
     "rule": "No rankings or superlatives without an approved fact.",
     "guideline": "Don't call us 'No. 1', '#1', 'the best', 'India's favourite', 'most loved' or 'healthiest' unless an approved fact with a source says so. Right now, no such fact exists.",
     "good": "A protein bar with 20 g of protein.",
-    "bad": "India's No. 1 protein bar"
+    "bad": "India's No. 1 protein bar",
+    "patterns": [
+      "\\bno\\.?\\s?1\\b",
+      "#1\\b",
+      "\\bnumber one\\b",
+      "\\bthe best\\b",
+      "\\bbest\\s+(?:bar|snack|oat|protein|in)\\b",
+      "\\bindia'?s favou?rite\\b",
+      "\\bmost loved\\b",
+      "\\bhealthiest\\b",
+      "\\btastiest\\b"
+    ]
   },
   {
     "id": "CLAIM-02",
@@ -213,34 +224,82 @@
     "id": "CLAIM-03",
     "category": "claims",
     "severity": "high",
-    "check": "ai",
+    "check": "code+ai",
     "scope": "all (caption and image text)",
     "rule": "Environmental claims must match the approved fact exactly.",
     "guideline": "Following the CCPA greenwashing guidelines (2024), we only make environmental claims we can prove. The only approved one today: 'our outer box is made from recyclable paperboard'. The inner wrapper is not recyclable. Never say eco-friendly, green, sustainable packaging, plastic-free, 100% recyclable or carbon neutral.",
     "good": "Our outer box is made from recyclable paperboard.",
-    "bad": "100% recyclable, plastic-free, eco-friendly pack"
+    "bad": "100% recyclable, plastic-free, eco-friendly pack",
+    "phrases": [
+      "eco-friendly",
+      "eco friendly",
+      "environment-friendly",
+      "plastic-free",
+      "plastic free",
+      "100% recyclable",
+      "fully recyclable",
+      "biodegradable",
+      "compostable",
+      "carbon neutral",
+      "carbon-neutral",
+      "sustainable",
+      "green packaging",
+      "zero waste",
+      "zero-waste"
+    ]
   },
   {
     "id": "CLAIM-04",
     "category": "claims",
     "severity": "high",
-    "check": "ai",
+    "check": "code+ai",
     "scope": "all",
     "rule": "No health or medical claims.",
     "guideline": "Our products are food, not medicine. Never say they help with weight loss, boost immunity, prevent or cure any condition, are safe for diabetics, or are good for the heart.",
     "good": "20 g of protein to go with your day.",
-    "bad": "Helps you lose weight and boosts immunity."
+    "bad": "Helps you lose weight and boosts immunity.",
+    "phrases": [
+      "lose weight",
+      "weight loss",
+      "burn fat",
+      "fat burning",
+      "boost immunity",
+      "boosts immunity",
+      "immunity",
+      "diabetic",
+      "diabetes",
+      "heart health",
+      "good for your heart",
+      "lowers cholesterol",
+      "prevents",
+      "heals"
+    ]
   },
   {
     "id": "CLAIM-05",
     "category": "claims",
     "severity": "high",
-    "check": "ai",
+    "check": "code+ai",
     "scope": "all",
     "rule": "Diet and 'absolute' claims only where a fact supports them.",
     "guideline": "Words like 100% natural, vegan, gluten-free, sugar-free and no preservatives may only be used for a product when the Fact Bank says so for that exact product. ProBar Choco Almond is vegan; ProBar Peanut Butter is not. No product is gluten-free.",
     "good": "ProBar Choco Almond is vegan.",
-    "bad": "ProBar Peanut Butter is vegan and gluten-free."
+    "bad": "ProBar Peanut Butter is vegan and gluten-free.",
+    "diet_terms": {
+      "100% natural": "natural",
+      "all natural": "natural",
+      "all-natural": "natural",
+      "vegan": "vegan",
+      "plant-based": "vegan",
+      "gluten-free": "gluten-free",
+      "gluten free": "gluten-free",
+      "sugar-free": "sugar-free",
+      "sugar free": "sugar-free",
+      "no preservatives": "no preservatives",
+      "preservative-free": "no preservatives",
+      "dairy-free": "dairy-free",
+      "dairy free": "dairy-free"
+    }
   },
   {
     "id": "CLAIM-06",
@@ -257,12 +316,22 @@
     "id": "CLAIM-07",
     "category": "claims",
     "severity": "medium",
-    "check": "ai",
+    "check": "code+ai",
     "scope": "all",
     "rule": "No comparisons with competitors or other foods.",
     "guideline": "Talk about what we are, not what others aren't. Don't compare us with competitors or with other foods (for example 'better than dairy milk' or 'unlike other bars').",
     "good": "Creamy oat milk for your chai.",
-    "bad": "Creamier and better than dairy milk."
+    "bad": "Creamier and better than dairy milk.",
+    "phrases": [
+      "better than",
+      "unlike other",
+      "unlike the",
+      "compared to",
+      "compared with",
+      "than dairy",
+      "than regular",
+      "than other"
+    ]
   },
   {
     "id": "CLAIM-08",
@@ -273,7 +342,11 @@
     "rule": "Paid or partner posts must start with #ad or 'Paid partnership'.",
     "guideline": "Following ASCI's influencer guidelines, every post by a paid partner or influencer must start with '#ad' or 'Paid partnership' so people know it's an ad.",
     "good": "#ad My afternoon snack: Oatvia ProBar",
-    "bad": "My afternoon snack: Oatvia ProBar (no disclosure)"
+    "bad": "My afternoon snack: Oatvia ProBar (no disclosure)",
+    "starts_with": [
+      "#ad",
+      "paid partnership"
+    ]
   },
   {
     "id": "CLAIM-09",
@@ -284,7 +357,11 @@
     "rule": "Posts about ProBar Peanut Butter must say 'Contains peanuts'.",
     "guideline": "Any post about ProBar Peanut Butter must include the words 'Contains peanuts'.",
     "good": "ProBar Peanut Butter. Contains peanuts.",
-    "bad": "(no allergen line)"
+    "bad": "(no allergen line)",
+    "when_mentions": [
+      "Peanut Butter"
+    ],
+    "required_text": "Contains peanuts"
   },
   {
     "id": "VIS-01",
@@ -314,7 +391,7 @@
     "id": "READ-02",
     "category": "readability",
     "severity": "medium",
-    "check": "ai",
+    "check": "code+ai",
     "scope": "images",
     "rule": "Every image needs alt text.",
     "guideline": "Every image needs a short description (alt text) for people using screen readers.",

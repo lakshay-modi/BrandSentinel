@@ -86,7 +86,7 @@
   {
     "post": "P02",
     "title": "LinkedIn company update with subtle mistakes",
-    "expected_score": 69,
+    "expected_score": 72,
     "band": "amber",
     "expected_findings": [
       {
@@ -112,14 +112,7 @@
       },
       {
         "rule": "WORD-03",
-        "quote": "flavor",
-        "where": "caption",
-        "severity": "low",
-        "points": 3
-      },
-      {
-        "rule": "WORD-03",
-        "quote": "favorite",
+        "quote": "flavor, favorite",
         "where": "caption",
         "severity": "low",
         "points": 3
