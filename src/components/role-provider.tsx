@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useSyncExternalStore } from "react";
 import type { Role } from "@/lib/types";
 
 export const ROLE_LABEL: Record<Role, string> = { creator: "Creator", brand_manager: "Brand manager", expert: "Expert reviewer" };
@@ -20,6 +20,16 @@ interface RoleState {
 
 const RoleContext = createContext<RoleState | null>(null);
 
+// The chosen role and names are a per-visitor convenience kept in localStorage (the app works without it).
+const listeners = new Set<() => void>();
+function subscribe(cb: () => void) {
+  listeners.add(cb);
+  window.addEventListener("storage", cb);
+  return () => {
+    listeners.delete(cb);
+    window.removeEventListener("storage", cb);
+  };
+}
 function read(key: string): string | null {
   try {
     return localStorage.getItem(key);
@@ -31,39 +41,28 @@ function write(key: string, value: string) {
   try {
     localStorage.setItem(key, value);
   } catch {
-    /* storage can be unavailable (private mode); the app still works */
+    /* storage can be unavailable (private mode) */
   }
+  listeners.forEach((l) => l());
 }
 
 export function RoleProvider({ children }: { children: React.ReactNode }) {
-  const [role, setRoleState] = useState<Role>("creator");
-  const [names, setNames] = useState<Record<Role, string>>(DEFAULT_NAME);
+  const storedRole = useSyncExternalStore(subscribe, () => read("bs-role"), () => null);
+  const storedNames = useSyncExternalStore(subscribe, () => read("bs-names"), () => null);
 
-  useEffect(() => {
-    const r = read("bs-role");
-    if (r === "creator" || r === "brand_manager" || r === "expert") setRoleState(r);
-    const n = read("bs-names");
-    if (n) {
-      try {
-        setNames({ ...DEFAULT_NAME, ...JSON.parse(n) });
-      } catch {
-        /* ignore bad stored value */
-      }
-    }
-  }, []);
+  const role: Role = storedRole === "brand_manager" || storedRole === "expert" ? storedRole : "creator";
+  let names = DEFAULT_NAME;
+  try {
+    if (storedNames) names = { ...DEFAULT_NAME, ...JSON.parse(storedNames) };
+  } catch {
+    /* ignore a bad stored value */
+  }
 
   const value: RoleState = {
     role,
-    name: names[role],
-    setRole: (r) => {
-      setRoleState(r);
-      write("bs-role", r);
-    },
-    setName: (n) => {
-      const next = { ...names, [role]: n.slice(0, 40) || DEFAULT_NAME[role] };
-      setNames(next);
-      write("bs-names", JSON.stringify(next));
-    },
+    name: names[role] || DEFAULT_NAME[role],
+    setRole: (r) => write("bs-role", r),
+    setName: (n) => write("bs-names", JSON.stringify({ ...names, [role]: n.slice(0, 40) })),
   };
   return <RoleContext.Provider value={value}>{children}</RoleContext.Provider>;
 }

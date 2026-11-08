@@ -76,7 +76,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </header>
       <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6">{children}</main>
       <footer className="border-t border-line py-4 text-center text-xs text-ink-faint">
-        BrandSentinel prototype. AI checks use the Gemini API free tier, on fictional demo data only. Every AI finding is checked against real rules and facts before it's shown.
+        BrandSentinel prototype. AI checks use the Gemini API free tier, on fictional demo data only. Every AI finding is checked against real rules and facts before it&apos;s shown.
       </footer>
     </div>
   );
