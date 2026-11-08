@@ -4,6 +4,7 @@ import type { Brand, Fact, Goal, PostInput, ReviewResult, Role, Rule } from "../
 
 export interface ReviewRow extends ReviewResult {
   id: string;
+  caption: string;
   created_at: string;
   dropped: number;
   ai_detail?: string;
