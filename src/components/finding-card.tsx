@@ -21,6 +21,7 @@ export function FindingCard({
   onAccept,
   onEdit,
   onDisagree,
+  onImageFix,
   highlighted,
   stale,
   active,
@@ -35,6 +36,8 @@ export function FindingCard({
   /** `where`: for something missing from the caption, add the text at the start or the end */
   onEdit: (text: string, where?: "start" | "end") => Promise<void>;
   onDisagree: (reason: string) => Promise<void>;
+  /** rewrite the quoted text inside the image (Accept uses the suggested wording, Edit the creator's) */
+  onImageFix?: (text: string, how: "accept" | "edit") => Promise<void>;
   highlighted?: boolean;
   /** the text this fix changes is already gone (another fix or an edit changed it) */
   stale?: boolean;
@@ -45,22 +48,28 @@ export function FindingCard({
   const [mode, setMode] = useState<"none" | "edit" | "add" | "disagree">("none");
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
   const s = SEVERITY_STYLE[f.severity];
   const inCaption = f.location === "caption";
   // the demo brand's alt-text rule (an imported brand's READ-02 can mean something else)
   const isAlt = f.fix.kind === "alt_text" || (f.rule_id === "READ-02" && !inCaption && f.source !== "ai");
   // something missing from the caption (for example "#ad"), with no ready-made fix: the creator writes what to add
   const missing = inCaption && f.quotes.length === 0 && !canApply(f.fix);
-  // text inside an image can't be changed here, so only caption fixes and alt text are one-click
-  const acceptable = (inCaption && canApply(f.fix) && !stale) || f.fix.kind === "alt_text";
-  const editable = (inCaption && f.quotes.length > 0 && !stale) || isAlt;
+  // text inside an image can be rewritten in place (small wording changes on flat backgrounds)
+  const inImage = !inCaption && !isAlt && f.quotes.length > 0 && !!onImageFix;
+  const imageText = f.fix.kind === "replace" ? f.fix.pairs[0].to : f.fix.kind === "remove" ? "" : null;
+  const acceptable = (inCaption && canApply(f.fix) && !stale) || f.fix.kind === "alt_text" || (inImage && imageText !== null);
+  const editable = (inCaption && f.quotes.length > 0 && !stale) || isAlt || inImage;
   const editDefault = f.fix.kind === "replace" ? f.fix.pairs[0].to : f.fix.kind === "alt_text" ? f.fix.text : f.quotes[0] ?? "";
 
   const run = async (fn: () => Promise<void>) => {
     setBusy(true);
+    setProblem(null);
     try {
       await fn();
       setMode("none");
+    } catch (e) {
+      setProblem(e instanceof Error ? e.message : String(e));
     } finally {
       setBusy(false);
     }
@@ -102,7 +111,7 @@ export function FindingCard({
           <p className="text-[14px] leading-relaxed">
             <span className="font-semibold">{acceptable ? "Suggested fix: " : "How to fix: "}</span>
             <span className="text-ink-soft">{describeFix(f.fix)}</span>
-            {!inCaption && !isAlt && <span className="block text-[13px] text-ink-faint">This is inside the image, so change the image and check again.</span>}
+            {!inCaption && !isAlt && !inImage && <span className="block text-[13px] text-ink-faint">This is inside the image, so change the image and check again.</span>}
             {stale && <span className="block text-[13px] text-ink-faint">This text has already changed in your edits. Re-check to confirm it&apos;s fixed.</span>}
           </p>
 
@@ -117,13 +126,13 @@ export function FindingCard({
               {mode === "none" && (
                 <div className="flex flex-wrap gap-2">
                   {acceptable && (
-                    <Button size="sm" variant="primary" disabled={busy} onClick={() => run(onAccept)}>
-                      Accept fix
+                    <Button size="sm" variant="primary" disabled={busy} onClick={() => run(inImage ? () => onImageFix!(imageText ?? "", "accept") : onAccept)}>
+                      {busy && inImage ? "Changing the image…" : inImage ? "Accept fix in image" : "Accept fix"}
                     </Button>
                   )}
                   {editable && (
                     <Button size="sm" disabled={busy} onClick={() => { setText(isAlt && f.fix.kind !== "alt_text" ? "" : editDefault); setMode("edit"); }}>
-                      {isAlt && f.fix.kind !== "alt_text" ? "Write alt text" : "Edit"}
+                      {isAlt && f.fix.kind !== "alt_text" ? "Write alt text" : inImage ? "Edit text in image" : "Edit"}
                     </Button>
                   )}
                   {missing && (
@@ -142,11 +151,11 @@ export function FindingCard({
                   onSubmit={(e) => {
                     e.preventDefault();
                     const where = (e.nativeEvent as SubmitEvent).submitter?.getAttribute("value") === "start" ? "start" : "end";
-                    run(() => (mode === "edit" ? onEdit(text) : mode === "add" ? onEdit(text, where) : onDisagree(text)));
+                    run(() => (mode === "edit" ? (inImage ? onImageFix!(text, "edit") : onEdit(text)) : mode === "add" ? onEdit(text, where) : onDisagree(text)));
                   }}
                 >
                   <label className="block text-[13px] text-ink-soft">
-                    {mode === "edit" ? (isAlt ? "Alt text for the image" : `Replace “${f.quotes[0]}” with`) : mode === "add" ? "Text to add to the caption" : "Why are you rejecting this? (the reviewer will see your reason)"}
+                    {mode === "edit" ? (isAlt ? "Alt text for the image" : inImage ? `In the image, replace “${f.quotes[0]}” with` : `Replace “${f.quotes[0]}” with`) : mode === "add" ? "Text to add to the caption" : "Why are you rejecting this? (the reviewer will see your reason)"}
                     <input
                       autoFocus
                       value={text}
@@ -176,6 +185,17 @@ export function FindingCard({
                     </Button>
                   </div>
                 </form>
+              )}
+              {problem && (
+                <p role="alert" className="rounded-lg bg-high-bg px-3 py-2 text-[13px] text-high">
+                  {problem}
+                </p>
+              )}
+              {inImage && (
+                <p className="text-[12px] leading-relaxed text-ink-faint">
+                  <span className="font-semibold text-ink-soft">For small wording changes only.</span> The new words are drawn over the old line in a standard font, matched to its size and colour. It works on
+                  plain or gently shaded backgrounds; on photos, strong gradients or styled lettering it refuses, so change those in your design tool. Always look at the result before you re-check.
+                </p>
               )}
             </>
           ) : null}

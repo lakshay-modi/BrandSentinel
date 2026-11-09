@@ -8,7 +8,7 @@ import { api, type DecisionRow, type HistoryRow, type PostRow, type ReviewRow } 
 import { applyFix, canApply } from "@/lib/fixes";
 
 const endSentence = (t: string) => (/[.!?]$/.test(t.trim()) ? t.trim() : `${t.trim()}.`);
-import type { Fact, Finding, Goal } from "@/lib/types";
+import type { Fact, Finding, Goal, ImageAnalysis } from "@/lib/types";
 import { FindingCard } from "./finding-card";
 import { ProofText } from "./proof-text";
 import { ScorePanel } from "./score-panel";
@@ -78,6 +78,9 @@ export function PostWorkspace({ id }: { id: string }) {
   const [alts, setAlts] = useState<string[]>([]);
   const [ocr, setOcr] = useState<string[]>([]); // text read from each image; the creator can correct OCR mistakes
   const [ocrEdit, setOcrEdit] = useState<number | null>(null);
+  // images whose text was rewritten here (not saved until the re-check), with what they were before
+  const [imgEdits, setImgEdits] = useState<Record<number, { src: string; analysis: ImageAnalysis; prev: { src: string; ocr: string } }>>({});
+  const [imgBusy, setImgBusy] = useState<number | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [picked, setPicked] = useState<string | null>(null);
   const [active, setActive] = useState<string | null>(null); // problem pointed at by hover or keyboard
@@ -116,6 +119,7 @@ export function PostWorkspace({ id }: { id: string }) {
     setAlts(d.post.images.map((i) => i.alt_text));
     setOcr(d.post.images.map((i) => i.analysis?.ocr_text ?? ""));
     setOcrEdit(null);
+    setImgEdits({});
     setError(null);
   }, []);
 
@@ -151,7 +155,8 @@ export function PostWorkspace({ id }: { id: string }) {
     !!review &&
     (caption !== review.caption ||
       alts.some((a, i) => a !== (post.images[i]?.alt_text ?? "")) ||
-      ocr.some((t, i) => t !== (post.images[i]?.analysis?.ocr_text ?? "")));
+      ocr.some((t, i) => t !== (post.images[i]?.analysis?.ocr_text ?? "")) ||
+      Object.keys(imgEdits).length > 0);
   const goal: Goal | null = (post.goal && "message" in post.goal ? (post.goal as Goal) : null) ?? review?.goal ?? null;
 
   const visible = numbered.filter(({ f }) => {
@@ -253,6 +258,48 @@ export function PostWorkspace({ id }: { id: string }) {
     void decide(f, "edit", text, undo);
   };
 
+  // Rewrite a few words inside an image (accept the suggested wording, or the creator's own).
+  // Throws a plain message when it can't, which the problem card shows.
+  const imageFix = async (f: Finding, text: string, how: "accept" | "edit") => {
+    const i = imageIndex(f);
+    const img = post.images[i];
+    const quote = f.quotes[0];
+    if (!img || !quote) throw new Error("This problem doesn't quote text in the image, so there is nothing to rewrite.");
+    setImgBusy(i);
+    try {
+      const { rewriteImageText } = await import("@/lib/client/image-text-fix");
+      const current = imgEdits[i];
+      const prevOcr = ocr[i] ?? "";
+      const edit = await rewriteImageText(current?.src ?? img.src, quote, text);
+      const prev = current?.prev ?? { src: img.src, ocr: prevOcr };
+      setImgEdits((m) => ({ ...m, [i]: { src: edit.src, analysis: edit.analysis, prev } }));
+      setOcr((o) => o.map((v, j) => (j === i ? edit.analysis.ocr_text : v)));
+      toast(`Image ${i + 1} changed to “${edit.after || "(text removed)"}”. Look at it, then re-check.`);
+      // if the server refuses the decision, put the image back as it was
+      const undo = () => {
+        setImgEdits((m) => {
+          const n = { ...m };
+          if (current) n[i] = current;
+          else delete n[i];
+          return n;
+        });
+        setOcr((o) => o.map((v, j) => (j === i ? prevOcr : v)));
+      };
+      void decide(f, how, how === "edit" ? text : undefined, undo);
+    } finally {
+      setImgBusy(null);
+    }
+  };
+  const undoImage = (i: number) => {
+    const e = imgEdits[i];
+    setImgEdits((m) => {
+      const n = { ...m };
+      delete n[i];
+      return n;
+    });
+    if (e) setOcr((o) => o.map((v, j) => (j === i ? e.prev.ocr : v)));
+  };
+
   const recheck = async () => {
     setBusy("Re-checking…");
     setError(null);
@@ -269,11 +316,11 @@ export function PostWorkspace({ id }: { id: string }) {
           product: post.product,
           partner: post.partner,
           caption,
-          images: post.images.map((img, i) => ({
-            ...img,
-            alt_text: alts[i] ?? img.alt_text,
-            analysis: img.analysis && { ...img.analysis, ocr_text: ocr[i] ?? img.analysis.ocr_text },
-          })),
+          images: post.images.map((img, i) => {
+            const e = imgEdits[i];
+            const analysis = e?.analysis ?? img.analysis;
+            return { ...img, src: e?.src ?? img.src, alt_text: alts[i] ?? img.alt_text, analysis: analysis && { ...analysis, ocr_text: ocr[i] ?? analysis.ocr_text } };
+          }),
         },
       });
       await load();
@@ -357,7 +404,21 @@ export function PostWorkspace({ id }: { id: string }) {
                   return (
                     <li key={i} className="relative">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={img.src} alt={alts[i] || ""} className="aspect-square w-full rounded-lg border border-line object-cover" />
+                      <img src={imgEdits[i]?.src ?? img.src} alt={alts[i] || ""} className={`aspect-square w-full rounded-lg border object-cover ${imgEdits[i] ? "border-low ring-2 ring-low/30" : "border-line"} ${imgBusy === i ? "animate-pulse" : ""}`} />
+                      {imgBusy === i && (
+                        <span className="absolute inset-x-2 bottom-14 rounded-md bg-ink/85 px-2 py-1 text-center text-[12px] font-medium text-white" role="status">
+                          Rewriting the text in this image…
+                        </span>
+                      )}
+                      {imgEdits[i] && (
+                        <p className="mt-2 flex flex-wrap items-center gap-x-2 rounded-md bg-low-bg px-2 py-1 text-[12px] text-low">
+                          <span className="font-semibold">Text changed here, not saved yet.</span>
+                          <span>Re-check to save it.</span>
+                          <button type="button" onClick={() => undoImage(i)} className="ml-auto font-semibold underline">
+                            Undo
+                          </button>
+                        </p>
+                      )}
                       {refs.length > 0 && (
                         <div className="absolute left-2 top-2 flex flex-wrap gap-1">
                           {refs.map((x) => (
@@ -562,6 +623,7 @@ export function PostWorkspace({ id }: { id: string }) {
                         highlighted={picked === f.id}
                         onAccept={() => accept(f)}
                         onEdit={(t, where) => edit(f, t, where)}
+                        onImageFix={(t, how) => imageFix(f, t, how)}
                         onDisagree={async (r) => {
                           void decide(f, "disagree", r);
                           toast("Rejection saved. The reviewer will see your reason.", "info");
