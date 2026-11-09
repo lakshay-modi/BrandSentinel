@@ -202,6 +202,26 @@ h3 {
   transition: opacity 150ms;
 }
 
+/* the score dial: the needle swings in from 0, then glides when the score changes */
+.gauge-needle {
+  transition: transform 900ms cubic-bezier(0.34, 1.4, 0.64, 1);
+  animation: needle-in 1200ms cubic-bezier(0.3, 1.25, 0.6, 1) both;
+}
+@keyframes needle-in {
+  from {
+    transform: rotate(var(--needle-from));
+  }
+}
+.gauge-progress {
+  transition: stroke-dasharray 900ms ease-out;
+  animation: gauge-fill 1200ms ease-out both;
+}
+@keyframes gauge-fill {
+  from {
+    stroke-dasharray: 0.01 100;
+  }
+}
+
 .thin-scroll {
   scrollbar-width: thin;
   scrollbar-color: var(--color-line-strong) transparent;
@@ -210,11 +230,17 @@ h3 {
 @media (prefers-reduced-motion: reduce) {
   .toast-in,
   .dialog-in[open],
-  .row-in {
+  .row-in,
+  .gauge-needle,
+  .gauge-progress {
     animation: none;
   }
   .stamp {
     animation: none;
+  }
+  .gauge-needle,
+  .gauge-progress {
+    transition: none;
   }
   .flash,
   .target-flash:target {

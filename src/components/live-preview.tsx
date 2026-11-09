@@ -6,10 +6,10 @@ import { assignIds, brandScore } from "@/lib/review/score";
 import type { PostInput } from "@/lib/types";
 import { useBrand } from "@/lib/client/use-brand";
 import { ProofText } from "./proof-text";
+import { ScoreGauge } from "./score-gauge";
 import { SEVERITY_STYLE } from "./ui";
 
 const BAND_TEXT = { green: "text-pass", amber: "text-med", red: "text-high" } as const;
-const BAND_BAR = { green: "bg-pass", amber: "bg-med", red: "bg-high" } as const;
 
 /**
  * Runs the same fast checks as the server, in the browser, on every keystroke.
@@ -52,13 +52,11 @@ export function LivePreview({ input }: { input: PostInput }) {
         </p>
         {result && (
           <div className="flex items-center gap-3" aria-live="polite">
-            <div className="h-2 w-28 overflow-hidden rounded-full bg-line" aria-hidden="true">
-              <div className={`h-full rounded-full transition-[width] duration-300 ${BAND_BAR[result.band]}`} style={{ width: `${result.score}%` }} />
-            </div>
             <p className="text-[13px] tabular-nums">
               <span className={`text-[18px] font-bold ${BAND_TEXT[result.band]}`}>{result.score}</span>
-              <span className="text-ink-faint">/100</span>
+              <span className="text-ink-faint">/100 so far</span>
             </p>
+            <ScoreGauge score={result.score} band={result.band} size={72} compact />
           </div>
         )}
       </div>
