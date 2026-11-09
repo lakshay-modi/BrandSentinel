@@ -1,6 +1,7 @@
 import { z } from "zod";
+import { can, whoCan } from "@/lib/roles";
 import { actorSchema, fail, json, readJson, roleSchema, serverError } from "@/lib/api";
-import { db, getBrandContext } from "@/lib/db";
+import { bumpRulebook, db, getBrandContext } from "@/lib/db";
 
 const bodySchema = z.object({
   role: roleSchema,
@@ -24,7 +25,7 @@ export async function PATCH(req: Request, ctx: RouteContext<"/api/rules/[id]">) 
   const body = await readJson(req, bodySchema);
   if (!body.ok) return body.res;
   const { role, changes } = body.data;
-  if (role !== "brand_manager") return fail("Only the brand manager can change the Rulebook.", 403);
+  if (!can(role, "manage_rules")) return fail(`Only ${whoCan("manage_rules")} can change the Rulebook.`, 403);
   try {
     const { brand, rules } = await getBrandContext();
     const current = rules.find((r) => r.id === id);
@@ -39,6 +40,26 @@ export async function PATCH(req: Request, ctx: RouteContext<"/api/rules/[id]">) 
     if (error) throw new Error(error.message);
     await db().from("brands").update({ rulebook_version: brand.rulebook_version + 1 }).eq("id", brand.id);
     return json({ rule: data, rulebook_version: brand.rulebook_version + 1 });
+  } catch (e) {
+    return serverError(e, "rules/[id]");
+  }
+}
+
+const deleteSchema = z.object({ role: roleSchema, actor: actorSchema });
+
+/** Delete one rule (brand manager). Past reports keep their copy of it. */
+export async function DELETE(req: Request, ctx: RouteContext<"/api/rules/[id]">) {
+  const { id } = await ctx.params;
+  const body = await readJson(req, deleteSchema);
+  if (!body.ok) return body.res;
+  if (!can(body.data.role, "manage_rules")) return fail(`Only ${whoCan("manage_rules")} can delete rules.`, 403);
+  try {
+    const { brand } = await getBrandContext();
+    const { data, error } = await db().from("rules").delete().eq("brand_id", brand.id).eq("id", id).select("id").maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!data) return fail("Rule not found", 404);
+    await bumpRulebook(brand);
+    return json({ ok: true });
   } catch (e) {
     return serverError(e, "rules/[id]");
   }

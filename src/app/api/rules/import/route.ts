@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
+import { can, whoCan } from "@/lib/roles";
 import { actorSchema, clientId, fail, json, readJson, roleSchema, serverError } from "@/lib/api";
-import { db, getBrandContext, getCache, setCache } from "@/lib/db";
+import { bumpRulebook, db, getBrandContext, getCache, setCache } from "@/lib/db";
 import { callGemini, parseJson } from "@/lib/ai/gemini";
 import { IMPORT_SYSTEM_PROMPT, buildImportPrompt, parseImportReply, quoteInDocument, type ImportedRule } from "@/lib/ai/import-prompt";
 import { allowAiCall } from "@/lib/review/rate-limit";
@@ -14,6 +15,10 @@ const MAX_TEXT = 40_000;
 const bodySchema = z.object({
   role: roleSchema,
   actor: actorSchema,
+  /** what to call this rulebook; defaults to the file name */
+  title: z.string().trim().min(2).max(80).optional(),
+  /** replace this rulebook (for example after uploading the wrong PDF): its rules are removed once the new ones are ready */
+  replace_document_id: z.string().uuid().optional(),
   file: z.object({
     name: z.string().trim().min(1).max(160),
     type: z.string().max(100).default(""),
@@ -40,7 +45,7 @@ export async function POST(req: Request) {
   const body = await readJson(req, bodySchema);
   if (!body.ok) return body.res;
   const { role, actor, file } = body.data;
-  if (role !== "brand_manager") return fail("Only the brand manager can import rules.", 403);
+  if (!can(role, "manage_rules")) return fail(`Only ${whoCan("manage_rules")} can import rulebooks.`, 403);
 
   let doc: { text: string; pages: number };
   try {
@@ -54,11 +59,15 @@ export async function POST(req: Request) {
 
   try {
     const ctx = await getBrandContext();
-    const cacheKey = "import:" + createHash("sha256").update(clipped).update(ctx.rules.map((r) => `${r.id}:${r.status}`).join(",")).digest("hex").slice(0, 32);
+    const { replace_document_id: replaceId, title } = body.data;
+    if (replaceId && !ctx.documents.some((d) => d.id === replaceId)) return fail("The rulebook to replace wasn't found in this brand.", 404);
+    // the rules the new ones are compared with: everything except the rulebook being replaced
+    const others = ctx.rules.filter((r) => !replaceId || r.document_id !== replaceId);
+    const cacheKey = "import:" + createHash("sha256").update(clipped).update(others.map((r) => `${r.id}:${r.status}`).join(",")).digest("hex").slice(0, 32);
     let drafted = await getCache<{ rules: ImportedRule[]; model: string }>(cacheKey);
     if (!drafted) {
       if (!allowAiCall(clientId(req))) return fail("The AI is busy (free-tier limit). Try again in a minute.", 429);
-      const res = await callGemini(IMPORT_SYSTEM_PROMPT, [{ text: buildImportPrompt(clipped, ctx.rules) }], 56_000, { firstMs: 12_000, laterMs: 42_000 });
+      const res = await callGemini(IMPORT_SYSTEM_PROMPT, [{ text: buildImportPrompt(clipped, others) }], 56_000, { firstMs: 12_000, laterMs: 42_000 });
       if (!res.ok) return fail(res.status === "off" ? "AI is not set up on this server." : "The AI is busy right now. Try again in a minute.", res.status === "off" ? 503 : 429);
       let raw: unknown = null;
       try {
@@ -76,7 +85,7 @@ export async function POST(req: Request) {
       await setCache(cacheKey, drafted);
     }
 
-    const existing = new Map(ctx.rules.map((r) => [r.id, r]));
+    const existing = new Map(others.map((r) => [r.id, r]));
     const sameText = (a: string, b: string) => a.toLowerCase().replace(/\W+/g, " ").trim() === b.toLowerCase().replace(/\W+/g, " ").trim();
     const duplicates: { rule: string; duplicate_of: string }[] = [];
     const unproven: string[] = [];
@@ -87,7 +96,7 @@ export async function POST(req: Request) {
         unproven.push(r.rule);
         continue;
       }
-      const dup = (r.duplicate_of && existing.get(r.duplicate_of.toUpperCase())) || ctx.rules.find((x) => sameText(x.rule, r.rule));
+      const dup = (r.duplicate_of && existing.get(r.duplicate_of.toUpperCase())) || others.find((x) => sameText(x.rule, r.rule));
       if (dup && dup.status !== "rejected") {
         duplicates.push({ rule: r.rule, duplicate_of: dup.id });
         continue;
@@ -99,10 +108,27 @@ export async function POST(req: Request) {
     const next: Record<string, number> = {};
     const nextId = (category: keyof typeof PREFIX) => {
       const p = PREFIX[category];
-      next[p] ??= Math.max(0, ...ctx.rules.filter((r) => r.id.startsWith(p + "-")).map((r) => Number(r.id.split("-")[1]) || 0));
+      next[p] ??= Math.max(0, ...others.filter((r) => r.id.startsWith(p + "-")).map((r) => Number(r.id.split("-")[1]) || 0));
       next[p] += 1;
       return `${p}-${String(next[p]).padStart(2, "0")}`;
     };
+    // the replaced rulebook goes only now, once its replacement is ready (its rules go with it)
+    if (replaceId) {
+      const { error } = await db().from("guideline_docs").delete().eq("brand_id", ctx.brand.id).eq("id", replaceId);
+      if (error) throw new Error(error.message);
+    }
+    let document: { id: string; name: string } | null = null;
+    if (toAdd.length) {
+      const isText = !/\.pdf$/i.test(file.name) && file.type !== "application/pdf";
+      const name = title || file.name.replace(/\.(pdf|txt|md)$/i, "").replace(/[_-]+/g, " ").trim() || "Guidelines";
+      const { data, error } = await db()
+        .from("guideline_docs")
+        .insert({ brand_id: ctx.brand.id, name, file_name: file.name, kind: isText ? "text" : "pdf", created_by: actor })
+        .select("id, name")
+        .single();
+      if (error || !data) throw new Error(error?.message ?? "Could not save the rulebook");
+      document = data;
+    }
     const rows = toAdd.map((r) => ({
       id: nextId(r.category),
       brand_id: ctx.brand.id,
@@ -117,12 +143,14 @@ export async function POST(req: Request) {
       params: {},
       status: "draft",
       source: `${file.name}: “${r.source_quote.slice(0, 220)}”`,
+      document_id: document?.id ?? null,
     }));
     if (rows.length) {
       const { error } = await db().from("rules").insert(rows);
       if (error) throw new Error(error.message);
     }
-    return json({ added: rows.map((r) => r.id), duplicates, unproven, pages: doc.pages, chars: clipped.length, truncated: text.length > MAX_TEXT, model: drafted.model, actor });
+    if (replaceId || rows.length) await bumpRulebook(ctx.brand);
+    return json({ document, replaced: !!replaceId, added: rows.map((r) => r.id), duplicates, unproven, pages: doc.pages, chars: clipped.length, truncated: text.length > MAX_TEXT, model: drafted.model, actor });
   } catch (e) {
     return serverError(e, "rules/import");
   }

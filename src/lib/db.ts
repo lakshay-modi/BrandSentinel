@@ -2,7 +2,7 @@
 import "server-only";
 import { cookies } from "next/headers";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import type { Brand, Fact, Rule } from "./types";
+import type { Brand, Fact, GuidelineDoc, Rule } from "./types";
 
 let client: SupabaseClient | null = null;
 
@@ -96,10 +96,16 @@ export async function listBrands(): Promise<{ slug: string; name: string }[]> {
   return data ?? [];
 }
 
+/** Bump the brand's rulebook version so cached AI answers made with the old rules are not reused. */
+export async function bumpRulebook(brand: Brand) {
+  await db().from("brands").update({ rulebook_version: brand.rulebook_version + 1 }).eq("id", brand.id);
+}
+
 export interface BrandContext {
   brand: Brand;
   rules: Rule[];
   facts: Fact[];
+  documents: GuidelineDoc[];
 }
 
 /** The brand a post belongs to, whatever brand the visitor has selected. */
@@ -114,13 +120,19 @@ export async function getBrandContext(slug?: string): Promise<BrandContext> {
   let { data: brand } = await db().from("brands").select("id, slug, name, settings, rulebook_version").eq("slug", wanted).maybeSingle();
   if (!brand && wanted !== DEMO_BRAND) ({ data: brand } = await db().from("brands").select("id, slug, name, settings, rulebook_version").eq("slug", DEMO_BRAND).maybeSingle());
   if (!brand) throw new Error(`Brand not found: ${wanted}`);
-  const [rules, facts] = await Promise.all([
-    db().from("rules").select("id, category, severity, check_type, scope, rule, guideline, good, bad, params, status, version, source").eq("brand_id", brand.id).order("id"),
+  const [rules, facts, docs] = await Promise.all([
+    db().from("rules").select("id, category, severity, check_type, scope, rule, guideline, good, bad, params, status, version, source, document_id").eq("brand_id", brand.id).order("id"),
     db().from("facts").select("id, product, fact, source, valid_until, type").eq("brand_id", brand.id).order("id"),
+    db().from("guideline_docs").select("id, name, file_name, kind, status, created_by, created_at").eq("brand_id", brand.id).order("created_at"),
   ]);
   if (rules.error) throw new Error(rules.error.message);
   if (facts.error) throw new Error(facts.error.message);
-  return { brand: brand as Brand, rules: (rules.data ?? []) as Rule[], facts: (facts.data ?? []) as Fact[] };
+  if (docs.error) throw new Error(docs.error.message);
+  const documents = (docs.data ?? []) as GuidelineDoc[];
+  const paused = new Set(documents.filter((d) => d.status === "paused").map((d) => d.id));
+  // rules of a paused rulebook leave the checks: they are marked "paused" here and never stored that way
+  const allRules = ((rules.data ?? []) as Rule[]).map((r) => (r.status === "approved" && r.document_id && paused.has(r.document_id) ? { ...r, status: "paused" as const } : r));
+  return { brand: brand as Brand, rules: allRules, facts: (facts.data ?? []) as Fact[], documents };
 }
 
 export async function getCache<T>(key: string): Promise<T | null> {
