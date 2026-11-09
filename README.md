@@ -15,8 +15,28 @@ Built for the CodeTitans India 2026 hackathon (problem statement by Inkloom AI).
 5. Switch to **Expert reviewer** or **Brand manager** and approve it or send it back from the **Review queue**.
 6. Open **Insights** to see the most common problems and the rules people disagree with.
 7. Open **Test results** (link in the footer) to see the fast checks run on all 10 sample posts in your browser, compared with the answer key.
-8. As **Brand manager**, open **Rulebook → Import from PDF → Try the sample addendum**. The AI drafts new rules from the PDF, skips the ones the Rulebook already has, and you approve or reject each draft. Approved rules are used in the next check.
-9. Switch the **Brand** (top left, under the header) to **Solvira Skincare**, a second brand whose Rulebook was imported from its own PDF, and check its sample posts.
+8. As **Brand manager**, open **Rulebook → Add a rulebook → Try the sample addendum**. The AI drafts new rules from the PDF, skips the ones the Rulebook already has, and you approve or reject each draft (or all of them at once). Approved rules are used in the next check.
+9. Switch the **Brand** (under the header) to **Solvira Skincare**, a second brand whose Rulebook was imported from its own PDF, and check its sample posts.
+10. Bring your own brand: as **Brand manager**, open **Brands → New brand**, then add its guidelines PDF as a rulebook and its facts. Click **Who does what?** at any time to see each role's job and what's waiting for it.
+
+## Brands, rulebooks and roles
+
+- **Any number of brands.** The brand manager creates a brand (name, products, hashtag, colours, confidential names), edits it, and deletes it with everything in it after typing its name. The two demo brands can't be deleted. Switching brand changes every page at once, without a reload.
+- **Several rulebooks per brand.** Each guidelines PDF becomes its own rulebook with its own drafted rules. A rulebook can be renamed, **paused** (its rules leave the checks but are kept), **replaced** (upload the right file if the wrong PDF went in: the old rulebook is removed only once the new rules are ready) or removed. Rules can be filtered by rulebook, status and category, searched, edited, and deleted one by one.
+- **Clear roles, enforced on the server.** One permission table (`src/lib/roles.ts`) drives both the API checks and the screens:
+
+  | | Creator | Expert reviewer | Brand manager |
+  | --- | --- | --- | --- |
+  | Write, check, fix and submit posts | ✓ | | |
+  | Accept, edit or disagree with problems | ✓ | | |
+  | Approve claims on risky posts | | ✓ | |
+  | Final approval | | | ✓ |
+  | Add, correct and remove facts | | ✓ | ✓ |
+  | Rulebooks and rules | | | ✓ |
+  | Create, edit and delete brands | | | ✓ |
+
+  Every page opens with a one-line note on what the current role does there, the menu shows what's waiting for that role, and **Who does what?** explains all three.
+- **Instant buttons.** Approving a rule, removing a fact or accepting a fix changes the screen at once; the server confirms in the background and the change is undone, with a message, if it refuses. The server runs in Mumbai (`bom1`), next to the database.
 
 Both demo brands are fictional. **Oatvia Foods**' [guidelines PDF](public/demo/Oatvia_Brand_Guidelines.pdf) defines 26 rules and 16 approved facts; **Solvira Skincare**'s [guidelines PDF](public/demo/solvira/Solvira_Brand_Guidelines.pdf) became 18 rules through the import, plus 7 facts.
 
@@ -142,8 +162,8 @@ Set up the database by running `supabase/migrations/*.sql` and then `supabase/se
 - **Keys stay on the server.** The AI key and the database key are only read by API routes; the browser never talks to the database.
 - **Strict input checks.** Every API body is validated with zod: image sources must be data URLs (PNG, JPEG, WebP) or bundled demo images, colours must be hex, names can't hold markup, sizes are capped.
 - **Writes only from this site.** Requests that change data must be JSON and come from the app's own origin (checked with `Origin` and `Sec-Fetch-Site`), and are limited to 60 a minute per visitor; AI calls have their own per-visitor and global limits.
-- **Roles and states are enforced on the server.** Only the creator can re-check, confirm the goal or decide on findings, and only while the post is a draft or sent back; only the assigned reviewer can approve or send back; only the brand manager can change the Rulebook.
-- **No deletes.** Nothing can be deleted through the app; rejected rules are kept and hidden.
+- **Roles and states are enforced on the server.** One permission table decides who may do what. Only the creator can check, re-check, confirm the goal or decide on findings, and only while the post is a draft or sent back; only the assigned reviewer can approve or send back; only the brand manager can change rulebooks, rules and brands.
+- **Careful deletes.** Deleting a rule, fact or rulebook asks first; deleting a brand needs its name typed and is refused for the demo brands. Rejected rules are kept and hidden, and past reports keep their own copy of the rules they cite.
 - **Errors don't leak.** Server errors are logged; the browser only sees a plain message.
 - **Prompt injection.** Post text and imported PDFs are marked as content to review, never instructions, and the proof check drops anything without a real rule, quote and fact.
 - **Security headers.** A Content Security Policy allows only the site's own scripts, styles, fonts (self-hosted), images, workers and API; framing is blocked; HSTS, `nosniff`, a strict referrer policy and a locked-down permissions policy are on.
@@ -160,4 +180,5 @@ Set up the database by running `supabase/migrations/*.sql` and then `supabase/se
 | `/rulebook` (`/rulebook#CLAIM-01` opens one rule) | Rulebook |
 | `/facts` (`/facts#F-10` opens one fact) | Fact Bank |
 | `/insights` | Insights |
+| `/brands` | Brands: create, edit, delete and switch |
 | `/tests` | Test results on the sample posts |
