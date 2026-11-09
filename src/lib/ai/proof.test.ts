@@ -91,3 +91,19 @@ describe("proof check with missing-element findings", () => {
     expect(f?.quotes).toEqual([]);
   });
 });
+
+describe("rule scope", () => {
+  it("keeps partner-only rules off ordinary posts", async () => {
+    const { scopeApplies } = await import("./proof");
+    expect(scopeApplies("paid or partner posts", { channel: "instagram", partner: false })).toBe(false);
+    expect(scopeApplies("paid or partner posts", { channel: "instagram", partner: true })).toBe(true);
+  });
+  it("keeps channel rules on their channel", async () => {
+    const { scopeApplies } = await import("./proof");
+    expect(scopeApplies("LinkedIn", { channel: "instagram", partner: false })).toBe(false);
+    expect(scopeApplies("LinkedIn", { channel: "linkedin", partner: false })).toBe(true);
+    expect(scopeApplies("all", { channel: "x", partner: false })).toBe(true);
+    expect(scopeApplies("all (caption and image text)", { channel: "email", partner: false })).toBe(true);
+    expect(scopeApplies("all launch posts", { channel: "x", partner: false })).toBe(true);
+  });
+});

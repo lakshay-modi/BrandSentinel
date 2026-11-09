@@ -40,6 +40,24 @@ const overlaps = (a: string, b: string) => {
 /** Nearly the same text (one contains the other and they are similar in length). */
 const sameText = (a: string, b: string) => overlaps(a, b) && Math.min(a.length, b.length) / Math.max(a.length, b.length) >= 0.6;
 
+/**
+ * Whether a rule's "where it applies" covers this post. Imported rules say it in words ("paid or partner posts",
+ * "Instagram"), so plain code drops an AI finding on a post the rule doesn't cover.
+ */
+export function scopeApplies(scope: string, input: Pick<PostInput, "channel" | "partner">): boolean {
+  const s = scope.toLowerCase();
+  if (/\b(partner|paid|sponsor\w*|influencer|collab\w*)\b/.test(s) && !input.partner) return false;
+  const channels: [PostInput["channel"], RegExp][] = [
+    ["instagram", /\binstagram\b/],
+    ["linkedin", /\blinkedin\b/],
+    ["x", /\b(x|twitter)\b/],
+    ["website", /\b(website|web site|site)\b/],
+    ["email", /\b(e-?mail|newsletter)\b/],
+  ];
+  const named = channels.filter(([, re]) => re.test(s)).map(([c]) => c);
+  return named.length === 0 || named.includes(input.channel);
+}
+
 export interface ProofResult {
   findings: Finding[]; // merged code + accepted AI findings
   ask_human: AskHuman[];
@@ -67,6 +85,11 @@ export function proofCheck(ai: AiResponse, codeFindings: Finding[], input: PostI
       dropped++;
       const where = quote ? locate(input, a.location, quote) : null;
       if (quote && where) ask.push({ quote, location: where, note: `The AI suggested a problem under “${a.rule_id}”, which isn't an approved AI-checked rule. ${a.message}` });
+      continue;
+    }
+    // 1b. the rule must cover this kind of post (its channel, or paid/partner posts only)
+    if (!scopeApplies(rule.scope ?? "", input)) {
+      dropped++;
       continue;
     }
     // 2. the quote must really be in the post (READ-02 is about a missing description, so it has no quote)
@@ -127,7 +150,7 @@ export function proofCheck(ai: AiResponse, codeFindings: Finding[], input: PostI
 
   // alt text suggestions fill the READ-02 fixes
   for (const alt of ai.alt_text) {
-    const f = merged.find((x) => x.rule_id === "READ-02" && x.location === `image ${alt.image}`);
+    const f = merged.find((x) => x.rule_id === "READ-02" && x.source !== "ai" && x.location === `image ${alt.image}`);
     if (f && alt.text.trim()) f.fix = { kind: "alt_text", text: alt.text.trim() };
   }
 

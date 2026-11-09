@@ -32,7 +32,8 @@ export function FindingCard({
   decision?: DecisionRow;
   canAct: boolean;
   onAccept: () => Promise<void>;
-  onEdit: (text: string) => Promise<void>;
+  /** `where`: for something missing from the caption, add the text at the start or the end */
+  onEdit: (text: string, where?: "start" | "end") => Promise<void>;
   onDisagree: (reason: string) => Promise<void>;
   highlighted?: boolean;
   /** the text this fix changes is already gone (another fix or an edit changed it) */
@@ -41,12 +42,15 @@ export function FindingCard({
   active?: boolean;
   onHover?: (on: boolean) => void;
 }) {
-  const [mode, setMode] = useState<"none" | "edit" | "disagree">("none");
+  const [mode, setMode] = useState<"none" | "edit" | "add" | "disagree">("none");
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const s = SEVERITY_STYLE[f.severity];
   const inCaption = f.location === "caption";
-  const isAlt = f.rule_id === "READ-02" || f.fix.kind === "alt_text";
+  // the demo brand's alt-text rule (an imported brand's READ-02 can mean something else)
+  const isAlt = f.fix.kind === "alt_text" || (f.rule_id === "READ-02" && !inCaption && f.source !== "ai");
+  // something missing from the caption (for example "#ad"), with no ready-made fix: the creator writes what to add
+  const missing = inCaption && f.quotes.length === 0 && !canApply(f.fix);
   // text inside an image can't be changed here, so only caption fixes and alt text are one-click
   const acceptable = (inCaption && canApply(f.fix) && !stale) || f.fix.kind === "alt_text";
   const editable = (inCaption && f.quotes.length > 0 && !stale) || isAlt;
@@ -106,7 +110,7 @@ export function FindingCard({
             <p className={`text-[14px] font-semibold ${decision.action === "disagree" ? "text-med" : "text-pass"}`}>
               {decision.action === "accept" && `Fix accepted by ${decision.actor}`}
               {decision.action === "edit" && `Edited by ${decision.actor}`}
-              {decision.action === "disagree" && `${decision.actor} disagreed: “${decision.reason}”`}
+              {decision.action === "disagree" && `${decision.actor} rejected this: “${decision.reason}”`}
             </p>
           ) : canAct ? (
             <>
@@ -122,8 +126,13 @@ export function FindingCard({
                       {isAlt && f.fix.kind !== "alt_text" ? "Write alt text" : "Edit"}
                     </Button>
                   )}
-                  <Button size="sm" variant="ghost" disabled={busy} onClick={() => { setText(""); setMode("disagree"); }}>
-                    Disagree
+                  {missing && (
+                    <Button size="sm" disabled={busy} onClick={() => { setText(""); setMode("add"); }}>
+                      Add text
+                    </Button>
+                  )}
+                  <Button size="sm" variant="ghost" disabled={busy} title="Disagree with this problem and say why" onClick={() => { setText(""); setMode("disagree"); }}>
+                    Reject
                   </Button>
                 </div>
               )}
@@ -132,24 +141,36 @@ export function FindingCard({
                   className="space-y-2"
                   onSubmit={(e) => {
                     e.preventDefault();
-                    run(() => (mode === "edit" ? onEdit(text) : onDisagree(text)));
+                    const where = (e.nativeEvent as SubmitEvent).submitter?.getAttribute("value") === "start" ? "start" : "end";
+                    run(() => (mode === "edit" ? onEdit(text) : mode === "add" ? onEdit(text, where) : onDisagree(text)));
                   }}
                 >
                   <label className="block text-[13px] text-ink-soft">
-                    {mode === "edit" ? (isAlt ? "Alt text for the image" : `Replace “${f.quotes[0]}” with`) : "Why do you disagree? (the reviewer will see this)"}
+                    {mode === "edit" ? (isAlt ? "Alt text for the image" : `Replace “${f.quotes[0]}” with`) : mode === "add" ? "Text to add to the caption" : "Why are you rejecting this? (the reviewer will see your reason)"}
                     <input
                       autoFocus
                       value={text}
                       onChange={(e) => setText(e.target.value)}
                       className="mt-1 w-full rounded-lg border border-line-strong px-2.5 py-1.5 text-[14px] text-ink"
-                      required={mode === "disagree"}
-                      minLength={mode === "disagree" ? 3 : 0}
+                      required={mode === "disagree" || mode === "add"}
+                      minLength={mode === "disagree" ? 3 : mode === "add" ? 1 : 0}
                     />
                   </label>
                   <div className="flex gap-2">
-                    <Button size="sm" variant="primary" type="submit" disabled={busy}>
-                      {mode === "edit" ? "Apply edit" : "Send disagreement"}
-                    </Button>
+                    {mode === "add" ? (
+                      <>
+                        <Button size="sm" variant="primary" type="submit" value="start" disabled={busy}>
+                          Add at the start
+                        </Button>
+                        <Button size="sm" type="submit" value="end" disabled={busy}>
+                          Add at the end
+                        </Button>
+                      </>
+                    ) : (
+                      <Button size="sm" variant="primary" type="submit" disabled={busy}>
+                        {mode === "edit" ? "Apply edit" : "Send rejection"}
+                      </Button>
+                    )}
                     <Button size="sm" variant="ghost" type="button" onClick={() => setMode("none")}>
                       Cancel
                     </Button>
