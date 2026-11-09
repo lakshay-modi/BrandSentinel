@@ -140,13 +140,77 @@ h3 {
   filter: saturate(1.5);
 }
 
+/* form fields share one look */
+.field {
+  display: block;
+  width: 100%;
+  border-radius: 0.6rem;
+  border: 1px solid var(--color-line-strong);
+  background: var(--color-surface);
+  padding: 0.5rem 0.75rem;
+  font-size: 14px;
+  color: var(--color-ink);
+  transition: border-color 120ms, box-shadow 120ms;
+}
+.field:hover {
+  border-color: var(--color-ink-faint);
+}
+.field:focus {
+  outline: none;
+  border-color: var(--color-low);
+  box-shadow: 0 0 0 3px rgb(42 91 215 / 0.16);
+}
+.field-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-ink);
+}
+.field-hint {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--color-ink-faint);
+}
+
+/* dialogs open with a short lift */
+.dialog-in[open] {
+  animation: dialog-in 180ms ease-out both;
+}
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.985);
+  }
+}
+
+/* a row that was just added or changed */
+.row-in {
+  animation: row-in 260ms ease-out both;
+}
+@keyframes row-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+/* an action is on its way to the server (the screen already shows the result) */
+.pending {
+  opacity: 0.6;
+  transition: opacity 150ms;
+}
+
 .thin-scroll {
   scrollbar-width: thin;
   scrollbar-color: var(--color-line-strong) transparent;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .toast-in {
+  .toast-in,
+  .dialog-in[open],
+  .row-in {
     animation: none;
   }
   .stamp {

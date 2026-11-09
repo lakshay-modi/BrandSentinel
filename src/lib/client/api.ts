@@ -1,6 +1,6 @@
 "use client";
 // Small typed wrappers around the app's API routes.
-import type { Brand, Fact, Goal, PostInput, ReviewResult, Role, Rule } from "../types";
+import type { Brand, Fact, Goal, GuidelineDoc, PostInput, ReviewResult, Role, Rule } from "../types";
 
 export interface ReviewRow extends ReviewResult {
   id: string;
@@ -55,6 +55,7 @@ export interface HistoryRow {
 export interface BrandData {
   brand: Brand;
   brands: { slug: string; name: string }[];
+  documents: GuidelineDoc[];
   rules: Rule[];
   facts: Fact[];
   today: string;

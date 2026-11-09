@@ -1,15 +1,16 @@
 "use client";
 
-import type { ButtonHTMLAttributes, ReactNode } from "react";
+import { useEffect, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from "react";
 import type { Severity } from "@/lib/types";
 
-type Variant = "primary" | "secondary" | "ghost" | "danger" | "success";
+type Variant = "primary" | "secondary" | "ghost" | "danger" | "dangerSolid" | "success";
 
 const VARIANT: Record<Variant, string> = {
   primary: "bg-ink text-white shadow-sm hover:bg-[#26304a] disabled:bg-ink-faint",
   secondary: "border border-line-strong bg-surface text-ink hover:border-ink-faint hover:bg-paper disabled:text-ink-faint",
   ghost: "text-ink-soft hover:bg-paper hover:text-ink disabled:text-ink-faint",
   danger: "border border-high/40 bg-surface text-high hover:bg-high-bg disabled:opacity-50",
+  dangerSolid: "bg-high text-white shadow-sm hover:bg-[#9c2a1f] disabled:opacity-50",
   success: "bg-pass text-white shadow-sm hover:bg-[#156540] disabled:opacity-50",
 };
 
@@ -103,5 +104,123 @@ export function PageSkeleton({ rows = 4 }: { rows?: number }) {
         ))}
       </div>
     </div>
+  );
+}
+
+/** A modal dialog (native <dialog>: focus trap, Esc to close, and the page behind can't be clicked). */
+export function Dialog({ open, onClose, title, children, wide = false }: { open: boolean; onClose: () => void; title: ReactNode; children: ReactNode; wide?: boolean }) {
+  const ref = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const d = ref.current;
+    if (!d) return;
+    if (open && !d.open) d.showModal();
+    if (!open && d.open) d.close();
+  }, [open]);
+  return (
+    <dialog
+      ref={ref}
+      onClose={onClose}
+      onClick={(e) => e.target === ref.current && onClose()}
+      className={`dialog-in m-auto w-[calc(100%-2rem)] rounded-2xl border border-line bg-surface p-0 text-ink shadow-2xl backdrop:bg-ink/40 backdrop:backdrop-blur-[2px] ${wide ? "max-w-2xl" : "max-w-md"}`}
+    >
+      {open && (
+        <div className="p-6">
+          <div className="flex items-start justify-between gap-4">
+            <h2 className="text-[18px] font-bold tracking-tight">{title}</h2>
+            <button type="button" onClick={onClose} aria-label="Close" className="-mr-2 -mt-1 rounded-lg p-1.5 text-ink-faint hover:bg-paper hover:text-ink">
+              <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
+                <path d="M4.5 4.5l9 9M13.5 4.5l-9 9" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+              </svg>
+            </button>
+          </div>
+          <div className="mt-3">{children}</div>
+        </div>
+      )}
+    </dialog>
+  );
+}
+
+/** Ask before something that can't be undone. `confirmText`, when given, must be typed to enable the button. */
+export function ConfirmDialog({
+  open,
+  onClose,
+  onConfirm,
+  title,
+  children,
+  action,
+  confirmText,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onConfirm: () => void | Promise<void>;
+  title: ReactNode;
+  children: ReactNode;
+  action: string;
+  confirmText?: string;
+}) {
+  const [typed, setTyped] = useState("");
+  const [busy, setBusy] = useState(false);
+  const ok = !confirmText || typed.trim().toLowerCase() === confirmText.trim().toLowerCase();
+  return (
+    <Dialog
+      open={open}
+      onClose={() => {
+        setTyped("");
+        onClose();
+      }}
+      title={title}
+    >
+      <div className="space-y-4 text-[14px] leading-relaxed text-ink-soft">
+        {children}
+        {confirmText && (
+          <label className="block text-[13px]">
+            Type <span className="font-semibold text-ink">{confirmText}</span> to confirm
+            <input autoFocus value={typed} onChange={(e) => setTyped(e.target.value)} className="field mt-1" />
+          </label>
+        )}
+        <div className="flex justify-end gap-2 pt-1">
+          <Button variant="ghost" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            variant="dangerSolid"
+            disabled={!ok || busy}
+            onClick={async () => {
+              setBusy(true);
+              try {
+                await onConfirm();
+              } finally {
+                setBusy(false);
+                setTyped("");
+              }
+            }}
+          >
+            {action}
+          </Button>
+        </div>
+      </div>
+    </Dialog>
+  );
+}
+
+/** Shown when a list has nothing in it yet: what this place is for and the next thing to do. */
+export function EmptyState({ title, children, action }: { title: string; children?: ReactNode; action?: ReactNode }) {
+  return (
+    <div className="rounded-xl border border-dashed border-line-strong bg-surface/60 px-6 py-10 text-center">
+      <p className="text-[15px] font-semibold">{title}</p>
+      {children && <p className="mx-auto mt-1.5 max-w-md text-[14px] text-ink-soft">{children}</p>}
+      {action && <div className="mt-4 flex justify-center gap-2">{action}</div>}
+    </div>
+  );
+}
+
+/** A small count pill, for tabs and nav items. */
+export function Count({ n, tone = "neutral" }: { n: number; tone?: "neutral" | "alert" }) {
+  return (
+    <span
+      className={`inline-flex min-w-[20px] items-center justify-center rounded-full px-1.5 text-[11px] font-bold tabular-nums leading-[18px] ${tone === "alert" ? "bg-high text-white" : "bg-line text-ink-soft"}`}
+    >
+      {n}
+    </span>
   );
 }
