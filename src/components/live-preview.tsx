@@ -9,7 +9,6 @@ import { ProofText } from "./proof-text";
 import { ScoreGauge } from "./score-gauge";
 import { SEVERITY_STYLE } from "./ui";
 
-const BAND_TEXT = { green: "text-pass", amber: "text-med", red: "text-high" } as const;
 
 /**
  * Runs the same fast checks as the server, in the browser, on every keystroke.
@@ -52,9 +51,9 @@ export function LivePreview({ input }: { input: PostInput }) {
         </p>
         {result && (
           <div className="flex items-center gap-3" aria-live="polite">
-            <p className="text-[13px] tabular-nums">
-              <span className={`text-[18px] font-bold ${BAND_TEXT[result.band]}`}>{result.score}</span>
-              <span className="text-ink-faint">/100 so far</span>
+            <p className="text-right text-[12px] leading-tight text-ink-faint">
+              Score so far
+              <span className="block">out of 100</span>
             </p>
             <ScoreGauge score={result.score} band={result.band} size={72} compact />
           </div>

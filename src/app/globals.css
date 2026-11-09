@@ -202,19 +202,19 @@ h3 {
   transition: opacity 150ms;
 }
 
-/* the score dial: the needle swings in from 0, then glides when the score changes */
+/* the score dial: the needle and the fill ease in when it appears, then glide when the score changes */
 .gauge-needle {
-  transition: transform 900ms cubic-bezier(0.34, 1.4, 0.64, 1);
-  animation: needle-in 1200ms cubic-bezier(0.3, 1.25, 0.6, 1) both;
+  transition: transform 700ms ease-out;
+  animation: needle-in 900ms ease-out both;
 }
 @keyframes needle-in {
   from {
-    transform: rotate(var(--needle-from));
+    transform: rotate(0deg);
   }
 }
 .gauge-progress {
-  transition: stroke-dasharray 900ms ease-out;
-  animation: gauge-fill 1200ms ease-out both;
+  transition: stroke-dasharray 700ms ease-out;
+  animation: gauge-fill 900ms ease-out both;
 }
 @keyframes gauge-fill {
   from {
