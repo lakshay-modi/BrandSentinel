@@ -9,7 +9,10 @@ import type { Channel, PostImage, PostInput } from "@/lib/types";
 import { Button, ErrorNote } from "./ui";
 import { LivePreview } from "./live-preview";
 import { useBrand } from "@/lib/client/use-brand";
+import { refreshPosts } from "@/lib/client/use-posts";
 import { useRole } from "./role-provider";
+import { can, ROLE_INFO } from "@/lib/roles";
+import Link from "next/link";
 
 const POST_TYPES = ["product", "launch", "offer", "partner", "sustainability", "company update", "promo"];
 const EMPTY: PostInput = { channel: "instagram", post_type: "product", product: "", partner: false, caption: "", images: [] };
@@ -25,7 +28,8 @@ interface DraftImage extends PostImage {
 
 export function ComposeForm() {
   const router = useRouter();
-  const { role, name } = useRole();
+  const { role, name, setRole } = useRole();
+  const writer = can(role, "check_posts");
   const [input, setInput] = useState<PostInput>(EMPTY);
   const [images, setImages] = useState<DraftImage[]>([]);
   const [sampleId, setSampleId] = useState<string | null>(null);
@@ -43,6 +47,7 @@ export function ComposeForm() {
         ? samplePosts().map((x) => ({ ...x, label: SAMPLE_LABEL[x.id] ?? x.id, hint: SAMPLE_HINT[x.id] ?? x.title }))
         : [];
   const products = [...(settings?.products ?? []), "Brand"];
+  const rulesInUse = (brandData?.rules ?? []).filter((r) => r.status === "approved").length;
   const product = input.product || products[0] || "Brand";
 
   const set = <K extends keyof PostInput>(k: K, v: PostInput[K]) => {
@@ -92,6 +97,7 @@ export function ComposeForm() {
       }
       setBusy("Checking against the rules and the Fact Bank…");
       const res = await api.review({ sample_id: sampleId ?? undefined, role, actor: name, input: { ...input, product, images: prepared } });
+      void refreshPosts();
       router.push(`/posts/${res.post_id}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -208,16 +214,42 @@ export function ComposeForm() {
             )}
           </div>
 
+          {brandData && rulesInUse === 0 && (
+            <p className="mx-5 mt-5 rounded-xl border border-med/30 bg-med-bg px-4 py-3 text-[13px] text-med">
+              <strong>{brandData.brand.name} has no approved rules yet</strong>, so a check can only test claims against the Fact Bank.{" "}
+              <Link href="/rulebook" className="font-semibold underline underline-offset-2">
+                {can(role, "manage_rules") ? "Add a rulebook" : "See the Rulebook"}
+              </Link>
+            </p>
+          )}
+
           <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-line px-5 py-4">
-            <Button variant="primary" onClick={check} disabled={!!busy}>
-              {busy ? "Checking…" : "Check post"}
-            </Button>
-            {busy ? (
-              <span className="text-[14px] text-ink-soft" aria-live="polite">
-                {busy}
-              </span>
+            {writer ? (
+              <>
+                <Button variant="primary" onClick={check} disabled={!!busy}>
+                  {busy ? "Checking…" : "Check post"}
+                </Button>
+                {busy ? (
+                  <span className="text-[14px] text-ink-soft" aria-live="polite">
+                    {busy}
+                  </span>
+                ) : (
+                  <span className="text-[13px] text-ink-faint">Takes a few seconds. Nothing is published.</span>
+                )}
+              </>
             ) : (
-              <span className="text-[13px] text-ink-faint">Takes a few seconds. Nothing is published.</span>
+              <>
+                <Button variant="primary" onClick={() => setRole("creator")}>
+                  Switch to Creator to check
+                </Button>
+                <span className="text-[13px] text-ink-soft">
+                  Creators write and check posts. As {ROLE_INFO[role].label.toLowerCase()}, you review them in the{" "}
+                  <Link href="/queue" className="font-semibold text-ink underline underline-offset-2">
+                    Review queue
+                  </Link>
+                  .
+                </span>
+              </>
             )}
           </div>
           {error && (

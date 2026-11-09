@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useBrand } from "@/lib/client/use-brand";
 import type { Insights } from "@/lib/insights";
 import { ErrorNote, Panel, SeverityTag, PageSkeleton } from "./ui";
 
@@ -20,8 +21,10 @@ function Stat({ label, value, note }: { label: string; value: string; note?: str
 export function InsightsView() {
   const [data, setData] = useState<Insights | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const slug = useBrand()?.brand.slug;
 
   useEffect(() => {
+    if (!slug) return;
     let live = true;
     fetch("/api/insights")
       .then(async (r) => {
@@ -33,7 +36,7 @@ export function InsightsView() {
     return () => {
       live = false;
     };
-  }, []);
+  }, [slug]);
 
   if (error) return <ErrorNote>{error}</ErrorNote>;
   if (!data) return <PageSkeleton rows={5} />;

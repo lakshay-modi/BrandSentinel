@@ -1,27 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { api, type PostRow } from "@/lib/client/api";
+import { useState } from "react";
+import { usePosts, waitingFor, type QueueRow as Row } from "@/lib/client/use-posts";
 import { CHANNEL_LABEL, ErrorNote, StatusTag, timeAgo, PageSkeleton } from "./ui";
 import { ROLE_LABEL, useRole } from "./role-provider";
+import { RoleNote } from "./role-note";
 
-type Row = PostRow & { latest: { score: number; band: string; problems: number } | null };
 
 const BAND_CLS: Record<string, string> = { green: "text-pass", amber: "text-med", red: "text-high" };
 
 export function QueueList() {
   const { role } = useRole();
-  const [rows, setRows] = useState<Row[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const { rows, error } = usePosts(0);
   const [tab, setTab] = useState<"mine" | "all">("mine");
 
-  useEffect(() => {
-    api.posts().then((r) => setRows(r.posts)).catch((e) => setError(String(e.message ?? e)));
-  }, []);
-
-  const mine = (p: Row) =>
-    role === "creator" ? p.status === "draft" || p.status === "changes_requested" : p.status === "in_review" && p.assigned_role === role;
+  const mine = (p: Row) => waitingFor(role, p);
+  const mineCount = (rows ?? []).filter(mine).length;
   const shown = (rows ?? []).filter((p) => tab === "all" || mine(p));
 
   return (
@@ -39,12 +34,21 @@ export function QueueList() {
           {(["mine", "all"] as const).map((t) => (
             <button key={t} role="tab" aria-selected={tab === t} onClick={() => setTab(t)} className={`rounded-md px-3 py-1 font-medium ${tab === t ? "bg-ink text-white shadow-sm" : "text-ink-soft hover:text-ink"}`}>
               {t === "mine" ? (role === "creator" ? "To fix" : "Waiting for me") : "All posts"}
+              <span className={`ml-1.5 tabular-nums ${tab === t ? "text-white/70" : "text-ink-faint"}`}>{t === "mine" ? mineCount : (rows ?? []).length}</span>
             </button>
           ))}
         </div>
       </div>
 
-      {error && <ErrorNote>{error}</ErrorNote>}
+      <RoleNote
+        notes={{
+          creator: "Your drafts and posts sent back to you. Open one to fix its problems, re-check it and submit it.",
+          expert: "Posts with health or number claims, serious problems or a creator's disagreement come to you first. Approve the claims or send the post back.",
+          brand_manager: "Posts come to you last. Give final approval, or send the post back to the creator with a comment.",
+        }}
+      />
+
+      {error && !rows && <ErrorNote>{error}</ErrorNote>}
       {!rows && !error && <PageSkeleton rows={4} />}
       {rows && shown.length === 0 && (
         <div className="rounded-xl border border-dashed border-line-strong bg-surface p-10 text-center text-[14px]">

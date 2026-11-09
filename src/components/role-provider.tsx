@@ -2,12 +2,13 @@
 
 import { createContext, useContext, useSyncExternalStore } from "react";
 import type { Role } from "@/lib/types";
+import { ROLE_INFO } from "@/lib/roles";
 
-export const ROLE_LABEL: Record<Role, string> = { creator: "Creator", brand_manager: "Brand manager", expert: "Expert reviewer" };
+export { ROLE_LABEL } from "@/lib/roles";
 export const ROLE_HINT: Record<Role, string> = {
-  creator: "Writes posts, fixes problems, submits for review",
-  brand_manager: "Owns the rules, approves posts",
-  expert: "Legal or product expert, signs off claims",
+  creator: ROLE_INFO.creator.summary,
+  brand_manager: ROLE_INFO.brand_manager.summary,
+  expert: ROLE_INFO.expert.summary,
 };
 const DEFAULT_NAME: Record<Role, string> = { creator: "Priya", brand_manager: "Arjun", expert: "Meera" };
 
