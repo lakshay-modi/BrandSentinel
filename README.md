@@ -36,6 +36,8 @@ Built for the CodeTitans India 2026 hackathon (problem statement by Inkloom AI).
   | Create, edit and delete brands | | | ✓ |
 
   Every page opens with a one-line note on what the current role does there, the menu shows what's waiting for that role, and **Who does what?** explains all three.
+- **Easy input.** Drop or paste images straight into a post (a screenshot with Ctrl+V works), or drop a PDF, Word (.docx), .txt or .md file to fill the caption. Rulebooks can be imported from PDF or Word files.
+- **Score at a glance.** The brand score is shown on a simple dial with green, amber and red bands, beside a bar where each problem is a clickable segment.
 - **Instant buttons.** Approving a rule, removing a fact or accepting a fix changes the screen at once; the server confirms in the background and the change is undone, with a message, if it refuses. The server runs in Mumbai (`bom1`), next to the database.
 
 Both demo brands are fictional. **Oatvia Foods**' [guidelines PDF](public/demo/Oatvia_Brand_Guidelines.pdf) defines 26 rules and 16 approved facts; **Solvira Skincare**'s [guidelines PDF](public/demo/solvira/Solvira_Brand_Guidelines.pdf) became 18 rules through the import, plus 7 facts.
