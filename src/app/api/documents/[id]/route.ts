@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { actorSchema, fail, json, readJson, roleSchema, serverError } from "@/lib/api";
-import { bumpRulebook, db, getBrandContext } from "@/lib/db";
+import { bumpRulebook, db, getBrandRow } from "@/lib/db";
 import { can, whoCan } from "@/lib/roles";
 
 const patchSchema = z.object({
@@ -17,7 +17,7 @@ export async function PATCH(req: Request, ctx: RouteContext<"/api/documents/[id]
   const { role, changes } = body.data;
   if (!can(role, "manage_rules")) return fail(`Only ${whoCan("manage_rules")} can change rulebooks.`, 403);
   try {
-    const { brand } = await getBrandContext();
+    const brand = await getBrandRow();
     const { data, error } = await db().from("guideline_docs").update(changes).eq("brand_id", brand.id).eq("id", id).select("id").maybeSingle();
     if (error) throw new Error(error.message);
     if (!data) return fail("Rulebook not found in this brand", 404);
@@ -37,7 +37,7 @@ export async function DELETE(req: Request, ctx: RouteContext<"/api/documents/[id
   if (!body.ok) return body.res;
   if (!can(body.data.role, "manage_rules")) return fail(`Only ${whoCan("manage_rules")} can remove rulebooks.`, 403);
   try {
-    const { brand } = await getBrandContext();
+    const brand = await getBrandRow();
     const { data, error } = await db().from("guideline_docs").delete().eq("brand_id", brand.id).eq("id", id).select("id").maybeSingle();
     if (error) throw new Error(error.message);
     if (!data) return fail("Rulebook not found in this brand", 404);

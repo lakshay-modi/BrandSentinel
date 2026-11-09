@@ -1,12 +1,12 @@
 import { connection } from "next/server";
-import { db, getBrandContext } from "@/lib/db";
+import { db, getBrandRow } from "@/lib/db";
 import { json, serverError } from "@/lib/api";
 
-/** All posts for the demo brand, newest first, with their latest brand score. */
+/** All posts for the selected brand, newest first, with their latest brand score. */
 export async function GET() {
   await connection();
   try {
-    const { brand } = await getBrandContext();
+    const brand = await getBrandRow();
     const { data: posts, error } = await db()
       .from("posts")
       .select("id, title, channel, post_type, product, status, assigned_role, needs_expert, expert_approved, created_by, sample_id, updated_at")

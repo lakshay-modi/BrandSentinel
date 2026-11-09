@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { actorSchema, fail, json, readJson, ROLE_LABEL, roleSchema, serverError } from "@/lib/api";
 import { addHistory, db } from "@/lib/db";
+import { can } from "@/lib/roles";
 import { needsExpert } from "@/lib/review/score";
 import type { Finding } from "@/lib/types";
 
@@ -25,29 +26,27 @@ export async function POST(req: Request, ctx: RouteContext<"/api/posts/[id]/acti
     const now = new Date().toISOString();
 
     if (action === "confirm_goal") {
-      if (role !== "creator") return fail("Only the creator confirms the post's goal.", 403);
+      if (!can(role, "check_posts")) return fail("Only the creator confirms the post's goal.", 403);
       if (post.status !== "draft" && post.status !== "changes_requested") return fail("The goal can't change while the post is in review or approved.", 409);
       if (!goal) return fail("Send the goal to confirm");
-      await db().from("posts").update({ goal, goal_confirmed: true, updated_at: now }).eq("id", id);
-      await addHistory(id, "confirmed goal", role, actor, goal);
+      await Promise.all([db().from("posts").update({ goal, goal_confirmed: true, updated_at: now }).eq("id", id), addHistory(id, "confirmed goal", role, actor, goal)]);
       return json({ ok: true });
     }
 
     if (action === "submit") {
-      if (role !== "creator") return fail("Only the creator submits a post for review.", 403);
+      if (!can(role, "check_posts")) return fail("Only the creator submits a post for review.", 403);
       if (post.status !== "draft" && post.status !== "changes_requested") return fail("This post has already been submitted.", 409);
       const { data: review } = await db().from("reviews").select("id, findings").eq("post_id", id).order("created_at", { ascending: false }).limit(1).maybeSingle();
       if (!review) return fail("Check the post before submitting it.", 409);
-      const { data: decisions } = await db().from("decisions").select("finding_id, action").eq("post_id", id).eq("review_id", review.id);
-      const disputed = (decisions ?? []).some((d) => d.action === "disagree");
+      const { data: decisions } = await db().from("decisions").select("action").eq("post_id", id).eq("review_id", review.id).eq("action", "disagree").limit(1);
+      const disputed = (decisions ?? []).length > 0;
       const expert = needsExpert(review.findings as Finding[], new Set(), disputed);
       const assigned = expert ? "expert" : "brand_manager";
-      await db().from("posts").update({ status: "in_review", needs_expert: expert, expert_approved: false, assigned_role: assigned, updated_at: now }).eq("id", id);
-      await addHistory(id, "submitted", role, actor, {
+      await Promise.all([db().from("posts").update({ status: "in_review", needs_expert: expert, expert_approved: false, assigned_role: assigned, updated_at: now }).eq("id", id), addHistory(id, "submitted", role, actor, {
         sent_to: ROLE_LABEL[assigned],
         why: expert ? (disputed ? "The creator disagreed with a finding." : "It has open claim or high-severity problems.") : "No open claims or serious problems.",
         comment,
-      });
+      })]);
       return json({ ok: true, assigned_role: assigned });
     }
 
@@ -57,19 +56,16 @@ export async function POST(req: Request, ctx: RouteContext<"/api/posts/[id]/acti
 
     if (action === "request_changes") {
       if (!comment || comment.length < 3) return fail("Tell the creator what to change.");
-      await db().from("posts").update({ status: "changes_requested", assigned_role: null, expert_approved: false, updated_at: now }).eq("id", id);
-      await addHistory(id, "requested changes", role, actor, { comment });
+      await Promise.all([db().from("posts").update({ status: "changes_requested", assigned_role: null, expert_approved: false, updated_at: now }).eq("id", id), addHistory(id, "requested changes", role, actor, { comment })]);
       return json({ ok: true });
     }
 
     if (role === "expert") {
-      await db().from("posts").update({ expert_approved: true, assigned_role: "brand_manager", updated_at: now }).eq("id", id);
-      await addHistory(id, "expert approved", role, actor, { comment, next: "Brand manager" });
+      await Promise.all([db().from("posts").update({ expert_approved: true, assigned_role: "brand_manager", updated_at: now }).eq("id", id), addHistory(id, "expert approved", role, actor, { comment, next: "Brand manager" })]);
       return json({ ok: true, assigned_role: "brand_manager" });
     }
     if (post.needs_expert && !post.expert_approved) return fail("The expert reviewer must approve first.", 409);
-    await db().from("posts").update({ status: "approved", assigned_role: null, updated_at: now }).eq("id", id);
-    await addHistory(id, "approved", role, actor, { comment });
+    await Promise.all([db().from("posts").update({ status: "approved", assigned_role: null, updated_at: now }).eq("id", id), addHistory(id, "approved", role, actor, { comment })]);
     return json({ ok: true, status: "approved" });
   } catch (e) {
     return serverError(e, "posts/[id]/action");

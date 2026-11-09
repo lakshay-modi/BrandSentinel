@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { can, whoCan } from "@/lib/roles";
 import { actorSchema, fail, json, readJson, roleSchema, serverError } from "@/lib/api";
-import { db, getBrandContext } from "@/lib/db";
+import { db, getBrandRow } from "@/lib/db";
 import { factFields } from "@/lib/schemas";
 
 const bodySchema = z.object({ role: roleSchema, actor: actorSchema, changes: factFields.partial() });
@@ -14,7 +14,7 @@ export async function PATCH(req: Request, ctx: RouteContext<"/api/facts/[id]">) 
   const { role, changes } = body.data;
   if (!can(role, "manage_facts")) return fail(`Only ${whoCan("manage_facts")} can change approved facts.`, 403);
   try {
-    const { brand } = await getBrandContext();
+    const brand = await getBrandRow();
     const { data, error } = await db()
       .from("facts")
       .update({ ...changes, updated_at: new Date().toISOString() })
@@ -38,7 +38,7 @@ export async function DELETE(req: Request, ctx: RouteContext<"/api/facts/[id]">)
   if (!body.ok) return body.res;
   if (!can(body.data.role, "manage_facts")) return fail(`Only ${whoCan("manage_facts")} can remove facts.`, 403);
   try {
-    const { brand } = await getBrandContext();
+    const brand = await getBrandRow();
     const { data, error } = await db().from("facts").delete().eq("brand_id", brand.id).eq("id", id).select("id").maybeSingle();
     if (error) throw new Error(error.message);
     if (!data) return fail("Fact not found", 404);

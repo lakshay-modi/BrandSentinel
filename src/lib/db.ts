@@ -115,11 +115,17 @@ export async function getBrandContextForBrandId(brandId: string): Promise<BrandC
   return getBrandContext(data.slug as string);
 }
 
-export async function getBrandContext(slug?: string): Promise<BrandContext> {
+/** Just the selected brand's row: one query, for edits that don't need the whole rulebook. */
+export async function getBrandRow(slug?: string): Promise<Brand> {
   const wanted = slug ?? (await currentBrandSlug());
   let { data: brand } = await db().from("brands").select("id, slug, name, settings, rulebook_version").eq("slug", wanted).maybeSingle();
   if (!brand && wanted !== DEMO_BRAND) ({ data: brand } = await db().from("brands").select("id, slug, name, settings, rulebook_version").eq("slug", DEMO_BRAND).maybeSingle());
   if (!brand) throw new Error(`Brand not found: ${wanted}`);
+  return brand as Brand;
+}
+
+export async function getBrandContext(slug?: string): Promise<BrandContext> {
+  const brand = await getBrandRow(slug);
   const [rules, facts, docs] = await Promise.all([
     db().from("rules").select("id, category, severity, check_type, scope, rule, guideline, good, bad, params, status, version, source, document_id").eq("brand_id", brand.id).order("id"),
     db().from("facts").select("id, product, fact, source, valid_until, type").eq("brand_id", brand.id).order("id"),
@@ -132,7 +138,7 @@ export async function getBrandContext(slug?: string): Promise<BrandContext> {
   const paused = new Set(documents.filter((d) => d.status === "paused").map((d) => d.id));
   // rules of a paused rulebook leave the checks: they are marked "paused" here and never stored that way
   const allRules = ((rules.data ?? []) as Rule[]).map((r) => (r.status === "approved" && r.document_id && paused.has(r.document_id) ? { ...r, status: "paused" as const } : r));
-  return { brand: brand as Brand, rules: allRules, facts: (facts.data ?? []) as Fact[], documents };
+  return { brand, rules: allRules, facts: (facts.data ?? []) as Fact[], documents };
 }
 
 export async function getCache<T>(key: string): Promise<T | null> {
