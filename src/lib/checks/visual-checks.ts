@@ -6,10 +6,15 @@ const MIN_SHARE = 0.15; // a colour counts as a "main colour" if it covers at le
 
 export function runVisualChecks(input: PostInput, rules: Map<string, Rule>, brand: BrandSettings): Finding[] {
   const out: Finding[] = [];
-  const vis = rules.get("VIS-01");
-  const contrast = rules.get("READ-01");
-  const alt = rules.get("READ-02");
-  const palette = brand.palette;
+  // only rules set up with a fast check: a rule imported from a PDF can get the same ID but mean something else
+  const fast = (id: string) => {
+    const r = rules.get(id);
+    return r && r.check_type.includes("code") ? r : undefined;
+  };
+  const vis = fast("VIS-01");
+  const contrast = fast("READ-01");
+  const alt = fast("READ-02");
+  const palette = brand.palette ?? [];
   const base = (rule: Rule, location: Location) => ({
     id: "",
     rule_id: rule.id,

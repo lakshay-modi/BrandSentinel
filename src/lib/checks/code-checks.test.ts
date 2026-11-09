@@ -54,3 +54,12 @@ describe("confidential names (WORD-08)", () => {
     expect(found[0].severity).toBe("high");
   });
 });
+
+describe("imported rules never trigger fast image checks", () => {
+  it("ignores READ-01, READ-02 and VIS-01 when they are AI-checked rules about something else", () => {
+    const aiOnly = new Map([...rules].map(([k, v]) => [k, { ...v, check_type: "ai" as const }]));
+    const p09 = samplePosts(true).find((p) => p.id === "P09")!; // off-brand colours, low contrast, no alt text
+    expect(runVisualChecks(p09, rules, demoBrand).length).toBeGreaterThan(0);
+    expect(runVisualChecks(p09, aiOnly, demoBrand)).toEqual([]);
+  });
+});
