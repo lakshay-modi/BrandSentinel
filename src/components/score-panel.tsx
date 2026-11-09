@@ -20,17 +20,15 @@ export function ScorePanel({ score, band, findings, onPick }: { score: number; b
   return (
     <div>
       <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
-        <ScoreGauge score={score} band={band} size={196} />
+        <ScoreGauge score={score} band={band} size={230} />
         <div className="min-w-[10rem] flex-1">
-          <p className="text-[13px] font-medium text-ink-soft">
-            Brand score <span className="tabular-nums">{score}/100</span>
-          </p>
+          <p className="text-[13px] font-medium text-ink-soft">Brand score</p>
           <p className={`mt-1 text-[22px] font-bold leading-tight tracking-tight ${b.cls}`}>{b.label}</p>
           <p className="text-[14px] text-ink-soft">{findings.length === 0 ? "No problems found" : `${parts.join(", ")} problem${findings.length > 1 ? "s" : ""}`}</p>
           <ul className="mt-3 space-y-1 text-[12px] text-ink-faint" aria-label="Score bands">
-            <li className="flex items-center gap-2"><span className="size-2 rounded-full bg-pass" aria-hidden="true" />85 to 100: ready for review</li>
-            <li className="flex items-center gap-2"><span className="size-2 rounded-full bg-med" aria-hidden="true" />60 to 84: needs a few fixes</li>
-            <li className="flex items-center gap-2"><span className="size-2 rounded-full bg-high" aria-hidden="true" />Below 60: not ready</li>
+            <li className="flex items-center gap-2"><span className="size-2 rounded-full bg-[#1f9d5a]" aria-hidden="true" />85 to 100: ready for review</li>
+            <li className="flex items-center gap-2"><span className="size-2 rounded-full bg-[#e8b210]" aria-hidden="true" />60 to 84: needs a few fixes</li>
+            <li className="flex items-center gap-2"><span className="size-2 rounded-full bg-[#d64532]" aria-hidden="true" />Below 60: not ready</li>
           </ul>
         </div>
       </div>

@@ -1,14 +1,14 @@
 "use client";
 
 /**
- * The brand score as a simple dial: a half circle from 0 to 100, filled up to the score in its band colour,
- * with a thin needle. Marks at 60 and 85 show where the bands change.
+ * The brand score on a simple half-circle meter: red below 60, yellow from 60 to 85, green from 85,
+ * numbered every 10, with one needle and the score underneath.
  */
 const CX = 100;
 const CY = 100;
 const R = 80;
 
-// 0 sits on the left, 100 on the right, over the top
+// 0 on the left, 100 on the right, over the top
 function point(v: number, r: number) {
   const a = Math.PI * (1 - Math.max(0, Math.min(100, v)) / 100);
   return { x: CX + r * Math.cos(a), y: CY - r * Math.sin(a) };
@@ -19,78 +19,79 @@ function arc(from: number, to: number, r: number) {
   return `M ${a.x.toFixed(2)} ${a.y.toFixed(2)} A ${r} ${r} 0 0 1 ${b.x.toFixed(2)} ${b.y.toFixed(2)}`;
 }
 
+const ZONES = [
+  { from: 0, to: 60, color: "#d64532" }, // red: not ready
+  { from: 60, to: 85, color: "#e8b210" }, // yellow: needs fixes
+  { from: 85, to: 100, color: "#1f9d5a" }, // green: ready
+];
 const BAND = {
-  green: { stroke: "var(--color-pass)", text: "text-pass", label: "Ready" },
-  amber: { stroke: "var(--color-med)", text: "text-med", label: "Needs fixes" },
-  red: { stroke: "var(--color-high)", text: "text-high", label: "Not ready" },
+  green: { text: "text-pass", label: "Ready" },
+  amber: { text: "text-med", label: "Needs fixes" },
+  red: { text: "text-high", label: "Not ready" },
 } as const;
 
-export function ScoreGauge({ score, band, size = 200, compact = false }: { score: number; band: "green" | "amber" | "red"; size?: number; compact?: boolean }) {
+export function ScoreGauge({ score, band, size = 220, compact = false }: { score: number; band: "green" | "amber" | "red"; size?: number; compact?: boolean }) {
   const b = BAND[band];
   const s = Math.max(0, Math.min(100, score));
+  const ticks = Array.from({ length: 21 }, (_, i) => i * 5);
+  const zoneWidth = compact ? 16 : 9;
   return (
-    <svg viewBox={compact ? "8 8 184 104" : "-6 -10 212 152"} width={size} height={compact ? (size * 104) / 184 : (size * 152) / 212} role="img" aria-label={`Brand score ${score} out of 100: ${b.label}`} className="block shrink-0 select-none overflow-visible">
-      {/* track, and the score filled in its band colour */}
-      <path d={arc(0, 100, R)} stroke="var(--color-line)" strokeWidth={compact ? 14 : 10} fill="none" strokeLinecap="round" />
-      <path
-        d={arc(0, 100, R)}
-        stroke={b.stroke}
-        strokeWidth={compact ? 14 : 10}
-        fill="none"
-        strokeLinecap="round"
-        pathLength={100}
-        strokeDasharray={`${Math.max(0.01, s)} 100`}
-        className="gauge-progress"
-      />
+    <svg
+      viewBox={compact ? "8 8 184 100" : "6 4 188 136"}
+      width={size}
+      height={compact ? (size * 100) / 184 : (size * 136) / 188}
+      role="img"
+      aria-label={`Brand score ${score} out of 100: ${b.label}`}
+      className="block shrink-0 select-none"
+    >
+      {/* the three zones */}
+      {ZONES.map((z) => (
+        <path key={z.from} d={arc(z.from, z.to, R)} stroke={z.color} strokeWidth={zoneWidth} fill="none" />
+      ))}
 
-      {/* where the bands change: 60 and 85 outside the arc, 0 and 100 under its ends */}
+      {/* a mark every 5, a number every 10 */}
       {!compact &&
-        [0, 60, 85, 100].map((t) => {
-          const end = t === 0 || t === 100;
-          const a = point(t, R + 7);
-          const c = point(t, R + 11);
-          const l = end ? { x: point(t, R).x, y: CY + 20 } : point(t, R + 20);
+        ticks.map((t) => {
+          const major = t % 10 === 0;
+          const a = point(t, R - 6);
+          const c = point(t, major ? R - 13 : R - 10);
+          const l = point(t, R - 23);
           return (
             <g key={t}>
-              {!end && <line x1={a.x} y1={a.y} x2={c.x} y2={c.y} stroke="var(--color-ink-faint)" strokeWidth={1.25} strokeLinecap="round" />}
-              <text x={l.x} y={l.y + 3.5} textAnchor="middle" fontSize={10} fill="var(--color-ink-faint)" style={{ fontVariantNumeric: "tabular-nums" }}>
-                {t}
-              </text>
+              <line x1={a.x} y1={a.y} x2={c.x} y2={c.y} stroke="var(--color-ink-soft)" strokeWidth={major ? 1.4 : 0.8} strokeLinecap="round" />
+              {major && (
+                <text x={l.x} y={l.y + 3} textAnchor="middle" fontSize={8} fill="var(--color-ink-soft)" style={{ fontVariantNumeric: "tabular-nums" }}>
+                  {t}
+                </text>
+              )}
             </g>
           );
         })}
 
-      {/* needle */}
-      {!compact && (
-        <>
-          <line
-            x1={CX}
-            y1={CY}
-            x2={CX - (R - 16)}
-            y2={CY}
-            stroke="var(--color-ink)"
-            strokeWidth={2}
-            strokeLinecap="round"
-            className="gauge-needle"
-            style={{ transform: `rotate(${s * 1.8}deg)`, transformOrigin: `${CX}px ${CY}px` }}
-          />
-          <circle cx={CX} cy={CY} r={4.5} fill="var(--color-surface)" stroke="var(--color-ink)" strokeWidth={2} />
-        </>
-      )}
+      {/* needle, pointing at 0 and turned to the score */}
+      <line
+        x1={CX}
+        y1={CY}
+        x2={CX - (compact ? R - 4 : R - 18)}
+        y2={CY}
+        stroke="var(--color-ink)"
+        strokeWidth={compact ? 4 : 2}
+        strokeLinecap="round"
+        className="gauge-needle"
+        style={{ transform: `rotate(${s * 1.8}deg)`, transformOrigin: `${CX}px ${CY}px` }}
+      />
+      <circle cx={CX} cy={CY} r={compact ? 8 : 4.5} fill="var(--color-ink)" />
 
-      {/* the number */}
-      <text
-        x={CX}
-        y={compact ? CY - 4 : CY + 34}
-        textAnchor="middle"
-        fontSize={compact ? 40 : 30}
-        fontWeight={700}
-        className={b.text}
-        fill="currentColor"
-        style={{ fontVariantNumeric: "tabular-nums", letterSpacing: "-0.02em" }}
-      >
-        {score}
-      </text>
+      {/* the score */}
+      {!compact && (
+        <text x={CX} y={CY + 30} textAnchor="middle" fontSize={26} fontWeight={700} className={b.text} fill="currentColor" style={{ fontVariantNumeric: "tabular-nums" }}>
+          {score}
+          <tspan fontSize={12} fontWeight={500} fill="var(--color-ink-faint)">
+            {" "}
+            / 100
+          </tspan>
+        </text>
+      )}
     </svg>
   );
 }

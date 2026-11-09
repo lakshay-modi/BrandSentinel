@@ -212,15 +212,6 @@ h3 {
     transform: rotate(0deg);
   }
 }
-.gauge-progress {
-  transition: stroke-dasharray 700ms ease-out;
-  animation: gauge-fill 900ms ease-out both;
-}
-@keyframes gauge-fill {
-  from {
-    stroke-dasharray: 0.01 100;
-  }
-}
 
 .thin-scroll {
   scrollbar-width: thin;
@@ -231,15 +222,13 @@ h3 {
   .toast-in,
   .dialog-in[open],
   .row-in,
-  .gauge-needle,
-  .gauge-progress {
+  .gauge-needle {
     animation: none;
   }
   .stamp {
     animation: none;
   }
-  .gauge-needle,
-  .gauge-progress {
+  .gauge-needle {
     transition: none;
   }
   .flash,

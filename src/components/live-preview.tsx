@@ -51,9 +51,9 @@ export function LivePreview({ input }: { input: PostInput }) {
         </p>
         {result && (
           <div className="flex items-center gap-3" aria-live="polite">
-            <p className="text-right text-[12px] leading-tight text-ink-faint">
-              Score so far
-              <span className="block">out of 100</span>
+            <p className="text-[13px] tabular-nums">
+              <span className={`text-[18px] font-bold ${result.band === "green" ? "text-pass" : result.band === "amber" ? "text-med" : "text-high"}`}>{result.score}</span>
+              <span className="text-ink-faint">/100 so far</span>
             </p>
             <ScoreGauge score={result.score} band={result.band} size={72} compact />
           </div>
