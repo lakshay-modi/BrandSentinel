@@ -25,6 +25,7 @@ export async function GET() {
           slug: b.slug,
           name: b.name,
           tagline: b.settings?.tagline ?? "",
+          palette: ((b.settings?.palette ?? []) as { hex: string; name: string }[]).slice(0, 8).map((c) => ({ hex: c.hex, name: c.name })),
           protected: !!b.settings?.protected,
           created_at: b.created_at,
           last_activity: last,
