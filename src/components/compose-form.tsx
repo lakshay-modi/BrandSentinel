@@ -1,12 +1,14 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/client/api";
 import { analyzeImage, shrinkImage } from "@/lib/client/analyze-image";
 import { SAMPLE_HINT, SAMPLE_LABEL, samplePosts, type SamplePost } from "@/lib/demo/samples";
 import type { Channel, PostImage, PostInput } from "@/lib/types";
 import { Button, ErrorNote } from "./ui";
+import { useToast } from "./toast";
+import { send, toBase64 } from "@/lib/client/send";
 import { LivePreview } from "./live-preview";
 import { useBrand } from "@/lib/client/use-brand";
 import { refreshPosts } from "@/lib/client/use-posts";
@@ -36,6 +38,11 @@ export function ComposeForm() {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [dragging, setDragging] = useState(false);
+  const [reading, setReading] = useState<string | null>(null);
+  const [fileNote, setFileNote] = useState<string | null>(null);
+  const dragDepth = useRef(0);
+  const toast = useToast();
   const brandData = useBrand();
   const settings = brandData?.brand.settings;
   // the demo brand's samples are built in; other brands bring their own in their settings
@@ -62,24 +69,98 @@ export function ComposeForm() {
     setError(null);
   }
 
-  async function addFiles(files: FileList | null) {
-    if (!files) return;
-    const room = 5 - images.length;
-    const picked = Array.from(files).filter((f) => /^image\/(png|jpeg|webp)$/.test(f.type)).slice(0, room);
-    const added = await Promise.all(
-      picked.map(
-        (f) =>
-          new Promise<DraftImage>((resolve) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve({ src: "", alt_text: "", preview: String(reader.result) });
-            reader.readAsDataURL(f);
-          }),
-      ),
-    );
-    setImages((prev) => [...prev, ...added]);
-    setSampleId(null);
+  const IMAGE_TYPE = /^image\/(png|jpeg|webp|gif|bmp|avif)$/;
+  const DOC_NAME = /\.(pdf|docx|txt|md)$/i;
+
+  /** Images become post images; a document (PDF, Word, text) fills the caption. Used by the file picker, drag and drop, and paste. */
+  async function addFiles(list: FileList | File[] | null) {
+    const files = Array.from(list ?? []);
     if (fileRef.current) fileRef.current.value = "";
+    if (!files.length) return;
+    setFileNote(null);
+    const imgs = files.filter((f) => IMAGE_TYPE.test(f.type));
+    const docs = files.filter((f) => !IMAGE_TYPE.test(f.type) && (DOC_NAME.test(f.name) || f.type === "application/pdf" || f.type.startsWith("text/")));
+    const skipped = files.length - imgs.length - docs.length;
+    const notes: string[] = [];
+
+    if (imgs.length) {
+      const room = 5 - images.length;
+      const tooBig = imgs.filter((f) => f.size > 10 * 1024 * 1024);
+      const picked = imgs.filter((f) => f.size <= 10 * 1024 * 1024).slice(0, Math.max(0, room));
+      if (room <= 0) notes.push("A post can have up to 5 images; remove one to add another.");
+      else if (imgs.length - tooBig.length > room) notes.push(`Only ${room} more image${room === 1 ? " fits" : "s fit"} (5 per post), so the rest were left out.`);
+      if (tooBig.length) notes.push("Images over 10 MB were left out.");
+      const added = await Promise.all(
+        picked.map(
+          (f) =>
+            new Promise<DraftImage>((resolve) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve({ src: "", alt_text: "", preview: String(reader.result) });
+              reader.readAsDataURL(f);
+            }),
+        ),
+      );
+      if (added.length) {
+        setImages((prev) => [...prev, ...added].slice(0, 5));
+        setSampleId(null);
+        toast(`${added.length} image${added.length === 1 ? "" : "s"} added. Describe ${added.length === 1 ? "it" : "each one"} in the alt text.`);
+      }
+    }
+
+    if (docs.length) {
+      const doc = docs[0];
+      if (docs.length > 1) notes.push("Only the first document was used for the caption.");
+      if (doc.size > 3 * 1024 * 1024) notes.push("That document is too big. Use one under 3 MB.");
+      else {
+        setReading(doc.name);
+        try {
+          let text: string;
+          let truncated = false;
+          if (/\.(txt|md)$/i.test(doc.name) || (doc.type.startsWith("text/") && !/\.(pdf|docx)$/i.test(doc.name))) {
+            const raw = (await doc.text()).replace(/\r\n/g, "\n").trim();
+            text = raw.slice(0, 3000);
+            truncated = raw.length > 3000;
+          } else {
+            const res = await send<{ text: string; truncated: boolean }>("/api/extract", "POST", { file: { name: doc.name, type: doc.type, base64: toBase64(await doc.arrayBuffer()) } });
+            text = res.text;
+            truncated = res.truncated;
+          }
+          if (!text.trim()) throw new Error("No readable text found in that document.");
+          setInput((p) => ({ ...p, caption: text }));
+          setSampleId(null);
+          toast(`Caption filled from “${doc.name}”${truncated ? " (first 3,000 characters)" : ""}.`);
+        } catch (e) {
+          notes.push(e instanceof Error ? e.message : String(e));
+        } finally {
+          setReading(null);
+        }
+      }
+    }
+
+    if (skipped) notes.push("Some files were skipped: use PNG, JPEG, WebP or GIF images, or a PDF, Word, .txt or .md document.");
+    setFileNote(notes.length ? notes.join(" ") : null);
   }
+
+  // Paste images straight from the clipboard (a screenshot, or an image copied from another app).
+  // Text pasted into a field keeps working as usual.
+  const addFilesRef = useRef(addFiles);
+  useEffect(() => {
+    addFilesRef.current = addFiles;
+  });
+  useEffect(() => {
+    const onPaste = (e: ClipboardEvent) => {
+      const files = Array.from(e.clipboardData?.files ?? []).filter((f) => IMAGE_TYPE.test(f.type) || DOC_NAME.test(f.name));
+      if (!files.length) return;
+      const inField = (e.target as HTMLElement | null)?.closest("input, textarea, [contenteditable]");
+      const hasText = !!e.clipboardData?.getData("text/plain");
+      if (inField && hasText) return; // copied text (and its preview image) goes into the field as text
+      e.preventDefault();
+      void addFilesRef.current(files);
+    };
+    window.addEventListener("paste", onPaste);
+    return () => window.removeEventListener("paste", onPaste);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function check() {
     setError(null);
@@ -120,7 +201,35 @@ export function ComposeForm() {
           {brandData && <> Checking against <strong className="font-semibold text-ink">{brandData.brand.name}</strong>&apos;s Rulebook.</>}
         </p>
 
-        <div className="mt-6 rounded-2xl border border-line bg-surface shadow-[var(--shadow-sheet)]">
+        <div
+          className="relative mt-6 rounded-2xl border border-line bg-surface shadow-[var(--shadow-sheet)]"
+          onDragEnter={(e) => {
+            if (!e.dataTransfer.types.includes("Files")) return;
+            e.preventDefault();
+            dragDepth.current += 1;
+            setDragging(true);
+          }}
+          onDragOver={(e) => {
+            if (e.dataTransfer.types.includes("Files")) e.preventDefault();
+          }}
+          onDragLeave={() => {
+            dragDepth.current = Math.max(0, dragDepth.current - 1);
+            if (dragDepth.current === 0) setDragging(false);
+          }}
+          onDrop={(e) => {
+            if (!e.dataTransfer.files.length) return;
+            e.preventDefault();
+            dragDepth.current = 0;
+            setDragging(false);
+            void addFiles(e.dataTransfer.files);
+          }}
+        >
+          {dragging && (
+            <div className="pointer-events-none absolute inset-0 z-20 flex flex-col items-center justify-start gap-1 rounded-2xl pt-32 border-2 border-dashed border-low bg-low-bg/90 text-center">
+              <p className="text-[17px] font-bold text-low">Drop to add</p>
+              <p className="text-[13px] text-ink-soft">Images are added to the post. A PDF, Word or text document fills the caption.</p>
+            </div>
+          )}
           <div className="grid gap-3 border-b border-line p-5 sm:grid-cols-3">
             <label className="text-[13px]">
               <span className="mb-1 block font-medium text-ink-soft">Channel</span>
@@ -173,25 +282,22 @@ export function ComposeForm() {
           <LivePreview input={{ ...input, product }} />
 
           <div className="px-5 pt-5">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-3">
               <span className="text-[13px] font-medium text-ink-soft">Images ({images.length} of 5)</span>
-              <Button type="button" size="sm" onClick={() => fileRef.current?.click()} disabled={images.length >= 5}>
-                Add image
-              </Button>
-              <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp" multiple hidden onChange={(e) => addFiles(e.target.files)} />
+              <span className="hidden text-[12px] text-ink-faint sm:inline">Tip: paste a screenshot with Ctrl+V (⌘V on Mac)</span>
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/gif,image/bmp,image/avif,.pdf,.docx,.txt,.md,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown"
+                multiple
+                hidden
+                onChange={(e) => addFiles(e.target.files)}
+              />
             </div>
-            {images.length === 0 ? (
-              <button
-                type="button"
-                onClick={() => fileRef.current?.click()}
-                className="mt-2 w-full rounded-lg border border-dashed border-line-strong px-3 py-5 text-center text-[14px] text-ink-soft hover:border-ink-faint hover:text-ink"
-              >
-                Add up to 5 images. Text inside them is read and checked too.
-              </button>
-            ) : (
+            {images.length > 0 && (
               <ul className="mt-2 grid gap-3 sm:grid-cols-2">
                 {images.map((img, i) => (
-                  <li key={i} className="flex gap-3 rounded-lg border border-line p-2.5">
+                  <li key={i} className="row-in flex gap-3 rounded-lg border border-line p-2.5">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={img.preview} alt={img.alt_text || `Image ${i + 1} preview`} className="size-20 shrink-0 rounded-md object-cover" />
                     <div className="min-w-0 flex-1 text-sm">
@@ -211,6 +317,40 @@ export function ComposeForm() {
                   </li>
                 ))}
               </ul>
+            )}
+            {images.length < 5 && (
+              <button
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                disabled={!!reading}
+                className={`mt-2 flex w-full flex-col items-center gap-1 rounded-xl border-2 border-dashed border-line-strong bg-paper/40 px-4 text-center transition-colors hover:border-ink-faint hover:bg-paper ${images.length ? "py-3" : "py-6"}`}
+              >
+                {reading ? (
+                  <span className="inline-flex items-center gap-2 text-[14px] font-semibold text-ink" role="status">
+                    <span aria-hidden="true" className="inline-block size-4 animate-spin rounded-full border-2 border-line-strong border-t-ink motion-reduce:animate-none" />
+                    Reading “{reading}”…
+                  </span>
+                ) : (
+                  <>
+                    <span className="flex items-center gap-2 text-[14px] font-semibold text-ink">
+                      <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M12 16V4m0 0-4 4m4-4 4 4M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                      {images.length ? "Add more: drop, paste or click" : "Drop images or a document here, paste, or click to choose"}
+                    </span>
+                    {!images.length && (
+                      <span className="text-[12px] text-ink-faint">
+                        Up to 5 images (PNG, JPEG, WebP, GIF); text inside them is read and checked too. A PDF, Word, .txt or .md document fills the caption.
+                      </span>
+                    )}
+                  </>
+                )}
+              </button>
+            )}
+            {fileNote && (
+              <p role="status" className="mt-2 rounded-lg bg-med-bg px-3 py-2 text-[13px] text-med">
+                {fileNote}
+              </p>
             )}
           </div>
 
