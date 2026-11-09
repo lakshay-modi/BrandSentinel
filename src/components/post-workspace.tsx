@@ -38,17 +38,12 @@ type Filter = "all" | "high" | "medium" | "low" | "caption" | "images";
 
 function PostSkeleton() {
   return (
-    <div role="status" aria-label="Loading the post" className="space-y-5">
+    <div role="status" aria-label="Loading the post" className="mx-auto w-full max-w-4xl space-y-5">
       <Skeleton className="h-4 w-28" />
       <Skeleton className="h-9 w-[32rem] max-w-full" />
-      <div className="grid gap-7 lg:grid-cols-[minmax(0,7fr)_minmax(0,6fr)]">
-        <Skeleton className="h-80 rounded-2xl" />
-        <div className="space-y-4">
-          <Skeleton className="h-36 rounded-xl" />
-          <Skeleton className="h-24 rounded-xl" />
-          <Skeleton className="h-40 rounded-xl" />
-        </div>
-      </div>
+      <Skeleton className="h-64 rounded-2xl" />
+      <Skeleton className="h-36 rounded-xl" />
+      <Skeleton className="h-40 rounded-xl" />
     </div>
   );
 }
@@ -228,16 +223,20 @@ export function PostWorkspace({ id }: { id: string }) {
     void decide(f, "accept", undefined, undo);
   };
 
-  const edit = async (f: Finding, text: string) => {
+  const edit = async (f: Finding, text: string, where?: "start" | "end") => {
     setError(null);
     const before = { caption, alts };
     const undo = () => {
       setCaption(before.caption);
       setAlts(before.alts);
     };
-    if (f.rule_id === "READ-02" || f.fix.kind === "alt_text") {
+    if (f.fix.kind === "alt_text" || (f.rule_id === "READ-02" && f.location !== "caption" && f.source !== "ai")) {
       const i = imageIndex(f);
       setAlts((a) => a.map((v, j) => (j === i ? text : v)));
+    } else if (where && f.location === "caption") {
+      // something was missing: add the creator's text at the start or the end
+      const t = text.trim();
+      setCaption(where === "start" ? `${t} ${caption.trimStart()}` : `${caption.trimEnd()} ${t}`);
     } else if (f.location === "caption" && f.quotes[0]) {
       const q = f.quotes[0];
       const i = caption.indexOf(q) >= 0 ? caption.indexOf(q) : caption.toLowerCase().indexOf(q.toLowerCase());
@@ -320,7 +319,7 @@ export function PostWorkspace({ id }: { id: string }) {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto w-full max-w-4xl space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <Link href="/queue" className="text-[13px] font-medium text-ink-soft hover:text-ink">
@@ -338,9 +337,9 @@ export function PostWorkspace({ id }: { id: string }) {
 
       {error && <ErrorNote>{error}</ErrorNote>}
 
-      {/* On phones the report follows the post (order-*); on wide screens: post on the left, report on the right. */}
-      <div className="flex flex-col gap-5 lg:grid lg:grid-cols-[minmax(0,7fr)_minmax(0,6fr)] lg:items-start lg:gap-7">
-        <div className="thin-scroll contents lg:sticky lg:top-[76px] lg:-m-1 lg:block lg:max-h-[calc(100vh-92px)] lg:space-y-5 lg:overflow-y-auto lg:p-1">
+      {/* One column, top to bottom: the post, its score, the goal, the problems, editing, approval and history (order-*). */}
+      <div className="flex flex-col gap-5">
+        <div className="contents">
           <section aria-label="The post as checked" className="order-1 rounded-2xl border border-line bg-surface p-6 shadow-[var(--shadow-sheet)] sm:p-8">
             <div className="mb-3 flex items-start justify-between gap-4">
               <p className="text-[13px] font-medium text-ink-soft">{review ? "Caption as checked" : "Caption"}</p>
@@ -448,7 +447,7 @@ export function PostWorkspace({ id }: { id: string }) {
         </div>
 
         {/* The report */}
-        <div className="contents lg:block lg:space-y-5">
+        <div className="contents">
           {review ? (
             <>
               <Panel className="order-2">
@@ -562,10 +561,10 @@ export function PostWorkspace({ id }: { id: string }) {
                         stale={f.location === "caption" && canApply(f.fix) && applyFix(caption, f.fix) === null}
                         highlighted={picked === f.id}
                         onAccept={() => accept(f)}
-                        onEdit={(t) => edit(f, t)}
+                        onEdit={(t, where) => edit(f, t, where)}
                         onDisagree={async (r) => {
                           void decide(f, "disagree", r);
-                          toast("Disagreement saved. The reviewer will see your reason.", "info");
+                          toast("Rejection saved. The reviewer will see your reason.", "info");
                         }}
                         active={active === f.id}
                         onHover={(on) => setActive(on ? f.id : null)}
