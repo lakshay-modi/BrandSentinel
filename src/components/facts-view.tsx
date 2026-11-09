@@ -191,9 +191,10 @@ export function FactsView() {
               {facts.length ? "Try another filter or clear the search." : "Without facts, every number or health claim in a post is flagged as unproven."}
             </EmptyState>
           ) : (
-            <div className="overflow-x-auto rounded-xl border border-line bg-surface">
-              <table className="w-full min-w-[760px] text-left text-[14px]">
-                <thead className="border-b border-line bg-paper/70 text-[12px] uppercase tracking-wide text-ink-soft">
+            <div className="relative overflow-x-auto rounded-xl border border-line bg-surface">
+              {/* a table on wide screens; on phones each fact is a small card */}
+              <table className="block w-full text-left text-[14px] sm:table sm:min-w-[760px]">
+                <thead className="hidden border-b border-line bg-paper/70 text-[12px] uppercase tracking-wide text-ink-soft sm:table-header-group">
                   <tr>
                     <th className="px-4 py-2.5 font-semibold">ID</th>
                     <th className="px-4 py-2.5 font-semibold">Product</th>
@@ -207,26 +208,30 @@ export function FactsView() {
                     )}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-line">
+                <tbody className="block divide-y divide-line sm:table-row-group">
                   {shown.map((f) => {
                     const isExpired = f.valid_until < today;
                     const isSoon = !isExpired && f.valid_until <= soon;
                     return (
-                      <tr key={f.id} id={f.id} className={`target-flash row-in group scroll-mt-24 ${isExpired ? "bg-paper/60 text-ink-faint" : "hover:bg-paper/40"}`}>
-                        <td className="px-4 py-3 align-top font-mono text-[13px] font-semibold">{f.id}</td>
-                        <td className="px-4 py-3 align-top">{f.product}</td>
-                        <td className="px-4 py-3 align-top">
+                      <tr key={f.id} id={f.id} className={`target-flash row-in group grid scroll-mt-24 grid-cols-[auto_1fr] gap-x-3 px-4 py-3 sm:table-row sm:p-0 ${isExpired ? "bg-paper/60 text-ink-faint" : "hover:bg-paper/40"}`}>
+                        <td className="align-top font-mono text-[13px] font-semibold sm:px-4 sm:py-3">{f.id}</td>
+                        <td className="align-top font-semibold sm:px-4 sm:py-3 sm:font-normal">{f.product}</td>
+                        <td className="col-span-2 mt-1 align-top sm:mt-0 sm:px-4 sm:py-3">
                           {f.fact}
                           <span className="ml-2 text-[11px] uppercase tracking-wide text-ink-faint">{f.type}</span>
                         </td>
-                        <td className="px-4 py-3 align-top text-ink-soft">{f.source}</td>
-                        <td className="whitespace-nowrap px-4 py-3 align-top tabular-nums">
+                        <td className="col-span-2 align-top text-[13px] text-ink-soft sm:px-4 sm:py-3 sm:text-[14px]">
+                          <span className="sm:hidden">Source: </span>
+                          {f.source}
+                        </td>
+                        <td className="col-span-2 whitespace-nowrap align-top text-[13px] tabular-nums sm:px-4 sm:py-3 sm:text-[14px]">
+                          <span className="text-ink-soft sm:hidden">Valid until </span>
                           {f.valid_until}
                           {isExpired && <span className="ml-2 rounded-md bg-high-bg px-1.5 py-px text-[11px] font-bold text-high">Expired</span>}
                           {isSoon && <span className="ml-2 rounded-md bg-med-bg px-1.5 py-px text-[11px] font-bold text-med">Ends soon</span>}
                         </td>
                         {manage && (
-                          <td className="whitespace-nowrap px-3 py-2 text-right align-top">
+                          <td className="col-span-2 -ml-3 mt-1 whitespace-nowrap align-top sm:ml-0 sm:mt-0 sm:px-3 sm:py-2 sm:text-right">
                             <Button size="sm" variant="ghost" onClick={() => setEditing(f)}>
                               Edit
                             </Button>
