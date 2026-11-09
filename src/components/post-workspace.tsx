@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useBrand } from "@/lib/client/use-brand";
+import { refreshPosts } from "@/lib/client/use-posts";
 import { api, type DecisionRow, type HistoryRow, type PostRow, type ReviewRow } from "@/lib/client/api";
 import { applyFix, canApply } from "@/lib/fixes";
 
@@ -68,6 +69,11 @@ function ApprovedStamp({ history }: { history: HistoryRow[] }) {
   );
 }
 
+/** A decision shown before the server has saved it. */
+function tempDecision(d: Omit<DecisionRow, "id" | "created_at">): DecisionRow {
+  return { ...d, id: `tmp-${Math.random().toString(36).slice(2)}`, created_at: new Date().toISOString() };
+}
+
 export function PostWorkspace({ id }: { id: string }) {
   const { role, name } = useRole();
   const brand = useBrand();
@@ -105,6 +111,9 @@ export function PostWorkspace({ id }: { id: string }) {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
   const [goalEdit, setGoalEdit] = useState<Goal | null>(null);
+  // decisions still on their way to the server; a re-check or a submit waits for them
+  const pending = useRef(new Set<Promise<void>>());
+  const settle = () => Promise.all([...pending.current]);
 
   const apply = useCallback((d: Data) => {
     setData(d);
@@ -173,16 +182,36 @@ export function PostWorkspace({ id }: { id: string }) {
     setTimeout(() => setPicked(null), 1300);
   };
 
-  const decide = async (f: Finding, action: DecisionRow["action"], reason?: string) => {
+  // The decision shows at once; the server records it in the background and the change is undone if it refuses.
+  const decide = async (f: Finding, action: DecisionRow["action"], reason?: string, undo?: () => void) => {
     if (!review) return;
-    const { decision } = await api.decide(post.id, { review_id: review.id, finding_id: f.id, rule_id: f.rule_id, action, reason, role, actor: name });
-    setData((d) => (d ? { ...d, decisions: [...d.decisions, decision] } : d));
+    const temp = tempDecision({ review_id: review.id, finding_id: f.id, rule_id: f.rule_id, action, reason: reason ?? null, role, actor: name });
+    setData((d) => (d ? { ...d, decisions: [...d.decisions, temp] } : d));
+    let done!: () => void;
+    const p = new Promise<void>((r) => (done = r));
+    pending.current.add(p);
+    try {
+      const { decision } = await api.decide(post.id, { review_id: review.id, finding_id: f.id, rule_id: f.rule_id, action, reason, role, actor: name });
+      setData((d) => (d ? { ...d, decisions: d.decisions.map((x) => (x.id === temp.id ? decision : x)) } : d));
+    } catch (e) {
+      setData((d) => (d ? { ...d, decisions: d.decisions.filter((x) => x.id !== temp.id) } : d));
+      undo?.();
+      toast(e instanceof Error ? e.message : String(e), "error");
+    } finally {
+      pending.current.delete(p);
+      done();
+    }
   };
 
   const imageIndex = (f: Finding) => (f.location.startsWith("image") ? Number(f.location.split(" ")[1]) - 1 : -1);
 
   const accept = async (f: Finding) => {
     setError(null);
+    const before = { caption, alts };
+    const undo = () => {
+      setCaption(before.caption);
+      setAlts(before.alts);
+    };
     if (f.fix.kind === "alt_text") {
       const i = imageIndex(f);
       const text = f.fix.text;
@@ -195,12 +224,17 @@ export function PostWorkspace({ id }: { id: string }) {
       }
       setCaption(next);
     }
-    await decide(f, "accept");
     toast(f.fix.kind === "alt_text" ? "Alt text added. Re-check to update the score." : "Fix accepted. Re-check to update the score.");
+    void decide(f, "accept", undefined, undo);
   };
 
   const edit = async (f: Finding, text: string) => {
     setError(null);
+    const before = { caption, alts };
+    const undo = () => {
+      setCaption(before.caption);
+      setAlts(before.alts);
+    };
     if (f.rule_id === "READ-02" || f.fix.kind === "alt_text") {
       const i = imageIndex(f);
       setAlts((a) => a.map((v, j) => (j === i ? text : v)));
@@ -216,14 +250,15 @@ export function PostWorkspace({ id }: { id: string }) {
       setError("Text inside an image can't be edited here. Change the image and re-check.");
       return;
     }
-    await decide(f, "edit", text);
     toast("Edit applied. Re-check to update the score.");
+    void decide(f, "edit", text, undo);
   };
 
   const recheck = async () => {
     setBusy("Re-checking…");
     setError(null);
     try {
+      await settle();
       await api.review({
         post_id: post.id,
         role,
@@ -252,8 +287,24 @@ export function PostWorkspace({ id }: { id: string }) {
   };
 
   const act = async (action: "submit" | "approve" | "request_changes", comment?: string) => {
+    await settle();
     const res = await api.act(post.id, { action, role, actor: name, comment });
-    await load();
+    // show the new state straight away; the history refreshes in the background
+    setData((d) => {
+      if (!d) return d;
+      const p = d.post;
+      const next =
+        action === "submit"
+          ? { ...p, status: "in_review" as const, assigned_role: (res.assigned_role as PostRow["assigned_role"]) ?? "brand_manager", needs_expert: res.assigned_role === "expert", expert_approved: false }
+          : action === "request_changes"
+            ? { ...p, status: "changes_requested" as const, assigned_role: null, expert_approved: false }
+            : res.status === "approved"
+              ? { ...p, status: "approved" as const, assigned_role: null }
+              : { ...p, expert_approved: true, assigned_role: "brand_manager" as const };
+      return { ...d, post: next };
+    });
+    void load().catch(() => {});
+    void refreshPosts();
     if (action === "submit") toast(res.assigned_role === "expert" ? "Submitted. It goes to the expert reviewer first." : "Submitted to the brand manager.");
     else if (action === "request_changes") toast("Sent back to the creator with your comment.", "info");
     else toast(res.status === "approved" ? "Approved. Ready to publish." : "Claims approved. Sent to the brand manager.");
@@ -289,7 +340,7 @@ export function PostWorkspace({ id }: { id: string }) {
 
       {/* On phones the report follows the post (order-*); on wide screens: post on the left, report on the right. */}
       <div className="flex flex-col gap-5 lg:grid lg:grid-cols-[minmax(0,7fr)_minmax(0,6fr)] lg:items-start lg:gap-7">
-        <div className="thin-scroll contents lg:sticky lg:top-4 lg:-m-1 lg:block lg:max-h-[calc(100vh-2rem)] lg:space-y-5 lg:overflow-y-auto lg:p-1">
+        <div className="thin-scroll contents lg:sticky lg:top-[76px] lg:-m-1 lg:block lg:max-h-[calc(100vh-92px)] lg:space-y-5 lg:overflow-y-auto lg:p-1">
           <section aria-label="The post as checked" className="order-1 rounded-2xl border border-line bg-surface p-6 shadow-[var(--shadow-sheet)] sm:p-8">
             <div className="mb-3 flex items-start justify-between gap-4">
               <p className="text-[13px] font-medium text-ink-soft">{review ? "Caption as checked" : "Caption"}</p>
@@ -513,7 +564,7 @@ export function PostWorkspace({ id }: { id: string }) {
                         onAccept={() => accept(f)}
                         onEdit={(t) => edit(f, t)}
                         onDisagree={async (r) => {
-                          await decide(f, "disagree", r);
+                          void decide(f, "disagree", r);
                           toast("Disagreement saved. The reviewer will see your reason.", "info");
                         }}
                         active={active === f.id}
