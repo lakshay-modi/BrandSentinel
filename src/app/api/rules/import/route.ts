@@ -6,6 +6,7 @@ import { bumpRulebook, db, getBrandContext, getCache, setCache } from "@/lib/db"
 import { callGemini, parseJson } from "@/lib/ai/gemini";
 import { IMPORT_SYSTEM_PROMPT, buildImportPrompt, parseImportReply, quoteInDocument, type ImportedRule } from "@/lib/ai/import-prompt";
 import { allowAiCall } from "@/lib/review/rate-limit";
+import { documentText } from "@/lib/doc-text";
 
 export const maxDuration = 60;
 
@@ -26,16 +27,6 @@ const bodySchema = z.object({
   }),
 });
 
-async function documentText(name: string, type: string, base64: string): Promise<{ text: string; pages: number }> {
-  const bytes = Buffer.from(base64, "base64");
-  const isPdf = type === "application/pdf" || /\.pdf$/i.test(name) || bytes.subarray(0, 5).toString() === "%PDF-";
-  if (!isPdf) return { text: bytes.toString("utf8"), pages: 1 };
-  const { getDocumentProxy, extractText } = await import("unpdf");
-  const pdf = await getDocumentProxy(new Uint8Array(bytes));
-  const { totalPages, text } = await extractText(pdf, { mergePages: false });
-  return { text: (text as string[]).map((t, i) => `[Page ${i + 1}]\n${t}`).join("\n\n"), pages: totalPages };
-}
-
 /**
  * Draft Rulebook entries from a guidelines document (brand manager only).
  * The text is read in plain code, the AI drafts rules, plain code checks every rule's quote is really
@@ -47,11 +38,11 @@ export async function POST(req: Request) {
   const { role, actor, file } = body.data;
   if (!can(role, "manage_rules")) return fail(`Only ${whoCan("manage_rules")} can import rulebooks.`, 403);
 
-  let doc: { text: string; pages: number };
+  let doc: Awaited<ReturnType<typeof documentText>>;
   try {
-    doc = await documentText(file.name, file.type, file.base64);
+    doc = await documentText(file.name, file.type, new Uint8Array(Buffer.from(file.base64, "base64")));
   } catch {
-    return fail("Couldn't read that file. Upload a text-based PDF, or a .txt or .md file.", 400);
+    return fail("Couldn't read that file. Upload a PDF with selectable text, a Word (.docx) file, or a .txt or .md file.", 400);
   }
   const text = doc.text.replace(/\u0000/g, "").trim();
   if (text.length < 80) return fail("No readable text found. If the PDF is a scan, export it with selectable text first.", 400);
@@ -119,8 +110,8 @@ export async function POST(req: Request) {
     }
     let document: { id: string; name: string } | null = null;
     if (toAdd.length) {
-      const isText = !/\.pdf$/i.test(file.name) && file.type !== "application/pdf";
-      const name = title || file.name.replace(/\.(pdf|txt|md)$/i, "").replace(/[_-]+/g, " ").trim() || "Guidelines";
+      const isText = doc.kind !== "pdf";
+      const name = title || file.name.replace(/\.(pdf|txt|md|docx)$/i, "").replace(/[_-]+/g, " ").trim() || "Guidelines";
       const { data, error } = await db()
         .from("guideline_docs")
         .insert({ brand_id: ctx.brand.id, name, file_name: file.name, kind: isText ? "text" : "pdf", created_by: actor })

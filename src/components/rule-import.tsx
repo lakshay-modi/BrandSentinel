@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { GuidelineDoc } from "@/lib/types";
+import { toBase64 } from "@/lib/client/send";
 import { Button, ErrorNote } from "./ui";
 
 export interface ImportResult {
@@ -16,14 +17,7 @@ export interface ImportResult {
 
 const MAX_BYTES = 3 * 1024 * 1024;
 
-function toBase64(buf: ArrayBuffer): string {
-  let s = "";
-  const bytes = new Uint8Array(buf);
-  for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-  return btoa(s);
-}
-
-const niceName = (file: string) => file.replace(/\.(pdf|txt|md)$/i, "").replace(/[_-]+/g, " ").trim();
+const niceName = (file: string) => file.replace(/\.(pdf|txt|md|docx)$/i, "").replace(/[_-]+/g, " ").trim();
 
 function Spinner() {
   return <span aria-hidden="true" className="inline-block size-4 animate-spin rounded-full border-2 border-line-strong border-t-ink motion-reduce:animate-none" />;
@@ -65,7 +59,7 @@ export function RuleImport({
     setError(null);
     setResult(null);
     if (buf.byteLength > MAX_BYTES) return setError("That file is too big. Use a PDF under 3 MB.");
-    if (!/\.(pdf|txt|md)$/i.test(name) && !/pdf|text/.test(type)) return setError("Use a PDF, .txt or .md file.");
+    if (!/\.(pdf|txt|md|docx)$/i.test(name) && !/pdf|text|wordprocessingml/.test(type)) return setError("Use a PDF, a Word (.docx) file, or a .txt or .md file.");
     setFile({ name, type, buf });
     if (!replacing && !title) setTitle(niceName(name).slice(0, 80));
   }
@@ -139,7 +133,7 @@ export function RuleImport({
           </>
         ) : (
           <>
-            Upload a PDF, .txt or .md. The AI drafts checkable rules, plain code checks each one quotes a real sentence from the file, and rules the brand already has are skipped. New rules arrive as{" "}
+            Upload a PDF, Word file, .txt or .md. The AI drafts checkable rules, plain code checks each one quotes a real sentence from the file, and rules the brand already has are skipped. New rules arrive as{" "}
             <strong className="text-ink">drafts</strong>.
           </>
         )}
@@ -172,12 +166,12 @@ export function RuleImport({
         ) : (
           <>
             <span className="text-[14px] font-semibold">Drop a guidelines file here, or click to choose</span>
-            <span className="text-[12px] text-ink-faint">PDF with selectable text, .txt or .md, up to 3 MB</span>
+            <span className="text-[12px] text-ink-faint">PDF with selectable text, Word (.docx), .txt or .md, up to 3 MB</span>
           </>
         )}
         <input
           type="file"
-          accept=".pdf,.txt,.md,application/pdf,text/plain,text/markdown"
+          accept=".pdf,.docx,.txt,.md,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown"
           className="sr-only"
           disabled={busy}
           onChange={async (e) => {

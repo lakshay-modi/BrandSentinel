@@ -101,10 +101,10 @@ function docCounts(rules: Rule[], docId: string | null) {
   };
 }
 
-function FileIcon({ kind }: { kind: GuidelineDoc["kind"] }) {
+function FileIcon({ kind, file }: { kind: GuidelineDoc["kind"]; file?: string | null }) {
   return (
     <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-paper text-[10px] font-bold uppercase tracking-wide text-ink-soft">
-      {kind === "pdf" ? "PDF" : kind === "text" ? "TXT" : "Set"}
+      {kind === "pdf" ? "PDF" : /\.docx$/i.test(file ?? "") ? "DOC" : kind === "text" ? "TXT" : "Set"}
     </span>
   );
 }
@@ -139,7 +139,7 @@ function DocCard({
       className={`group relative flex min-w-0 flex-col rounded-xl border bg-surface p-4 transition-shadow ${selected ? "border-ink shadow-[0_0_0_1px_var(--color-ink)]" : "border-line hover:shadow-[var(--shadow-sheet)]"} ${paused ? "bg-paper/60" : ""}`}
     >
       <div className="flex items-start gap-3">
-        <FileIcon kind={doc.kind} />
+        <FileIcon kind={doc.kind} file={doc.file_name} />
         <div className="min-w-0 flex-1">
           {renaming ? (
             <form
