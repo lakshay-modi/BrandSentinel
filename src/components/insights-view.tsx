@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useBrand } from "@/lib/client/use-brand";
+import { RoleNote } from "./role-note";
 import type { Insights } from "@/lib/insights";
 import { ErrorNote, Panel, SeverityTag, PageSkeleton } from "./ui";
 
@@ -49,6 +50,14 @@ export function InsightsView() {
         <h1 className="text-[28px] font-bold leading-tight tracking-tight">Insights</h1>
         <p className="mt-1.5 max-w-2xl text-[15px] leading-relaxed text-ink-soft">What goes wrong most often, and which rules people keep disagreeing with. Built from every check and every human decision in this workspace. The demo brands start with a few posts checked by sample users so this page has data; your checks are added live.</p>
       </div>
+
+      <RoleNote
+        notes={{
+          creator: "See which rules trip you up most often, so the next post gets it right first time.",
+          expert: "Watch claims problems and facts that are about to end, so the Fact Bank stays current.",
+          brand_manager: "A rule many people disagree with is flagged as possibly unclear: reword or narrow it in the Rulebook.",
+        }}
+      />
 
       {t.checks === 0 ? (
         <div className="rounded-lg border border-dashed border-line-strong bg-surface p-8 text-center text-sm">
