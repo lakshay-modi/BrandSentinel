@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { can, whoCan } from "@/lib/roles";
 import { actorSchema, fail, json, readJson, roleSchema, serverError } from "@/lib/api";
 import { db, getBrandContext } from "@/lib/db";
 
@@ -24,7 +25,7 @@ export async function POST(req: Request) {
   const body = await readJson(req, bodySchema);
   if (!body.ok) return body.res;
   const { role, rule } = body.data;
-  if (role !== "brand_manager") return fail("Only the brand manager can change the Rulebook.", 403);
+  if (!can(role, "manage_rules")) return fail(`Only ${whoCan("manage_rules")} can change the Rulebook.`, 403);
   try {
     const { brand, rules } = await getBrandContext();
     const prefix = PREFIX[rule.category];

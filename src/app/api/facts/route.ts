@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { can, whoCan } from "@/lib/roles";
 import { actorSchema, fail, json, readJson, roleSchema, serverError } from "@/lib/api";
 import { db, getBrandContext } from "@/lib/db";
 import { factFields } from "@/lib/schemas";
@@ -11,7 +12,7 @@ export async function POST(req: Request) {
   const body = await readJson(req, bodySchema);
   if (!body.ok) return body.res;
   const { role, fact } = body.data;
-  if (role === "creator") return fail("Only the brand manager or expert reviewer can add approved facts.", 403);
+  if (!can(role, "manage_facts")) return fail(`Only ${whoCan("manage_facts")} can add approved facts.`, 403);
   try {
     const { brand, facts } = await getBrandContext();
     const n = Math.max(0, ...facts.map((f) => Number(f.id.split("-")[1]) || 0)) + 1;

@@ -20,6 +20,8 @@ export interface BrandSettings {
   brand_hashtag: string;
   /** internal names (projects, partners) that must never be sent to the AI */
   confidential_terms?: string[];
+  /** demo brands that can't be deleted */
+  protected?: boolean;
   /** link to the brand's guidelines document */
   guidelines_pdf?: string;
   /** a guidelines document visitors can import into the Rulebook in one click */
@@ -39,6 +41,16 @@ export interface BrandSample {
   partner: boolean;
   caption: string;
   images: { src: string; alt_text: string }[];
+}
+
+export interface GuidelineDoc {
+  id: string;
+  name: string;
+  file_name: string;
+  kind: "pdf" | "text" | "seed";
+  status: "active" | "paused";
+  created_by: string;
+  created_at: string;
 }
 
 export interface Brand {
@@ -61,8 +73,11 @@ export interface Rule {
   bad: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   params: Record<string, any>;
-  status: "approved" | "draft" | "rejected";
+  /** "paused" is never stored: it marks approved rules whose rulebook is paused */
+  status: "approved" | "draft" | "rejected" | "paused";
   version: number;
+  /** the rulebook (guidelines document) this rule came from; null for rules added by hand */
+  document_id?: string | null;
   /** where an imported rule came from (file name and the sentence it was drafted from) */
   source?: string;
 }

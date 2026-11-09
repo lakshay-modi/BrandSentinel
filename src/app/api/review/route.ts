@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { can, whoCan } from "@/lib/roles";
 import { actorSchema, clientId, fail, json, postInputSchema, readJson, roleSchema, serverError } from "@/lib/api";
 import { addHistory, db, getBrandContext, getBrandContextForBrandId, type BrandContext } from "@/lib/db";
 import { runReview } from "@/lib/review/run-review";
@@ -19,6 +20,7 @@ export async function POST(req: Request) {
   const body = await readJson(req, bodySchema);
   if (!body.ok) return body.res;
   const { post_id, sample_id, role, actor } = body.data;
+  if (!can(role, "check_posts")) return fail(`Only ${whoCan("check_posts")} writes and checks posts. Switch to Creator to check one.`, 403);
   const input = body.data.input as PostInput;
 
   try {
@@ -37,7 +39,6 @@ export async function POST(req: Request) {
 
     let postId = post_id;
     if (postId) {
-      if (role !== "creator") return fail("Only the creator changes and re-checks a post.", 403);
       const { data: existing } = await db().from("posts").select("id, status, brand_id").eq("id", postId).maybeSingle();
       if (!existing) return fail("Post not found", 404);
       ctx = await getBrandContextForBrandId(existing.brand_id);
