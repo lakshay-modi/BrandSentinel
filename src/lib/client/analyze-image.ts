@@ -16,7 +16,7 @@ export async function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
-function toCanvas(img: HTMLImageElement, maxSide: number): HTMLCanvasElement {
+export function toCanvas(img: HTMLImageElement, maxSide: number): HTMLCanvasElement {
   const scale = Math.min(1, maxSide / Math.max(img.naturalWidth, img.naturalHeight));
   const c = document.createElement("canvas");
   c.width = Math.round(img.naturalWidth * scale);
@@ -55,7 +55,7 @@ function mergeClose(buckets: { rgb: RGB; count: number }[], distance = 28) {
 }
 
 /** Text colour and background colour inside one text box: the two most common, clearly different colours. */
-function textColours(ctx: CanvasRenderingContext2D, box: { x0: number; y0: number; x1: number; y1: number }): { fg: RGB; bg: RGB } | null {
+export function textColours(ctx: CanvasRenderingContext2D, box: { x0: number; y0: number; x1: number; y1: number }): { fg: RGB; bg: RGB } | null {
   const w = Math.max(1, box.x1 - box.x0);
   const h = Math.max(1, box.y1 - box.y0);
   const pad = Math.round(h * 0.15);
@@ -70,7 +70,7 @@ function textColours(ctx: CanvasRenderingContext2D, box: { x0: number; y0: numbe
 }
 
 let workerPromise: Promise<import("tesseract.js").Worker> | null = null;
-async function ocrWorker() {
+export async function ocrWorker() {
   // The OCR engine and English language data are served from /public/tesseract, so OCR never depends on a CDN.
   if (!workerPromise)
     workerPromise = import("tesseract.js").then((t) =>
