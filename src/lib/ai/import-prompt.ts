@@ -15,6 +15,9 @@ Guidance:
 - Only rules that can be checked on a post (caption, image text, colours). Skip company history, mission statements and internal process.
 - One idea per rule. Don't invent rules the document doesn't state.
 - source_quote must be copied exactly from the document, at most 200 characters.
+- Category: "tone" = voice, pressure or urgency, exclamation marks, capitals, emojis; "words" = names and spelling, banned words, hashtags, price and unit formats; "claims" = anything about facts, numbers, health, safety, environment, money, comparisons, offers, and ad or partner disclosure; "visuals" = what images show, colours, logos; "readability" = contrast, alt text, length.
+- "guideline" explains the rule in one or two sentences; don't repeat the examples in it.
+- "good" and "bad" are short example posts. Never invent numbers, prices, codes or product names that are not in the document: an example with a made-up number can be mistaken for an approved fact. Use the document's own figures, or write the example without a number.
 - Severity: high = legal or safety risk (health, diet, allergen, environmental claims, ad disclosure, wrong facts); medium = clearly off-brand or confusing; low = style and formatting.
 - If an existing rule already covers the same idea, set duplicate_of to its ID.
 - At most 20 rules.
