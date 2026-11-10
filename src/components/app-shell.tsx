@@ -190,20 +190,25 @@ function RoleSwitcher() {
 
 /** Which brand's rules, facts and posts you are working on. Kept in a cookie so every API call uses it. */
 function BrandSwitcher() {
-  const data = useBrand();
-  const [busy, setBusy] = useState(false);
+  const live = useBrand();
+  const [busy, setBusy] = useState<string | null>(null);
+  // keep showing the menu while the next brand loads, instead of flashing an empty box
+  const [last, setLast] = useState(live);
+  if (live && live !== last) setLast(live);
+  const data = live ?? last;
   if (!data) return <span className="inline-block h-8 w-44 animate-pulse rounded-lg bg-line/70" aria-hidden="true" />;
   return (
     <div className="flex items-center gap-2">
       <label className="flex items-center gap-2">
         <span className="text-[12px] font-bold uppercase tracking-wide text-ink-faint">Brand</span>
         <select
-          value={data.brand.slug}
-          disabled={busy}
+          value={busy ?? data.brand.slug}
+          disabled={!!busy}
+          aria-busy={!!busy}
           onChange={async (e) => {
-            setBusy(true);
+            setBusy(e.target.value);
             await switchBrand(e.target.value, resetPosts);
-            setBusy(false);
+            setBusy(null);
           }}
           className="max-w-[14rem] rounded-lg border border-line-strong bg-surface px-2 py-1 text-[14px] font-semibold text-ink"
         >
