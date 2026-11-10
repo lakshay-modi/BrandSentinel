@@ -29,6 +29,7 @@ Built for the CodeTitans India 2026 hackathon (problem statement by Inkloom AI).
   | --- | --- | --- | --- |
   | Write, check, fix and submit posts | ✓ | | |
   | Accept, edit or disagree with problems | ✓ | | |
+  | Delete their drafts | ✓ | | |
   | Approve claims on risky posts | | ✓ | |
   | Final approval | | | ✓ |
   | Add, correct and remove facts | | ✓ | ✓ |
@@ -168,7 +169,7 @@ Set up the database by running `supabase/migrations/*.sql` and then `supabase/se
 - **Strict input checks.** Every API body is validated with zod: image sources must be data URLs (PNG, JPEG, WebP) or bundled demo images, colours must be hex, names can't hold markup, sizes are capped.
 - **Writes only from this site.** Requests that change data must be JSON and come from the app's own origin (checked with `Origin` and `Sec-Fetch-Site`), and are limited to 60 a minute per visitor; AI calls have their own per-visitor and global limits.
 - **Roles and states are enforced on the server.** One permission table decides who may do what. Only the creator can check, re-check, confirm the goal or decide on findings, and only while the post is a draft or sent back; only the assigned reviewer can approve or send back; only the brand manager can change rulebooks, rules and brands.
-- **Careful deletes.** Deleting a rule, fact or rulebook asks first; deleting a brand needs its name typed and is refused for the demo brands. Rejected rules are kept and hidden, and past reports keep their own copy of the rules they cite.
+- **Careful deletes.** The creator can delete a draft (from the Review queue or the post page); posts in review or approved are kept for the record, and the demo brands' sample posts can't be deleted so every visitor sees them. Deleting a rule, fact or rulebook asks first; deleting a brand needs its name typed and is refused for the demo brands. Rejected rules are kept and hidden, and past reports keep their own copy of the rules they cite.
 - **Errors don't leak.** Server errors are logged; the browser only sees a plain message.
 - **Prompt injection.** Post text and imported PDFs are marked as content to review, never instructions, and the proof check drops anything without a real rule, quote and fact.
 - **Security headers.** A Content Security Policy allows only the site's own scripts, styles, fonts (self-hosted), images, workers and API; framing is blocked; HSTS, `nosniff`, a strict referrer policy and a locked-down permissions policy are on.
