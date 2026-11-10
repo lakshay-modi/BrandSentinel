@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Suspense, useEffect, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import type { Role } from "@/lib/types";
 import { ROLE_INFO } from "@/lib/roles";
 import { ROLE_HINT, ROLE_LABEL, useRole } from "./role-provider";
@@ -191,36 +191,33 @@ function RoleSwitcher() {
 /** Which brand's rules, facts and posts you are working on. Kept in a cookie so every API call uses it. */
 function BrandSwitcher() {
   const data = useBrand();
-  const router = useRouter();
   const [busy, setBusy] = useState(false);
   if (!data) return <span className="inline-block h-8 w-44 animate-pulse rounded-lg bg-line/70" aria-hidden="true" />;
   return (
-    <label className="flex items-center gap-2">
-      <span className="text-[12px] font-bold uppercase tracking-wide text-ink-faint">Brand</span>
-      <select
-        value={data.brand.slug}
-        disabled={busy}
-        onChange={async (e) => {
-          const v = e.target.value;
-          if (v === "__manage") {
-            router.push("/brands");
-            return;
-          }
-          setBusy(true);
-          await switchBrand(v, resetPosts);
-          setBusy(false);
-        }}
-        className="max-w-[14rem] rounded-lg border border-line-strong bg-surface px-2 py-1 text-[14px] font-semibold text-ink"
-      >
-        {(data.brands?.length ? data.brands : [{ slug: data.brand.slug, name: data.brand.name }]).map((b) => (
-          <option key={b.slug} value={b.slug}>
-            {b.name}
-          </option>
-        ))}
-        <option disabled>──────────</option>
-        <option value="__manage">Add or manage brands…</option>
-      </select>
-    </label>
+    <div className="flex items-center gap-2">
+      <label className="flex items-center gap-2">
+        <span className="text-[12px] font-bold uppercase tracking-wide text-ink-faint">Brand</span>
+        <select
+          value={data.brand.slug}
+          disabled={busy}
+          onChange={async (e) => {
+            setBusy(true);
+            await switchBrand(e.target.value, resetPosts);
+            setBusy(false);
+          }}
+          className="max-w-[14rem] rounded-lg border border-line-strong bg-surface px-2 py-1 text-[14px] font-semibold text-ink"
+        >
+          {(data.brands?.length ? data.brands : [{ slug: data.brand.slug, name: data.brand.name }]).map((b) => (
+            <option key={b.slug} value={b.slug}>
+              {b.name}
+            </option>
+          ))}
+        </select>
+      </label>
+      <Link href="/brands" className="whitespace-nowrap text-[13px] font-semibold text-ink underline-offset-4 hover:underline">
+        Manage brands
+      </Link>
+    </div>
   );
 }
 
