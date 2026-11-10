@@ -165,7 +165,13 @@ async function readLines(canvas: HTMLCanvasElement): Promise<OcrLine[]> {
  * Replaces `quote` with `replacement` inside the image at `src`. Throws ImageEditError with a plain reason when
  * the text can't be found, the background isn't flat, or the new words don't fit.
  */
-export async function rewriteImageText(src: string, quote: string, replacement: string, onStatus?: (s: string) => void): Promise<ImageEdit> {
+export async function rewriteImageText(
+  src: string,
+  quote: string,
+  replacement: string,
+  options: { colour?: string; onStatus?: (s: string) => void } = {},
+): Promise<ImageEdit> {
+  const { onStatus } = options;
   onStatus?.("Finding the text in the image…");
   const img = await loadImage(src);
   const canvas = toCanvas(img, MAX_SIDE);
@@ -181,7 +187,7 @@ export async function rewriteImageText(src: string, quote: string, replacement: 
   const before = targets.map((l) => l.text).join(" ");
   const newText = replaceQuote(before, quote, replacement.trim());
   if (newText === null) throw new ImageEditError(`Couldn't find “${quote}” in the image text.`);
-  if (newText === before) throw new ImageEditError("The image already says that, so there is nothing to change.");
+  if (newText === before && !options.colour) throw new ImageEditError("The image already says that, so there is nothing to change.");
 
   // each line's colours, a flat background around it, and its font
   const W = canvas.width;
@@ -233,7 +239,7 @@ export async function rewriteImageText(src: string, quote: string, replacement: 
     const area = { x0: x, y0: s.line.bbox.y0, x1: x + width, y1: s.line.bbox.y1 };
     if (shareNear(ctx, area, s.bg) < 0.9) throw new ImageEditError("The new wording would cover other parts of the image. Shorten it, or change the image in your design tool.");
     ctx.save();
-    ctx.fillStyle = rgb(s.fg);
+    ctx.fillStyle = options.colour ?? rgb(s.fg);
     ctx.translate(x, s.line.bbox.y0 + s.ascent * scale);
     ctx.scale(s.scaleX, 1);
     ctx.fillText(text, 0, 0);

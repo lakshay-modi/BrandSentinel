@@ -262,21 +262,29 @@ export function PostWorkspace({ id }: { id: string }) {
 
   // Rewrite a few words inside an image (accept the suggested wording, or the creator's own).
   // Throws a plain message when it can't, which the problem card shows.
-  const imageFix = async (f: Finding, text: string, how: "accept" | "edit") => {
+  const imageFix = async (f: Finding, text: string, how: "accept" | "edit" | "recolour") => {
     const i = imageIndex(f);
     const img = post.images[i];
-    const quote = f.quotes[0];
-    if (!img || !quote) throw new Error("This problem doesn't quote text in the image, so there is nothing to rewrite.");
+    if (!img || !f.quotes[0]) throw new Error("This problem doesn't quote text in the image, so there is nothing to rewrite.");
     setImgBusy(i);
     try {
       const { rewriteImageText } = await import("@/lib/client/image-text-fix");
       const current = imgEdits[i];
       const prevOcr = ocr[i] ?? "";
-      const edit = await rewriteImageText(current?.src ?? img.src, quote, text);
+      let edit: Awaited<ReturnType<typeof rewriteImageText>>;
+      if (how === "recolour") {
+        // the same words, redrawn in the suggested colour; every quoted line of the problem
+        let src = current?.src ?? img.src;
+        edit = null as never;
+        for (const q of f.quotes) {
+          edit = await rewriteImageText(src, q, q, { colour: text });
+          src = edit.src;
+        }
+      } else edit = await rewriteImageText(current?.src ?? img.src, f.quotes[0], text);
       const prev = current?.prev ?? { src: img.src, ocr: prevOcr };
       setImgEdits((m) => ({ ...m, [i]: { src: edit.src, analysis: edit.analysis, prev } }));
       setOcr((o) => o.map((v, j) => (j === i ? edit.analysis.ocr_text : v)));
-      toast(`Image ${i + 1} changed to “${edit.after || "(text removed)"}”. Look at it, then re-check.`);
+      toast(how === "recolour" ? `Image ${i + 1}: text recoloured to ${text}. Look at it, then re-check.` : `Image ${i + 1} changed to “${edit.after || "(text removed)"}”. Look at it, then re-check.`);
       // if the server refuses the decision, put the image back as it was
       const undo = () => {
         setImgEdits((m) => {
@@ -287,7 +295,7 @@ export function PostWorkspace({ id }: { id: string }) {
         });
         setOcr((o) => o.map((v, j) => (j === i ? prevOcr : v)));
       };
-      void decide(f, how, how === "edit" ? text : undefined, undo);
+      void decide(f, how === "edit" ? "edit" : "accept", how === "edit" ? text : undefined, undo);
     } finally {
       setImgBusy(null);
     }

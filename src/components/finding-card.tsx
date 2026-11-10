@@ -37,7 +37,7 @@ export function FindingCard({
   onEdit: (text: string, where?: "start" | "end") => Promise<void>;
   onDisagree: (reason: string) => Promise<void>;
   /** rewrite the quoted text inside the image (Accept uses the suggested wording, Edit the creator's) */
-  onImageFix?: (text: string, how: "accept" | "edit") => Promise<void>;
+  onImageFix?: (text: string, how: "accept" | "edit" | "recolour") => Promise<void>;
   highlighted?: boolean;
   /** the text this fix changes is already gone (another fix or an edit changed it) */
   stale?: boolean;
@@ -58,8 +58,10 @@ export function FindingCard({
   // text inside an image can be rewritten in place (small wording changes on flat backgrounds)
   const inImage = !inCaption && !isAlt && f.quotes.length > 0 && !!onImageFix;
   const imageText = f.fix.kind === "replace" ? f.fix.pairs[0].to : f.fix.kind === "remove" ? "" : null;
-  const acceptable = (inCaption && canApply(f.fix) && !stale) || f.fix.kind === "alt_text" || (inImage && imageText !== null);
-  const editable = (inCaption && f.quotes.length > 0 && !stale) || isAlt || inImage;
+  // a contrast problem whose advice names a colour: redraw the same words in that colour
+  const recolour = inImage && f.fix.kind === "manual" && /colou?r/i.test(f.fix.advice) ? (f.fix.advice.match(/#[0-9a-f]{6}\b/i)?.[0] ?? null) : null;
+  const acceptable = (inCaption && canApply(f.fix) && !stale) || f.fix.kind === "alt_text" || (inImage && (imageText !== null || !!recolour));
+  const editable = (inCaption && f.quotes.length > 0 && !stale) || isAlt || (inImage && !recolour);
   const editDefault = f.fix.kind === "replace" ? f.fix.pairs[0].to : f.fix.kind === "alt_text" ? f.fix.text : f.quotes[0] ?? "";
 
   const run = async (fn: () => Promise<void>) => {
@@ -126,8 +128,8 @@ export function FindingCard({
               {mode === "none" && (
                 <div className="flex flex-wrap gap-2">
                   {acceptable && (
-                    <Button size="sm" variant="primary" disabled={busy} onClick={() => run(inImage ? () => onImageFix!(imageText ?? "", "accept") : onAccept)}>
-                      {busy && inImage ? "Changing the image…" : inImage ? "Accept fix in image" : "Accept fix"}
+                    <Button size="sm" variant="primary" disabled={busy} onClick={() => run(inImage ? () => (recolour ? onImageFix!(recolour, "recolour") : onImageFix!(imageText ?? "", "accept")) : onAccept)}>
+                      {busy && inImage ? "Changing the image…" : recolour ? `Recolour text to ${recolour}` : inImage ? "Accept fix in image" : "Accept fix"}
                     </Button>
                   )}
                   {editable && (
