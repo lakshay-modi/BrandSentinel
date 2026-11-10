@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { removePost, usePosts, waitingFor, type QueueRow as Row } from "@/lib/client/use-posts";
-import { send } from "@/lib/client/send";
+import { deleteLater, usePosts, waitingFor, type QueueRow as Row } from "@/lib/client/use-posts";
 import { can } from "@/lib/roles";
-import { CHANNEL_LABEL, ConfirmDialog, ErrorNote, StatusTag, timeAgo, PageSkeleton } from "./ui";
+import { CHANNEL_LABEL, ErrorNote, StatusTag, timeAgo, PageSkeleton } from "./ui";
+import { DemoReset } from "./demo-reset";
 import { useToast } from "./toast";
 import { ROLE_LABEL, useRole } from "./role-provider";
 import { RoleNote } from "./role-note";
@@ -17,20 +17,12 @@ export function QueueList() {
   const { role, name } = useRole();
   const { rows, error } = usePosts(0);
   const [tab, setTab] = useState<"mine" | "all">("mine");
-  const [deleting, setDeleting] = useState<Row | null>(null);
   const toast = useToast();
-  const deletable = (p: Row) => can(role, "check_posts") && !p.demo && (p.status === "draft" || p.status === "changes_requested");
+  const deletable = (p: Row) => can(role, "check_posts") && (p.status === "draft" || p.status === "changes_requested");
 
-  const remove = async (p: Row) => {
-    setDeleting(null);
-    const undo = removePost(p.id);
-    toast(`“${p.title || "Untitled post"}” deleted.`, "info");
-    try {
-      await send(`/api/posts/${p.id}`, "DELETE", { role, actor: name });
-    } catch (e) {
-      undo();
-      toast(e instanceof Error ? e.message : String(e), "error");
-    }
+  const remove = (p: Row) => {
+    const undo = deleteLater(p, { role, actor: name }, (m) => toast(m, "error"));
+    toast(`“${p.title || "Untitled post"}” deleted.`, "info", { action: { label: "Undo", onClick: undo } });
   };
 
   const mine = (p: Row) => waitingFor(role, p);
@@ -116,7 +108,7 @@ export function QueueList() {
               {deletable(p) && (
                 <button
                   type="button"
-                  onClick={() => setDeleting(p)}
+                  onClick={() => remove(p)}
                   aria-label={`Delete draft “${p.title || "Untitled post"}”`}
                   title="Delete this draft"
                   className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-2 text-ink-faint transition-colors hover:bg-high-bg hover:text-high focus-visible:text-high"
@@ -131,19 +123,7 @@ export function QueueList() {
         </ul>
       )}
 
-      <ConfirmDialog
-        open={!!deleting}
-        onClose={() => setDeleting(null)}
-        onConfirm={() => {
-          if (deleting) void remove(deleting);
-        }}
-        title="Delete this draft?"
-        action="Delete draft"
-      >
-        <p>
-          “{deleting?.title || "Untitled post"}” is deleted with its checks and history. This can&apos;t be undone. Posts in review or approved can&apos;t be deleted.
-        </p>
-      </ConfirmDialog>
+      <DemoReset />
     </div>
   );
 }

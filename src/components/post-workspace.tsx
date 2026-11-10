@@ -3,8 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useBrand } from "@/lib/client/use-brand";
-import { refreshPosts, removePost } from "@/lib/client/use-posts";
-import { send } from "@/lib/client/send";
+import { deleteLater, refreshPosts } from "@/lib/client/use-posts";
 import { useRouter } from "next/navigation";
 import { api, type DecisionRow, type HistoryRow, type PostRow, type ReviewRow } from "@/lib/client/api";
 import { applyFix, canApply } from "@/lib/fixes";
@@ -15,7 +14,7 @@ import { FindingCard } from "./finding-card";
 import { ProofText } from "./proof-text";
 import { ScorePanel } from "./score-panel";
 import { HistoryList, WorkflowPanel } from "./workflow-panel";
-import { Button, CHANNEL_LABEL, ConfirmDialog, ErrorNote, Panel, Skeleton, StatusTag } from "./ui";
+import { Button, CHANNEL_LABEL, ErrorNote, Panel, Skeleton, StatusTag } from "./ui";
 import { useToast } from "./toast";
 import { useRole } from "./role-provider";
 
@@ -111,7 +110,6 @@ export function PostWorkspace({ id }: { id: string }) {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
   const [goalEdit, setGoalEdit] = useState<Goal | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState(false);
   const router = useRouter();
   // decisions still on their way to the server; a re-check or a submit waits for them
   const pending = useRef(new Set<Promise<void>>());
@@ -384,8 +382,18 @@ export function PostWorkspace({ id }: { id: string }) {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {canAct && !post.demo && (
-            <Button size="sm" variant="ghost" className="!text-ink-soft hover:!bg-high-bg hover:!text-high" onClick={() => setConfirmDelete(true)}>
+          {canAct && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="!text-ink-soft hover:!bg-high-bg hover:!text-high"
+              onClick={() => {
+                // the queue shows the deleted post with an Undo button for 5 seconds
+                const undo = deleteLater({ ...post, latest: null }, { role, actor: name }, (m) => toast(m, "error"));
+                toast(`“${post.title || "Untitled post"}” deleted.`, "info", { action: { label: "Undo", onClick: undo } });
+                router.push("/queue");
+              }}
+            >
               Delete draft
             </Button>
           )}
@@ -393,25 +401,6 @@ export function PostWorkspace({ id }: { id: string }) {
         </div>
       </div>
 
-      <ConfirmDialog
-        open={confirmDelete}
-        onClose={() => setConfirmDelete(false)}
-        title="Delete this draft?"
-        action="Delete draft"
-        onConfirm={async () => {
-          try {
-            await send(`/api/posts/${post.id}`, "DELETE", { role, actor: name });
-            removePost(post.id);
-            toast(`“${post.title || "Untitled post"}” deleted.`, "info");
-            router.push("/queue");
-          } catch (e) {
-            setConfirmDelete(false);
-            toast(e instanceof Error ? e.message : String(e), "error");
-          }
-        }}
-      >
-        <p>The post is deleted with its checks and history. This can&apos;t be undone.</p>
-      </ConfirmDialog>
 
       {error && <ErrorNote>{error}</ErrorNote>}
 

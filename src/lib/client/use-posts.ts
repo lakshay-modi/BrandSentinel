@@ -9,6 +9,8 @@ export type QueueRow = PostRow & { latest: { score: number; band: string; proble
 /** The selected brand's posts, shared by the Review queue and the badge in the menu. */
 let state: { rows: QueueRow[] | null; error: string | null; at: number } = { rows: null, error: null, at: 0 };
 let inflight: Promise<void> | null = null;
+// drafts deleted with an Undo window, not yet sent to the server
+const pending = new Map<string, { timer: ReturnType<typeof setTimeout>; send: () => void }>();
 const listeners = new Set<() => void>();
 const emit = () => listeners.forEach((l) => l());
 
@@ -16,7 +18,8 @@ export function refreshPosts(): Promise<void> {
   inflight ??= api
     .posts()
     .then((r) => {
-      state = { rows: r.posts, error: null, at: Date.now() };
+      // drafts waiting to be deleted (the Undo window) stay hidden
+      state = { rows: r.posts.filter((p) => !pending.has(p.id)), error: null, at: Date.now() };
     })
     .catch((e: unknown) => {
       state = { ...state, error: e instanceof Error ? e.message : String(e) };
@@ -30,15 +33,55 @@ export function refreshPosts(): Promise<void> {
 
 /** Take a post out of the list at once (for example while it is being deleted). Returns a function that puts it back. */
 export function removePost(id: string): () => void {
-  const before = state;
-  if (!state.rows) return () => {};
-  state = { ...state, rows: state.rows.filter((r) => r.id !== id) };
+  const rows = state.rows;
+  const index = rows?.findIndex((r) => r.id === id) ?? -1;
+  if (!rows || index < 0) return () => void refreshPosts();
+  const row = rows[index];
+  state = { ...state, rows: rows.filter((r) => r.id !== id) };
   emit();
   return () => {
-    state = before;
+    const now = state.rows ?? [];
+    if (now.some((r) => r.id === id)) return;
+    const next = [...now];
+    next.splice(Math.min(index, next.length), 0, row);
+    state = { ...state, rows: next };
     emit();
   };
 }
+
+/**
+ * Delete a draft with a short chance to undo: it leaves the list at once, and the server is told only after
+ * `delayMs` (or straight away if the page is closed first). Returns undo, which brings it back.
+ */
+export function deleteLater(row: QueueRow, body: { role: Role; actor: string }, onFail: (message: string) => void, delayMs = 5000): () => void {
+  const restore = removePost(row.id);
+  const send = () => {
+    pending.delete(row.id);
+    fetch(`/api/posts/${row.id}`, { method: "DELETE", headers: { "content-type": "application/json" }, body: JSON.stringify(body), keepalive: true })
+      .then(async (r) => {
+        if (!r.ok) throw new Error(((await r.json().catch(() => ({}))) as { error?: string }).error ?? `Couldn't delete the draft (${r.status})`);
+      })
+      .catch((e: unknown) => {
+        restore();
+        onFail(e instanceof Error ? e.message : String(e));
+      });
+  };
+  pending.set(row.id, { timer: setTimeout(send, delayMs), send });
+  return () => {
+    const p = pending.get(row.id);
+    if (!p) return;
+    clearTimeout(p.timer);
+    pending.delete(row.id);
+    restore();
+  };
+}
+if (typeof window !== "undefined")
+  window.addEventListener("pagehide", () => {
+    for (const p of [...pending.values()]) {
+      clearTimeout(p.timer);
+      p.send();
+    }
+  });
 
 /** Forget the list (for example after switching brand) so the next view shows a fresh one. */
 export function resetPosts() {
