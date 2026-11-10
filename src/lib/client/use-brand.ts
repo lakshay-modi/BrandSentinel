@@ -8,6 +8,8 @@ import { api, type BrandData } from "./api";
  */
 let state: { data: BrandData | null; error: string | null } = { data: null, error: null };
 let inflight: Promise<void> | null = null;
+// bumped when the brand changes, so an answer still loading for the old brand is thrown away
+let generation = 0;
 const listeners = new Set<() => void>();
 
 function emit() {
@@ -19,19 +21,21 @@ function subscribe(cb: () => void) {
 }
 
 export function reloadBrand(): Promise<void> {
-  inflight = api
+  const gen = generation;
+  const p: Promise<void> = api
     .brand()
     .then((data) => {
-      state = { data, error: null };
+      if (gen === generation) state = { data, error: null };
     })
     .catch((e: unknown) => {
-      state = { ...state, error: e instanceof Error ? e.message : String(e) };
+      if (gen === generation) state = { ...state, error: e instanceof Error ? e.message : String(e) };
     })
     .finally(() => {
-      inflight = null;
+      if (inflight === p) inflight = null;
       emit();
     });
-  return inflight;
+  inflight = p;
+  return p;
 }
 
 function ensureLoaded() {
@@ -68,6 +72,7 @@ export async function optimistic<T>(fn: (d: BrandData) => BrandData, request: ()
 /** Work on another brand: every page reads the new brand's rules, facts and posts without a page reload. */
 export async function switchBrand(slug: string, onPosts?: () => void) {
   document.cookie = `bs-brand=${encodeURIComponent(slug)}; path=/; max-age=31536000; samesite=lax; secure`;
+  generation++;
   state = { data: null, error: null };
   emit();
   onPosts?.();

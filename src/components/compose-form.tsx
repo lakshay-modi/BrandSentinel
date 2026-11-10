@@ -55,7 +55,14 @@ export function ComposeForm() {
         : [];
   const products = [...(settings?.products ?? []), "Brand"];
   const rulesInUse = (brandData?.rules ?? []).filter((r) => r.status === "approved").length;
-  const product = input.product || products[0] || "Brand";
+  // after switching brand, a product from the old brand no longer applies
+  const product = input.product && products.includes(input.product) ? input.product : products[0] || "Brand";
+  const slug = brandData?.brand.slug ?? null;
+  const [seenSlug, setSeenSlug] = useState(slug);
+  if (slug !== seenSlug) {
+    setSeenSlug(slug);
+    setSampleId(null);
+  }
 
   const set = <K extends keyof PostInput>(k: K, v: PostInput[K]) => {
     setInput((p) => ({ ...p, [k]: v }));

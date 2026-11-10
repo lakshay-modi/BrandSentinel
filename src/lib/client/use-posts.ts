@@ -9,26 +9,32 @@ export type QueueRow = PostRow & { latest: { score: number; band: string; proble
 /** The selected brand's posts, shared by the Review queue and the badge in the menu. */
 let state: { rows: QueueRow[] | null; error: string | null; at: number } = { rows: null, error: null, at: 0 };
 let inflight: Promise<void> | null = null;
+// bumped when the brand changes, so a list still loading for the old brand is thrown away
+let generation = 0;
 // drafts deleted with an Undo window, not yet sent to the server
 const pending = new Map<string, { timer: ReturnType<typeof setTimeout>; send: () => void }>();
 const listeners = new Set<() => void>();
 const emit = () => listeners.forEach((l) => l());
 
 export function refreshPosts(): Promise<void> {
-  inflight ??= api
+  if (inflight) return inflight;
+  const gen = generation;
+  const p: Promise<void> = api
     .posts()
     .then((r) => {
+      if (gen !== generation) return;
       // drafts waiting to be deleted (the Undo window) stay hidden
       state = { rows: r.posts.filter((p) => !pending.has(p.id)), error: null, at: Date.now() };
     })
     .catch((e: unknown) => {
-      state = { ...state, error: e instanceof Error ? e.message : String(e) };
+      if (gen === generation) state = { ...state, error: e instanceof Error ? e.message : String(e) };
     })
     .finally(() => {
-      inflight = null;
+      if (inflight === p) inflight = null;
       emit();
     });
-  return inflight;
+  inflight = p;
+  return p;
 }
 
 /** Take a post out of the list at once (for example while it is being deleted). Returns a function that puts it back. */
@@ -85,8 +91,12 @@ if (typeof window !== "undefined")
 
 /** Forget the list (for example after switching brand) so the next view shows a fresh one. */
 export function resetPosts() {
+  generation++;
+  inflight = null;
   state = { rows: null, error: null, at: 0 };
   emit();
+  // load the new brand's list straight away (the menu badge and the queue both use it)
+  void refreshPosts();
 }
 
 /** `maxAgeMs`: refetch on mount when the list is older than this (0 = always). */
