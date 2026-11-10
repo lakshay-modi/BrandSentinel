@@ -11,7 +11,7 @@ Built for the CodeTitans India 2026 hackathon (problem statement by Inkloom AI).
 1. Open the live demo. You're the **Creator** (switch roles at the top right).
 2. Click a sample post, for example **Launch post**. The **live preview** underlines problems in the caption as you type. Then click **Check post**.
 3. Every problem is underlined in the post and numbered. Each one shows the rule ID, the fact that proves it, and a fix. Filter by severity, point at a mark to find its problem, or press **J** and **K** to move between problems.
-4. **Accept** a fix, **Edit** it, or **Disagree** with a reason. Then **Re-check** and **Submit for review**.
+4. **Accept** a fix, **Edit** it, or **Reject** it with a reason (problems inside an image can be fixed in the image too). Then **Re-check** and **Submit for review**.
 5. Switch to **Expert reviewer** or **Brand manager** and approve it or send it back from the **Review queue**.
 6. Open **Insights** to see the most common problems and the rules people disagree with.
 7. Open **Test results** (link in the footer) to see the fast checks run on all 10 sample posts in your browser, compared with the answer key.
@@ -28,7 +28,7 @@ Built for the CodeTitans India 2026 hackathon (problem statement by Inkloom AI).
   | | Creator | Expert reviewer | Brand manager |
   | --- | --- | --- | --- |
   | Write, check, fix and submit posts | ✓ | | |
-  | Accept, edit or disagree with problems | ✓ | | |
+  | Accept, edit or reject problems | ✓ | | |
   | Delete their drafts | ✓ | | |
   | Approve claims on risky posts | | ✓ | |
   | Final approval | | | ✓ |
