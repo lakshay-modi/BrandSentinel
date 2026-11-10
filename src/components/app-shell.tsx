@@ -17,7 +17,6 @@ const NAV = [
   { href: "/rulebook", label: "Rulebook" },
   { href: "/facts", label: "Fact Bank" },
   { href: "/insights", label: "Insights" },
-  { href: "/brands", label: "Brands" },
 ];
 
 const ROLES: Role[] = ["creator", "expert", "brand_manager"];

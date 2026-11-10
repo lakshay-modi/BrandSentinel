@@ -17,7 +17,7 @@ Built for the CodeTitans India 2026 hackathon (problem statement by Inkloom AI).
 7. Open **Test results** (link in the footer) to see the fast checks run on all 10 sample posts in your browser, compared with the answer key.
 8. As **Brand manager**, open **Rulebook → Add a rulebook → Try the sample addendum**. The AI drafts new rules from the PDF, skips the ones the Rulebook already has, and you approve or reject each draft (or all of them at once). Approved rules are used in the next check.
 9. Switch the **Brand** (under the header) to **Solvira Skincare**, a second brand whose Rulebook was imported from its own PDF, and check its sample posts.
-10. Bring your own brand: as **Brand manager**, open **Brands → New brand**, then add its guidelines PDF as a rulebook and its facts. Click **Who does what?** at any time to see each role's job and what's waiting for it.
+10. Bring your own brand: as **Brand manager**, open **Manage brands** (next to the brand menu) → **New brand**, then add its guidelines PDF as a rulebook and its facts. Click **Who does what?** at any time to see each role's job and what's waiting for it.
 
 ## Brands, rulebooks and roles
 
