@@ -28,6 +28,18 @@ export function refreshPosts(): Promise<void> {
   return inflight;
 }
 
+/** Take a post out of the list at once (for example while it is being deleted). Returns a function that puts it back. */
+export function removePost(id: string): () => void {
+  const before = state;
+  if (!state.rows) return () => {};
+  state = { ...state, rows: state.rows.filter((r) => r.id !== id) };
+  emit();
+  return () => {
+    state = before;
+    emit();
+  };
+}
+
 /** Forget the list (for example after switching brand) so the next view shows a fresh one. */
 export function resetPosts() {
   state = { rows: null, error: null, at: 0 };

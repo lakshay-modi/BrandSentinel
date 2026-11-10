@@ -2,8 +2,11 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { usePosts, waitingFor, type QueueRow as Row } from "@/lib/client/use-posts";
-import { CHANNEL_LABEL, ErrorNote, StatusTag, timeAgo, PageSkeleton } from "./ui";
+import { removePost, usePosts, waitingFor, type QueueRow as Row } from "@/lib/client/use-posts";
+import { send } from "@/lib/client/send";
+import { can } from "@/lib/roles";
+import { CHANNEL_LABEL, ConfirmDialog, ErrorNote, StatusTag, timeAgo, PageSkeleton } from "./ui";
+import { useToast } from "./toast";
 import { ROLE_LABEL, useRole } from "./role-provider";
 import { RoleNote } from "./role-note";
 
@@ -11,9 +14,24 @@ import { RoleNote } from "./role-note";
 const BAND_CLS: Record<string, string> = { green: "text-pass", amber: "text-med", red: "text-high" };
 
 export function QueueList() {
-  const { role } = useRole();
+  const { role, name } = useRole();
   const { rows, error } = usePosts(0);
   const [tab, setTab] = useState<"mine" | "all">("mine");
+  const [deleting, setDeleting] = useState<Row | null>(null);
+  const toast = useToast();
+  const deletable = (p: Row) => can(role, "check_posts") && !p.demo && (p.status === "draft" || p.status === "changes_requested");
+
+  const remove = async (p: Row) => {
+    setDeleting(null);
+    const undo = removePost(p.id);
+    toast(`“${p.title || "Untitled post"}” deleted.`, "info");
+    try {
+      await send(`/api/posts/${p.id}`, "DELETE", { role, actor: name });
+    } catch (e) {
+      undo();
+      toast(e instanceof Error ? e.message : String(e), "error");
+    }
+  };
 
   const mine = (p: Row) => waitingFor(role, p);
   const mineCount = (rows ?? []).filter(mine).length;
@@ -71,8 +89,11 @@ export function QueueList() {
       {shown.length > 0 && (
         <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface">
           {shown.map((p) => (
-            <li key={p.id}>
-              <Link href={`/posts/${p.id}`} className="grid grid-cols-[3rem_minmax(0,1fr)] items-center gap-x-4 gap-y-2 px-5 py-4 hover:bg-paper sm:grid-cols-[3rem_minmax(0,1fr)_auto]">
+            <li key={p.id} className="group relative">
+              <Link
+                href={`/posts/${p.id}`}
+                className={`grid grid-cols-[3rem_minmax(0,1fr)] items-center gap-x-4 gap-y-2 px-5 py-4 hover:bg-paper sm:grid-cols-[3rem_minmax(0,1fr)_auto] ${deletable(p) ? "pr-14" : ""}`}
+              >
                 <span className={`text-[26px] font-bold leading-none tracking-tight tabular-nums ${p.latest ? BAND_CLS[p.latest.band] ?? "" : "text-ink-faint"}`} aria-label={p.latest ? `Score ${p.latest.score}` : "Not checked yet"}>
                   {p.latest ? p.latest.score : "–"}
                 </span>
@@ -92,10 +113,37 @@ export function QueueList() {
                   <StatusTag status={p.status} />
                 </div>
               </Link>
+              {deletable(p) && (
+                <button
+                  type="button"
+                  onClick={() => setDeleting(p)}
+                  aria-label={`Delete draft “${p.title || "Untitled post"}”`}
+                  title="Delete this draft"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-2 text-ink-faint transition-colors hover:bg-high-bg hover:text-high focus-visible:text-high"
+                >
+                  <svg width="17" height="17" viewBox="0 0 16 16" aria-hidden="true">
+                    <path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8.5h5.8l.6-8.5" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+              )}
             </li>
           ))}
         </ul>
       )}
+
+      <ConfirmDialog
+        open={!!deleting}
+        onClose={() => setDeleting(null)}
+        onConfirm={() => {
+          if (deleting) void remove(deleting);
+        }}
+        title="Delete this draft?"
+        action="Delete draft"
+      >
+        <p>
+          “{deleting?.title || "Untitled post"}” is deleted with its checks and history. This can&apos;t be undone. Posts in review or approved can&apos;t be deleted.
+        </p>
+      </ConfirmDialog>
     </div>
   );
 }

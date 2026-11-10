@@ -25,7 +25,7 @@ export const ROLE_INFO: Record<Role, { label: string; short: string; summary: st
     label: "Creator",
     short: "Creator",
     summary: "Writes posts and fixes them before review.",
-    does: ["Write a post and check it", "Accept, edit or disagree with each problem", "Re-check and submit for review", "Fix posts that are sent back"],
+    does: ["Write a post and check it", "Accept, edit or disagree with each problem", "Re-check and submit for review", "Fix posts that are sent back", "Delete drafts they no longer need"],
     doesNot: ["Approve posts", "Change rules, facts or brands"],
   },
   expert: {
