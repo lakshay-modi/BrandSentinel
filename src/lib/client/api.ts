@@ -28,6 +28,8 @@ export interface PostRow {
   expert_approved: boolean;
   created_by: string;
   sample_id: string | null;
+  /** a demo brand's sample post, shared by everyone, so it can't be deleted */
+  demo?: boolean;
   updated_at: string;
 }
 

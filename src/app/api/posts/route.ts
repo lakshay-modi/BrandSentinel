@@ -9,7 +9,7 @@ export async function GET() {
     const brand = await getBrandRow();
     const { data: posts, error } = await db()
       .from("posts")
-      .select("id, title, channel, post_type, product, status, assigned_role, needs_expert, expert_approved, created_by, sample_id, updated_at")
+      .select("id, title, channel, post_type, product, status, assigned_role, needs_expert, expert_approved, created_by, sample_id, demo, updated_at")
       .eq("brand_id", brand.id)
       .order("updated_at", { ascending: false })
       .limit(100);

@@ -1,5 +1,7 @@
 import { db, getBrandContextForBrandId } from "@/lib/db";
-import { fail, json, serverError } from "@/lib/api";
+import { z } from "zod";
+import { actorSchema, fail, json, readJson, roleSchema, serverError } from "@/lib/api";
+import { can } from "@/lib/roles";
 
 /** One post with its latest review, every human decision and the full history. */
 export async function GET(_req: Request, ctx: RouteContext<"/api/posts/[id]">) {
@@ -23,6 +25,32 @@ export async function GET(_req: Request, ctx: RouteContext<"/api/posts/[id]">) {
       brand: { slug: ctx.brand.slug, name: ctx.brand.name },
       facts: ctx.facts,
     });
+  } catch (e) {
+    return serverError(e, "posts/[id]");
+  }
+}
+
+const deleteSchema = z.object({ role: roleSchema, actor: actorSchema });
+
+/**
+ * Delete a draft (the creator only). Posts in review or approved are kept for the record.
+ * Its checks, decisions and history go with it.
+ */
+export async function DELETE(req: Request, ctx: RouteContext<"/api/posts/[id]">) {
+  const { id } = await ctx.params;
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return fail("Invalid post id", 400);
+  const body = await readJson(req, deleteSchema);
+  if (!body.ok) return body.res;
+  if (!can(body.data.role, "check_posts")) return fail("Only the creator can delete drafts.", 403);
+  try {
+    const { data: post } = await db().from("posts").select("status, demo").eq("id", id).maybeSingle();
+    if (!post) return fail("Post not found", 404);
+    if (post.demo) return fail("This is one of the demo posts everyone can try, so it can't be deleted. Drafts you create can be.", 409);
+    if (post.status !== "draft" && post.status !== "changes_requested")
+      return fail("Only drafts and posts sent back can be deleted. Posts in review or approved are kept for the record.", 409);
+    const { error } = await db().from("posts").delete().eq("id", id).in("status", ["draft", "changes_requested"]).eq("demo", false);
+    if (error) throw new Error(error.message);
+    return json({ ok: true });
   } catch (e) {
     return serverError(e, "posts/[id]");
   }
