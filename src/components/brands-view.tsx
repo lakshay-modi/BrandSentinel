@@ -10,6 +10,7 @@ import { Button, ConfirmDialog, Dialog, EmptyState, ErrorNote, PageSkeleton, Ske
 import { useRole } from "./role-provider";
 import { RoleNote } from "./role-note";
 import { useToast } from "./toast";
+import { DemoReset } from "./demo-reset";
 
 interface BrandRow {
   slug: string;
@@ -325,6 +326,8 @@ export function BrandsView() {
           })}
         </ul>
       )}
+
+      <DemoReset always />
 
       <Dialog
         open={creating}
