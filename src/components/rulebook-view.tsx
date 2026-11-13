@@ -7,7 +7,7 @@ import { optimistic, patchBrand, reloadBrand, useBrandState } from "@/lib/client
 import { send } from "@/lib/client/send";
 import { can } from "@/lib/roles";
 import type { Category, GuidelineDoc, Rule, Severity } from "@/lib/types";
-import { Button, ConfirmDialog, Count, Dialog, EmptyState, ErrorNote, PageSkeleton, SEVERITY_STYLE, SeverityTag, timeAgo } from "./ui";
+import { Button, ConfirmDialog, Dialog, EmptyState, ErrorNote, PageSkeleton, SEVERITY_STYLE, SeverityTag, timeAgo } from "./ui";
 import { useRole } from "./role-provider";
 import { RoleNote } from "./role-note";
 import { RuleImport } from "./rule-import";

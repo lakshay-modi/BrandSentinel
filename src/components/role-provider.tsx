@@ -3,6 +3,7 @@
 import { createContext, useContext, useSyncExternalStore } from "react";
 import type { Role } from "@/lib/types";
 import { ROLE_INFO } from "@/lib/roles";
+import { useMe } from "@/lib/client/use-me";
 
 export { ROLE_LABEL } from "@/lib/roles";
 export const ROLE_HINT: Record<Role, string> = {
@@ -17,6 +18,8 @@ interface RoleState {
   name: string;
   setRole: (r: Role) => void;
   setName: (n: string) => void;
+  /** signed in with a role of their own: it can't be switched on screen */
+  fixed: boolean;
 }
 
 const RoleContext = createContext<RoleState | null>(null);
@@ -59,12 +62,19 @@ export function RoleProvider({ children }: { children: React.ReactNode }) {
     /* ignore a bad stored value */
   }
 
-  const value: RoleState = {
-    role,
-    name: names[role] || DEFAULT_NAME[role],
-    setRole: (r) => write("bs-role", r),
-    setName: (n) => write("bs-names", JSON.stringify({ ...names, [role]: n.slice(0, 40) })),
-  };
+  // A signed-in person has one role in their workspace, set by their brand manager. Only the public demo's
+  // visitor (not signed in) may switch between the three roles. The server enforces the same thing.
+  const me = useMe();
+  const own = me?.role && me.role !== "guest" ? me.role : null;
+  const value: RoleState = own
+    ? { role: own, name: me?.name || "Member", setRole: () => {}, setName: () => {}, fixed: true }
+    : {
+        role,
+        name: names[role] || DEFAULT_NAME[role],
+        setRole: (r) => write("bs-role", r),
+        setName: (n) => write("bs-names", JSON.stringify({ ...names, [role]: n.slice(0, 40) })),
+        fixed: false,
+      };
   return <RoleContext.Provider value={value}>{children}</RoleContext.Provider>;
 }
 

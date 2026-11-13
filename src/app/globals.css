@@ -236,3 +236,8 @@ h3 {
     animation: none;
   }
 }
+
+/* Account pages (sign in, sign up, join, new workspace) are not about a brand: no brand bar there. */
+body:has([data-account-page]) .brand-bar {
+  display: none;
+}

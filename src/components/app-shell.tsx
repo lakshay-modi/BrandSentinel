@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { Suspense, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
+import { restartApp, useMe } from "@/lib/client/use-me";
+import { send } from "@/lib/client/send";
 import type { Role } from "@/lib/types";
 import { ROLE_INFO } from "@/lib/roles";
 import { ROLE_HINT, ROLE_LABEL, useRole } from "./role-provider";
@@ -17,7 +19,11 @@ const NAV = [
   { href: "/rulebook", label: "Rulebook" },
   { href: "/facts", label: "Fact Bank" },
   { href: "/insights", label: "Insights" },
+  { href: "/workspace", label: "Team" },
 ];
+
+// pages about the account itself: no brand bar, because they are not about a brand
+const ACCOUNT_PAGES = ["/login", "/signup", "/join", "/welcome"];
 
 const ROLES: Role[] = ["creator", "expert", "brand_manager"];
 
@@ -77,7 +83,7 @@ function Mark() {
 
 /** Who does what, and what's waiting for each person. Opened from the role bar. */
 function RoleGuide({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { role, setRole } = useRole();
+  const { role, setRole, fixed } = useRole();
   const todo = useTodo();
   const waiting = (r: Role) => {
     const n = todo.posts(r);
@@ -88,7 +94,8 @@ function RoleGuide({ open, onClose }: { open: boolean; onClose: () => void }) {
   return (
     <Dialog open={open} onClose={onClose} title="Who does what" wide>
       <p className="text-[14px] text-ink-soft">
-        Three people share the work, and each step is locked to the person who owns it. There is no sign-in in this demo: switch roles to play each one.
+        Three people share the work, and each step is locked to the person who owns it.{" "}
+        {fixed ? "You are signed in with one role, set by your brand manager." : "You are in the open demo without signing in, so you can switch roles to play each one."}
       </p>
       <ol className="mt-3 flex flex-wrap items-center gap-2 text-[12px] font-semibold text-ink-soft" aria-label="How a post moves">
         <li className="rounded-md bg-paper px-2 py-1">Creator writes and fixes</li>
@@ -131,8 +138,8 @@ function RoleGuide({ open, onClose }: { open: boolean; onClose: () => void }) {
               <p className="mt-3 rounded-lg bg-paper px-2.5 py-1.5 text-[12px] font-medium">{todo.ready ? waiting(r) : "Loading what's waiting…"}</p>
               <div className="mt-3 pt-1 [&]:mt-auto">
                 {on ? (
-                  <p className="pt-3 text-[13px] font-semibold text-pass">You&apos;re playing this role</p>
-                ) : (
+                  <p className="pt-3 text-[13px] font-semibold text-pass">{fixed ? "This is your role" : "You're playing this role"}</p>
+                ) : fixed ? null : (
                   <Button
                     size="sm"
                     className="mt-3 w-full"
@@ -153,7 +160,7 @@ function RoleGuide({ open, onClose }: { open: boolean; onClose: () => void }) {
   );
 }
 
-/** Roles are a no-sign-in demo convenience: everyone can play every person in the approval flow. */
+/** The open demo (not signed in): everyone can play every person in the approval flow. */
 function RoleSwitcher() {
   const { role, setRole, name, setName } = useRole();
   return (
@@ -184,6 +191,89 @@ function RoleSwitcher() {
         aria-label={`Your name as ${ROLE_LABEL[role]}`}
       />
     </div>
+  );
+}
+
+/** Top right: who you are. Signed in: your name, role and workspace. Not signed in: the role switcher and Sign in. */
+function AccountArea() {
+  const me = useMe();
+  const { role } = useRole();
+  const [busy, setBusy] = useState(false);
+  if (!me) return <span className="inline-block h-8 w-56 animate-pulse rounded-lg bg-line/70" aria-hidden="true" />;
+  if (!me.signed_in) {
+    return (
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <RoleSwitcher />
+        <Link href="/login" className="inline-flex h-8 items-center whitespace-nowrap rounded-lg bg-ink px-3 text-[13px] font-semibold text-white shadow-sm hover:bg-[#26304a]">
+          Sign in
+        </Link>
+      </div>
+    );
+  }
+  const signOut = async () => {
+    setBusy(true);
+    await send("/api/auth/signout", "POST", {}).catch(() => undefined);
+    restartApp("/");
+  };
+  const others = me.workspaces.filter((w) => w.id !== me.workspace?.id);
+  return (
+    <details className="group relative text-[13px]">
+      <summary className="flex cursor-pointer list-none items-center gap-2 rounded-lg border border-line-strong bg-surface px-2.5 py-1.5 font-semibold hover:border-ink-faint [&::-webkit-details-marker]:hidden">
+        {me.role && me.role !== "guest" && <span className={`size-2 shrink-0 rounded-full ${ROLE_DOT[role]}`} aria-hidden="true" />}
+        <span className="max-w-[9rem] truncate">{me.name ?? me.email}</span>
+        <span className="hidden font-normal text-ink-soft sm:inline">{me.role && me.role !== "guest" ? ROLE_INFO[role].short : ""}</span>
+        <span aria-hidden="true" className="text-ink-faint transition-transform group-open:rotate-180">
+          ▾
+        </span>
+      </summary>
+      <div className="absolute right-0 z-40 mt-1.5 w-72 rounded-xl border border-line bg-surface p-3 shadow-lg">
+        <p className="truncate font-semibold">{me.name}</p>
+        <p className="truncate text-ink-soft">{me.email}</p>
+        {me.workspace && (
+          <p className="mt-2 rounded-lg bg-paper px-2.5 py-1.5">
+            <span className="block text-[11px] font-bold uppercase tracking-wide text-ink-faint">Workspace</span>
+            <span className="block truncate font-semibold">{me.workspace.name}</span>
+            {me.role && me.role !== "guest" && <span className="block text-ink-soft">Your role: {ROLE_INFO[role].label}</span>}
+          </p>
+        )}
+        {others.length > 0 && (
+          <div className="mt-2">
+            <p className="text-[11px] font-bold uppercase tracking-wide text-ink-faint">Switch workspace</p>
+            <ul className="mt-1">
+              {others.map((w) => (
+                <li key={w.id}>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    className="w-full truncate rounded-md px-2 py-1 text-left font-medium hover:bg-paper"
+                    onClick={async () => {
+                      setBusy(true);
+                      try {
+                        await send("/api/workspace/switch", "POST", { workspace_id: w.id });
+                        restartApp("/");
+                      } catch {
+                        setBusy(false);
+                      }
+                    }}
+                  >
+                    {w.name}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        <div className="mt-3 flex items-center justify-between gap-2 border-t border-line pt-3">
+          <Link href="/workspace" className="font-semibold text-ink underline-offset-4 hover:underline">
+            Team and AI key
+          </Link>
+          <Button size="sm" onClick={signOut} disabled={busy}>
+            {busy ? "Signing out…" : "Sign out"}
+          </Button>
+        </div>
+        {me.demo_account && <p className="mt-2 text-[12px] text-ink-soft">This is a shared demo account. Sign out to switch roles freely, or create your own workspace.</p>}
+      </div>
+    </details>
   );
 }
 
@@ -272,6 +362,15 @@ function RoleBar() {
   );
 }
 
+/** A signed-in person with no workspace yet is sent to create one. */
+function NeedsWorkspace() {
+  const me = useMe();
+  useEffect(() => {
+    if (me?.signed_in && !me.workspace && !ACCOUNT_PAGES.some((p) => window.location.pathname === p || window.location.pathname.startsWith(`${p}/`))) window.location.replace("/welcome");
+  }, [me]);
+  return null;
+}
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-full flex-col">
@@ -290,17 +389,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </Suspense>
           </div>
           <div className="ml-auto lg:py-2.5">
-            <RoleSwitcher />
+            <AccountArea />
           </div>
         </div>
       </header>
-      <RoleBar />
+      {/* hidden by CSS on account pages (sign in, sign up, join), which are not about a brand */}
+      <div className="brand-bar">
+        <RoleBar />
+      </div>
+      <NeedsWorkspace />
       <main id="main" className="mx-auto w-full max-w-7xl flex-1 px-4 pb-12 pt-5 sm:px-6">
         {children}
       </main>
       <footer className="border-t border-line bg-surface">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-x-6 gap-y-2 px-4 py-5 text-[13px] text-ink-soft sm:px-6">
-          <p>BrandSentinel prototype by Team O(1). Demo brands are fictional. AI checks use the Gemini API, and every AI finding is checked against real rules and facts before it&apos;s shown.</p>
+          <p>BrandSentinel by Team O(1). Demo brands are fictional. AI checks use the Gemini API, and every AI finding is checked against real rules and facts before it&apos;s shown.</p>
           <p className="flex gap-4">
             <a href="/tests" className="font-medium text-ink underline-offset-4 hover:underline">
               Test results

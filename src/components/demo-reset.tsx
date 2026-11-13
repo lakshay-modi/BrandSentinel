@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { reloadBrand, useBrand } from "@/lib/client/use-brand";
 import { refreshPosts } from "@/lib/client/use-posts";
+import { useMe } from "@/lib/client/use-me";
 import { send } from "@/lib/client/send";
 import { Button, ConfirmDialog } from "./ui";
 import { useRole } from "./role-provider";
@@ -17,6 +18,9 @@ export function DemoReset({ always = false }: { always?: boolean }) {
   const { role, name } = useRole();
   const toast = useToast();
   const [open, setOpen] = useState(false);
+  const me = useMe();
+  // only the shared demo workspace has it: a company's own workspace is never reset
+  if (!me?.workspace?.isDemo) return null;
   if (!brand || (!always && !brand.brand.settings.protected)) return null;
   return (
     <section aria-labelledby="demo-reset-h" className="rounded-xl border border-dashed border-line-strong bg-paper/60 px-4 py-3.5">
