@@ -38,6 +38,31 @@ function sources(input: PostInput): Source[] {
   return out;
 }
 
+/** Edit distance between two short strings. */
+function distance(a: string, b: string): number {
+  const row = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    let prev = row[0];
+    row[0] = i;
+    for (let j = 1; j <= b.length; j++) {
+      const cur = row[j];
+      row[j] = Math.min(row[j] + 1, row[j - 1] + 1, prev + (a[i - 1] === b[j - 1] ? 0 : 1));
+      prev = cur;
+    }
+  }
+  return row[b.length];
+}
+
+/** The approved name that a misspelling most likely means (ignoring case, spaces and dashes). */
+function closestName(bad: string, names: string[]): string | undefined {
+  let best: { name: string; d: number } | undefined;
+  for (const name of names) {
+    const d = distance(bad, name.toLowerCase().replace(/[\s-]/g, ""));
+    if (!best || d < best.d) best = { name, d };
+  }
+  return best && best.d <= Math.max(2, Math.ceil(bad.length / 2)) ? best.name : undefined;
+}
+
 function activeRule(ctx: CheckContext, id: string): Rule | null {
   const r = ctx.rules.get(id);
   if (!r || r.status !== "approved" || !r.check_type.includes("code")) return null;
@@ -170,18 +195,28 @@ export function runCodeChecks(ctx: CheckContext): Finding[] {
 
   // ---------------- Words ----------------
   if ((r = activeRule(ctx, "WORD-01"))) {
-    const correct = (bad: string) => {
+    // the demo brand has its own shortcuts; any other brand gets the approved name closest to the misspelling
+    const isOatvia = brand.products.some((p) => /oatvia/i.test(p));
+    const correct = (bad: string): string | undefined => {
       const b = bad.toLowerCase().replace(/[\s-]/g, "");
-      if (b.includes("milk")) return "Oat Milk";
-      if (b.startsWith("pro")) return "ProBar";
-      return "Oatvia";
+      if (isOatvia) {
+        if (b.includes("milk")) return "Oat Milk";
+        if (b.startsWith("pro")) return "ProBar";
+        return "Oatvia";
+      }
+      return closestName(b, brand.products);
     };
     for (const s of srcs) {
       const listed = brand.product_misspellings.flatMap((w) => findAll(s.text, new RegExp(`(?<![#@\\w.])${escapeRegex(w)}(?!\\w)`, "g")));
-      const generic = findAll(s.text, /(?<![#@\w./])(?:oat[\s-]?via|pro[\s-]?bar)(?!\w|\.in\b)/gi).filter((m) => m.text !== "Oatvia" && m.text !== "ProBar");
+      const generic = isOatvia ? findAll(s.text, /(?<![#@\w./])(?:oat[\s-]?via|pro[\s-]?bar)(?!\w|\.in\b)/gi).filter((m) => m.text !== "Oatvia" && m.text !== "ProBar") : [];
       const seen = new Set<number>();
       const ms = [...listed, ...generic].filter((m) => !seen.has(m.index) && seen.add(m.index));
-      report(out, r, s, ms.map((m) => ({ quote: m.text, message: `“${m.text}” is not how we spell our name. It's “${correct(m.text)}”.`, to: correct(m.text) })), "Misspelled names");
+      report(out, r, s, ms.map((m) => {
+        const to = correct(m.text);
+        return to
+          ? { quote: m.text, message: `“${m.text}” is not how we spell our name. It's “${to}”.`, to }
+          : { quote: m.text, message: `“${m.text}” is listed as a misspelling of one of our names.`, advice: "Use the approved spelling of the name." };
+      }), "Misspelled names");
     }
   }
 
