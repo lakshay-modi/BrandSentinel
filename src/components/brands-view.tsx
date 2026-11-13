@@ -215,6 +215,7 @@ export function BrandsView() {
   const [rows, setRows] = useState<BrandRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [starter, setStarter] = useState(true);
   const [created, setCreated] = useState<{ slug: string; name: string } | null>(null);
   const [editing, setEditing] = useState<BrandRow | null>(null);
   const [deleting, setDeleting] = useState<BrandRow | null>(null);
@@ -339,12 +340,21 @@ export function BrandsView() {
         wide
       >
         {creating && !created && (
+          <label className="mb-4 flex items-start gap-2.5 rounded-lg bg-paper px-3.5 py-2.5 text-[13px]">
+            <input type="checkbox" className="mt-0.5 size-4" checked={starter} onChange={(e) => setStarter(e.target.checked)} />
+            <span>
+              <span className="font-semibold">Start with the starter rules</span>
+              <span className="block text-ink-soft">14 common rules (disclosure, rankings, capitals, hashtags, contrast, alt text and more), so checks work at once. You can edit, pause or remove them, and import your own guidelines on top.</span>
+            </span>
+          </label>
+        )}
+        {creating && !created && (
           <BrandForm
             initial={BLANK}
             submitLabel="Create brand"
             onCancel={() => setCreating(false)}
             onSave={async (b) => {
-              const res = await send<{ brand: { slug: string; name: string } }>("/api/brands", "POST", { role, actor: name, brand: b });
+              const res = await send<{ brand: { slug: string; name: string } }>("/api/brands", "POST", { role, actor: name, brand: b, starter_rules: starter });
               setCreated(res.brand);
               await switchBrand(res.brand.slug, resetPosts);
               void load();

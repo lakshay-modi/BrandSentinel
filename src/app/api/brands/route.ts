@@ -5,6 +5,7 @@ import { actorSchema, fail, json, readJson, roleSchema, serverError } from "@/li
 import { currentWorkspaceId, db } from "@/lib/db";
 import { can, whoCan } from "@/lib/roles";
 import { brandFields, slugify } from "@/lib/schemas";
+import { addStarterRules } from "@/lib/starter-rules";
 
 /** Every brand with what it holds: rules, facts, rulebooks and posts. */
 export const GET = withSession(async () => {
@@ -44,7 +45,7 @@ export const GET = withSession(async () => {
   }
 }, "brands");
 
-const createSchema = z.object({ role: roleSchema, actor: actorSchema, brand: brandFields });
+const createSchema = z.object({ role: roleSchema, actor: actorSchema, brand: brandFields, starter_rules: z.boolean().default(false) });
 
 /** Create a brand (brand manager). It starts with no rules, facts or posts. */
 export const POST = withSession(async (req, _ctx, me) => {
@@ -62,9 +63,10 @@ export const POST = withSession(async (req, _ctx, me) => {
     let slug = base;
     for (let i = 2; used.has(slug); i++) slug = `${base}-${i}`;
     const settings = { ...brand, palette_tolerance: 40 };
-    const { data, error } = await db().from("brands").insert({ slug, name: brand.name, settings, workspace_id: me.workspace.id }).select("slug, name").single();
+    const { data, error } = await db().from("brands").insert({ slug, name: brand.name, settings, workspace_id: me.workspace.id }).select("id, slug, name").single();
     if (error) throw new Error(error.message);
-    return json({ brand: data });
+    const starter = body.data.starter_rules ? await addStarterRules(db(), data.id as string, body.data.actor) : 0;
+    return json({ brand: { slug: data.slug, name: data.name }, starter_rules: starter });
   } catch (e) {
     return serverError(e, "brands");
   }
