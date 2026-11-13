@@ -1,6 +1,7 @@
 // Minimal Gemini client (REST). All AI calls in the app go through this one file,
 // so the provider can be swapped without touching the rest of the code.
 import "server-only";
+import { currentAiKey } from "../secrets";
 
 export type AiCallResult =
   | { ok: true; text: string; model: string }
@@ -20,7 +21,7 @@ export function aiModels(): string[] {
 }
 
 export function aiConfigured(): boolean {
-  return !!process.env.GEMINI_API_KEY;
+  return !!currentAiKey();
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -37,8 +38,9 @@ export async function callGemini(
   /** time allowed for the first model, then for each fallback (long answers like a whole Rulebook need more) */
   limits: { firstMs: number; laterMs: number } = { firstMs: 14000, laterMs: 20000 },
 ): Promise<AiCallResult> {
-  const key = process.env.GEMINI_API_KEY;
-  if (!key) return { ok: false, status: "off", detail: "GEMINI_API_KEY is not set" };
+  // the workspace's own key when it has one, otherwise the shared demo key
+  const key = currentAiKey();
+  if (!key) return { ok: false, status: "off", detail: "No AI key is set" };
 
   const body = JSON.stringify({
     systemInstruction: { parts: [{ text: system }] },

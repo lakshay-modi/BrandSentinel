@@ -60,6 +60,8 @@ export async function runReview(input: PostInput, ctx: BrandContext, opts: { ori
         JSON.stringify({
           v: 7, // bump when the prompt changes so cached answers are refreshed
           rulebook: ctx.brand.rulebook_version,
+          // each company's answers are cached apart (the demo brands keep their earlier cache)
+          ...(ctx.brand.settings.protected ? {} : { brand: ctx.brand.id }),
           factsHash,
           input: { ...input, images: input.images.map((i) => ({ alt: i.alt_text, ocr: i.analysis?.ocr_text ?? "" })) },
           code: code.map((f) => f.id),

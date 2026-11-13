@@ -64,6 +64,7 @@ export function fail(message: string, status = 400) {
 
 /** Logs the real error on the server and returns a plain message, so database details never reach the browser. */
 export function serverError(e: unknown, where: string) {
+  if (e instanceof Error && e.name === "NoBrandError") return fail(e.message, 409);
   console.error(`[${where}]`, e);
   return fail("Something went wrong on the server. Please try again.", 500);
 }
@@ -94,6 +95,18 @@ function allowWrite(client: string, now = Date.now()): boolean {
   recent.push(now);
   writes.set(client, recent);
   if (writes.size > 5000) writes.clear();
+  return true;
+}
+
+// Small in-memory limits for sign-in, sign-up and similar (per server instance; enough to slow down guessing).
+const buckets = new Map<string, number[]>();
+export function allow(bucket: string, client: string, max: number, windowMs: number, now = Date.now()): boolean {
+  const key = `${bucket}:${client}`;
+  const recent = (buckets.get(key) ?? []).filter((t) => now - t < windowMs);
+  if (recent.length >= max) return false;
+  recent.push(now);
+  buckets.set(key, recent);
+  if (buckets.size > 5000) buckets.clear();
   return true;
 }
 

@@ -1,5 +1,6 @@
 // Server-side database access. The Supabase key never reaches the browser.
 import "server-only";
+import { AsyncLocalStorage } from "node:async_hooks";
 import { cookies } from "next/headers";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { Brand, Fact, GuidelineDoc, Rule } from "./types";
@@ -61,7 +62,11 @@ function fallbackFetch(secret: string, publishable: string | undefined): typeof 
   };
 }
 
-export function db(): SupabaseClient {
+/**
+ * The server's own client (secret key). It bypasses the database's row rules, so it is used only for the few jobs
+ * that are not done on someone's behalf: creating accounts, the AI answer cache, workspace secrets, Reset demo.
+ */
+export function adminDb(): SupabaseClient {
   if (!client) {
     const url = process.env.SUPABASE_URL;
     const secret = process.env.BRANDSENTINEL_DB_KEY?.trim();
@@ -76,22 +81,66 @@ export function db(): SupabaseClient {
   return client;
 }
 
-export const DEMO_BRAND = "oatvia";
+/** What a request carries: the database client that acts AS the person, and their workspace. */
+export interface RequestScope {
+  db: SupabaseClient;
+  workspaceId: string;
+  /** the workspace's own AI key, once a route has asked for it */
+  aiKey?: string | null;
+}
+export const requestScope = new AsyncLocalStorage<RequestScope>();
+
+/**
+ * The database as the current person sees it. Every query runs with their own session token, so Postgres
+ * row level security returns and changes only their workspace's rows.
+ */
+export function db(): SupabaseClient {
+  const scope = requestScope.getStore();
+  if (!scope) throw new Error("db() was called outside a request with a session (wrap the route in withSession)");
+  return scope.db;
+}
+
+export function currentWorkspaceId(): string {
+  const scope = requestScope.getStore();
+  if (!scope) throw new Error("No session for this request");
+  return scope.workspaceId;
+}
+
+/** A client that sends this person's session token: the database applies its row rules to it. */
+export function userDb(accessToken: string): SupabaseClient {
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_PUBLISHABLE_KEY?.trim() || process.env.BRANDSENTINEL_DB_KEY?.trim();
+  if (!url || !key) throw new Error("SUPABASE_URL and BRANDSENTINEL_DB_KEY (or SUPABASE_PUBLISHABLE_KEY) must be set");
+  return createClient(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false },
+    global: { headers: { Authorization: `Bearer ${accessToken}` } },
+  });
+}
+
+export const DEMO_WORKSPACE = "00000000-0000-4000-8000-000000000001";
 export const BRAND_COOKIE = "bs-brand";
 
-/** The brand this visitor is working on (chosen in the header, kept in a cookie). Falls back to the demo brand. */
-export async function currentBrandSlug(): Promise<string> {
+/** The brand this visitor is working on (chosen in the header, kept in a cookie), if they chose one. */
+export async function currentBrandSlug(): Promise<string | null> {
   try {
     const v = (await cookies()).get(BRAND_COOKIE)?.value;
     if (v && /^[a-z0-9-]{1,40}$/.test(v)) return v;
   } catch {
     /* outside a request */
   }
-  return DEMO_BRAND;
+  return null;
+}
+
+/** A workspace with no brands yet: the app asks the brand manager to create the first one. */
+export class NoBrandError extends Error {
+  constructor() {
+    super("This workspace has no brands yet. A brand manager can create one under Manage brands.");
+    this.name = "NoBrandError";
+  }
 }
 
 export async function listBrands(): Promise<{ slug: string; name: string }[]> {
-  const { data, error } = await db().from("brands").select("slug, name").order("created_at");
+  const { data, error } = await db().from("brands").select("slug, name").eq("workspace_id", currentWorkspaceId()).order("created_at");
   if (error) throw new Error(error.message);
   return data ?? [];
 }
@@ -110,18 +159,25 @@ export interface BrandContext {
 
 /** The brand a post belongs to, whatever brand the visitor has selected. */
 export async function getBrandContextForBrandId(brandId: string): Promise<BrandContext> {
-  const { data } = await db().from("brands").select("slug").eq("id", brandId).maybeSingle();
-  if (!data) throw new Error(`Brand not found: ${brandId}`);
+  const { data } = await db().from("brands").select("slug, workspace_id").eq("id", brandId).maybeSingle();
+  if (!data || data.workspace_id !== currentWorkspaceId()) throw new NoBrandError();
   return getBrandContext(data.slug as string);
 }
 
 /** Just the selected brand's row: one query, for edits that don't need the whole rulebook. */
 export async function getBrandRow(slug?: string): Promise<Brand> {
   const wanted = slug ?? (await currentBrandSlug());
-  let { data: brand } = await db().from("brands").select("id, slug, name, settings, rulebook_version").eq("slug", wanted).maybeSingle();
-  if (!brand && wanted !== DEMO_BRAND) ({ data: brand } = await db().from("brands").select("id, slug, name, settings, rulebook_version").eq("slug", DEMO_BRAND).maybeSingle());
-  if (!brand) throw new Error(`Brand not found: ${wanted}`);
-  return brand as Brand;
+  const ws = currentWorkspaceId();
+  const cols = "id, slug, name, settings, rulebook_version";
+  if (wanted) {
+    const { data: brand } = await db().from("brands").select(cols).eq("workspace_id", ws).eq("slug", wanted).maybeSingle();
+    if (brand) return brand as Brand;
+  }
+  // nothing chosen yet (or the chosen brand is gone): the workspace's first brand
+  const { data: first, error } = await db().from("brands").select(cols).eq("workspace_id", ws).order("created_at").limit(1).maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!first) throw new NoBrandError();
+  return first as Brand;
 }
 
 export async function getBrandContext(slug?: string): Promise<BrandContext> {
@@ -142,12 +198,12 @@ export async function getBrandContext(slug?: string): Promise<BrandContext> {
 }
 
 export async function getCache<T>(key: string): Promise<T | null> {
-  const { data } = await db().from("ai_cache").select("result").eq("key", key).maybeSingle();
+  const { data } = await adminDb().from("ai_cache").select("result").eq("key", key).maybeSingle();
   return (data?.result as T) ?? null;
 }
 
 export async function setCache(key: string, result: unknown): Promise<void> {
-  await db().from("ai_cache").upsert({ key, result });
+  await adminDb().from("ai_cache").upsert({ key, result });
 }
 
 export async function addHistory(postId: string, action: string, role: string, actor: string, detail: Record<string, unknown> = {}) {
