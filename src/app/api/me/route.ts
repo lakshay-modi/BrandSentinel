@@ -15,10 +15,12 @@ export async function GET() {
       workspace: me.workspace,
       // "guest" means the role can be switched on screen (the public demo)
       role: me.memberRole,
+      // may act in any of the three roles (the open demo, or a brand manager covering for a small team)
+      can_switch: me.canSwitchRole,
       workspaces: me.signedIn ? me.memberships.map((m) => ({ id: m.workspace_id, name: m.workspace, is_demo: m.is_demo, role: m.role })) : [],
     });
   } catch (e) {
-    if (e instanceof NoWorkspaceError) return json({ signed_in: true, demo_account: false, name: null, email: e.email, workspace: null, role: null, workspaces: [] });
+    if (e instanceof NoWorkspaceError) return json({ signed_in: true, demo_account: false, name: null, email: e.email, workspace: null, role: null, can_switch: false, workspaces: [] });
     return serverError(e, "me");
   }
 }

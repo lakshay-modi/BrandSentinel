@@ -12,6 +12,8 @@ export interface Me {
   workspace: { id: string; name: string; isDemo: boolean } | null;
   /** "guest" may switch between the three roles */
   role: Role | "guest" | null;
+  /** may act in any of the three roles: the open demo, or a brand manager covering for a small team */
+  can_switch: boolean;
   workspaces: { id: string; name: string; is_demo: boolean; role: Role | "guest" }[];
 }
 

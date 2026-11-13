@@ -11,6 +11,7 @@ export const ROLE_HINT: Record<Role, string> = {
   brand_manager: ROLE_INFO.brand_manager.summary,
   expert: ROLE_INFO.expert.summary,
 };
+const ROLES_ALL: Role[] = ["creator", "expert", "brand_manager"];
 const DEFAULT_NAME: Record<Role, string> = { creator: "Priya", brand_manager: "Arjun", expert: "Meera" };
 
 interface RoleState {
@@ -52,6 +53,7 @@ function write(key: string, value: string) {
 
 export function RoleProvider({ children }: { children: React.ReactNode }) {
   const storedRole = useSyncExternalStore(subscribe, () => read("bs-role"), () => null);
+  const storedActing = useSyncExternalStore(subscribe, () => read("bs-acting"), () => null);
   const storedNames = useSyncExternalStore(subscribe, () => read("bs-names"), () => null);
 
   const role: Role = storedRole === "brand_manager" || storedRole === "expert" ? storedRole : "creator";
@@ -66,7 +68,11 @@ export function RoleProvider({ children }: { children: React.ReactNode }) {
   // visitor (not signed in) may switch between the three roles. The server enforces the same thing.
   const me = useMe();
   const own = me?.role && me.role !== "guest" ? me.role : null;
-  const value: RoleState = own
+  // a brand manager of a real workspace may cover the other roles; they start as themselves
+  const covering = own && me?.can_switch ? ((storedActing as Role | null) ?? own) : null;
+  const value: RoleState = covering
+    ? { role: ROLES_ALL.includes(covering) ? covering : own!, name: me?.name || "Member", setRole: (r) => write("bs-acting", r), setName: () => {}, fixed: false }
+    : own
     ? { role: own, name: me?.name || "Member", setRole: () => {}, setName: () => {}, fixed: true }
     : {
         role,

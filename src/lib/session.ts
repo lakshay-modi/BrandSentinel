@@ -36,7 +36,12 @@ export interface Session {
   /** the role this person holds here; "guest" may switch between the three roles */
   memberRole: MemberRole;
   memberships: Membership[];
-  /** The role to act with: the person's own role, or for the demo's guest the role they picked on screen. */
+  /**
+   * May act in any of the three roles: the demo's guest, and a brand manager of a real workspace, who can
+   * cover for the creator or expert in a small team (history still records their own name).
+   */
+  canSwitchRole: boolean;
+  /** The role to act with: the person's own role, or the role they picked on screen if they may switch. */
   role(picked?: Role): Role;
   /** The name written into history: the person's own name, or for the guest the name they typed. */
   actor(typed?: string): string;
@@ -205,7 +210,10 @@ async function membershipsOf(userId: string, client: SupabaseClient): Promise<Me
 
 function build(userId: string, token: string, email: string, signedIn: boolean, demoAccount: boolean, memberships: Membership[], m: Membership): Session {
   const client = userDb(token);
+  const canSwitchRole = m.role === "guest" || (m.role === "brand_manager" && !m.is_demo);
+  const own: Role = m.role === "guest" ? "creator" : m.role;
   return {
+    canSwitchRole,
     userId,
     signedIn,
     demoAccount,
@@ -214,7 +222,7 @@ function build(userId: string, token: string, email: string, signedIn: boolean, 
     workspace: { id: m.workspace_id, name: m.workspace, isDemo: m.is_demo },
     memberRole: m.role,
     memberships,
-    role: (picked) => (m.role === "guest" ? (picked ?? "creator") : m.role),
+    role: (picked) => (canSwitchRole ? (picked ?? own) : own),
     actor: (typed) => (m.role === "guest" ? typed?.trim() || "Guest" : m.name || email.split("@")[0] || "Member"),
     db: client,
   };

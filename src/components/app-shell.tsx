@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Suspense, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
-import { restartApp, useMe } from "@/lib/client/use-me";
+import { restartApp, useMe, type Me } from "@/lib/client/use-me";
 import { send } from "@/lib/client/send";
 import type { Role } from "@/lib/types";
 import { ROLE_INFO } from "@/lib/roles";
@@ -84,6 +84,7 @@ function Mark() {
 /** Who does what, and what's waiting for each person. Opened from the role bar. */
 function RoleGuide({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { role, setRole, fixed } = useRole();
+  const signedIn = !!useMe()?.signed_in;
   const todo = useTodo();
   const waiting = (r: Role) => {
     const n = todo.posts(r);
@@ -95,7 +96,11 @@ function RoleGuide({ open, onClose }: { open: boolean; onClose: () => void }) {
     <Dialog open={open} onClose={onClose} title="Who does what" wide>
       <p className="text-[14px] text-ink-soft">
         Three people share the work, and each step is locked to the person who owns it.{" "}
-        {fixed ? "You are signed in with one role, set by your brand manager." : "You are in the open demo without signing in, so you can switch roles to play each one."}
+        {fixed
+          ? "You are signed in with one role, set by your brand manager."
+          : signedIn
+            ? "As a brand manager you can also cover the creator and expert roles when the team is small. Whatever you do is recorded under your own name."
+            : "You are in the open demo without signing in, so you can switch roles to play each one."}
       </p>
       <ol className="mt-3 flex flex-wrap items-center gap-2 text-[12px] font-semibold text-ink-soft" aria-label="How a post moves">
         <li className="rounded-md bg-paper px-2 py-1">Creator writes and fixes</li>
@@ -194,10 +199,32 @@ function RoleSwitcher() {
   );
 }
 
+/** A brand manager of a real workspace can cover the creator and expert roles; their name stays on everything. */
+function ActingAs() {
+  const { role, setRole } = useRole();
+  return (
+    <label className="flex items-center gap-1.5 text-[13px]">
+      <span className="hidden text-ink-soft sm:inline">Acting as</span>
+      <select
+        value={role}
+        onChange={(e) => setRole(e.target.value as Role)}
+        title="As brand manager you can also cover the creator and expert roles. Your name is recorded on everything you do."
+        aria-label="Acting as"
+        className="rounded-lg border border-line-strong bg-surface px-2 py-1.5 font-semibold"
+      >
+        {ROLES.map((r) => (
+          <option key={r} value={r}>
+            {ROLE_INFO[r].short}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
 /** Top right: who you are. Signed in: your name, role and workspace. Not signed in: the role switcher and Sign in. */
 function AccountArea() {
   const me = useMe();
-  const { role } = useRole();
   const [busy, setBusy] = useState(false);
   if (!me) return <span className="inline-block h-8 w-56 animate-pulse rounded-lg bg-line/70" aria-hidden="true" />;
   if (!me.signed_in) {
@@ -216,6 +243,16 @@ function AccountArea() {
     restartApp("/");
   };
   const others = me.workspaces.filter((w) => w.id !== me.workspace?.id);
+  return (
+    <div className="flex flex-wrap items-center justify-end gap-2">
+      {me.can_switch && <ActingAs />}
+      <AccountMenu me={me} others={others} busy={busy} setBusy={setBusy} signOut={signOut} />
+    </div>
+  );
+}
+
+function AccountMenu({ me, others, busy, setBusy, signOut }: { me: Me; others: Me["workspaces"]; busy: boolean; setBusy: (b: boolean) => void; signOut: () => void }) {
+  const { role } = useRole();
   return (
     <details className="group relative text-[13px]">
       <summary className="flex cursor-pointer list-none items-center gap-2 rounded-lg border border-line-strong bg-surface px-2.5 py-1.5 font-semibold hover:border-ink-faint [&::-webkit-details-marker]:hidden">
