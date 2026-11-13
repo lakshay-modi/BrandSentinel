@@ -1,16 +1,17 @@
+import { withSession } from "@/lib/session";
 import { connection } from "next/server";
 import { z } from "zod";
 import { actorSchema, fail, json, readJson, roleSchema, serverError } from "@/lib/api";
-import { db } from "@/lib/db";
+import { currentWorkspaceId, db } from "@/lib/db";
 import { can, whoCan } from "@/lib/roles";
 import { brandFields, slugify } from "@/lib/schemas";
 
 /** Every brand with what it holds: rules, facts, rulebooks and posts. */
-export async function GET() {
+export const GET = withSession(async () => {
   await connection();
   try {
     const [brands, rules, facts, posts, docs] = await Promise.all([
-      db().from("brands").select("id, slug, name, settings, created_at").order("created_at"),
+      db().from("brands").select("id, slug, name, settings, created_at").eq("workspace_id", currentWorkspaceId()).order("created_at"),
       db().from("rules").select("brand_id, status"),
       db().from("facts").select("brand_id"),
       db().from("posts").select("brand_id, status, updated_at"),
@@ -41,28 +42,30 @@ export async function GET() {
   } catch (e) {
     return serverError(e, "brands");
   }
-}
+}, "brands");
 
 const createSchema = z.object({ role: roleSchema, actor: actorSchema, brand: brandFields });
 
 /** Create a brand (brand manager). It starts with no rules, facts or posts. */
-export async function POST(req: Request) {
+export const POST = withSession(async (req, _ctx, me) => {
   const body = await readJson(req, createSchema);
   if (!body.ok) return body.res;
+  body.data.role = me.role(body.data.role);
+  body.data.actor = me.actor(body.data.actor);
   const { role, brand } = body.data;
   if (!can(role, "manage_brands")) return fail(`Only ${whoCan("manage_brands")} can create brands.`, 403);
   try {
-    const { data: taken } = await db().from("brands").select("slug");
+    const { data: taken } = await db().from("brands").select("slug").eq("workspace_id", me.workspace.id);
     const used = new Set((taken ?? []).map((b) => b.slug as string));
-    if ((taken ?? []).length >= 50) return fail("This demo has reached its limit of 50 brands. Delete one first.", 409);
+    if ((taken ?? []).length >= 50) return fail("This workspace has reached its limit of 50 brands. Delete one first.", 409);
     const base = slugify(brand.name);
     let slug = base;
     for (let i = 2; used.has(slug); i++) slug = `${base}-${i}`;
     const settings = { ...brand, palette_tolerance: 40 };
-    const { data, error } = await db().from("brands").insert({ slug, name: brand.name, settings }).select("slug, name").single();
+    const { data, error } = await db().from("brands").insert({ slug, name: brand.name, settings, workspace_id: me.workspace.id }).select("slug, name").single();
     if (error) throw new Error(error.message);
     return json({ brand: data });
   } catch (e) {
     return serverError(e, "brands");
   }
-}
+}, "brands");

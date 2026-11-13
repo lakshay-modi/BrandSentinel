@@ -1,3 +1,4 @@
+import { withSession } from "@/lib/session";
 import { z } from "zod";
 import { actorSchema, fail, json, readJson, roleSchema, serverError } from "@/lib/api";
 import { bumpRulebook, db, getBrandRow } from "@/lib/db";
@@ -10,10 +11,12 @@ const patchSchema = z.object({
 });
 
 /** Rename a rulebook, or pause and resume it: a paused rulebook's rules leave the checks. */
-export async function PATCH(req: Request, ctx: RouteContext<"/api/documents/[id]">) {
+export const PATCH = withSession<RouteContext<"/api/documents/[id]">>(async (req, ctx, me) => {
   const { id } = await ctx.params;
   const body = await readJson(req, patchSchema);
   if (!body.ok) return body.res;
+  body.data.role = me.role(body.data.role);
+  body.data.actor = me.actor(body.data.actor);
   const { role, changes } = body.data;
   if (!can(role, "manage_rules")) return fail(`Only ${whoCan("manage_rules")} can change rulebooks.`, 403);
   try {
@@ -26,15 +29,17 @@ export async function PATCH(req: Request, ctx: RouteContext<"/api/documents/[id]
   } catch (e) {
     return serverError(e, "documents/[id]");
   }
-}
+}, "documents/[id]");
 
 const deleteSchema = z.object({ role: roleSchema, actor: actorSchema });
 
 /** Remove a rulebook and every rule that came from it (for example after uploading the wrong PDF). */
-export async function DELETE(req: Request, ctx: RouteContext<"/api/documents/[id]">) {
+export const DELETE = withSession<RouteContext<"/api/documents/[id]">>(async (req, ctx, me) => {
   const { id } = await ctx.params;
   const body = await readJson(req, deleteSchema);
   if (!body.ok) return body.res;
+  body.data.role = me.role(body.data.role);
+  body.data.actor = me.actor(body.data.actor);
   if (!can(body.data.role, "manage_rules")) return fail(`Only ${whoCan("manage_rules")} can remove rulebooks.`, 403);
   try {
     const brand = await getBrandRow();
@@ -46,4 +51,4 @@ export async function DELETE(req: Request, ctx: RouteContext<"/api/documents/[id
   } catch (e) {
     return serverError(e, "documents/[id]");
   }
-}
+}, "documents/[id]");

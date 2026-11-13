@@ -1,3 +1,4 @@
+import { withSession } from "@/lib/session";
 import { z } from "zod";
 import { actorSchema, fail, json, readJson, ROLE_LABEL, roleSchema, serverError } from "@/lib/api";
 import { addHistory, db } from "@/lib/db";
@@ -14,10 +15,12 @@ const bodySchema = z.object({
 });
 
 /** Move a post through the approval workflow. Only the person it's assigned to can approve or send it back. */
-export async function POST(req: Request, ctx: RouteContext<"/api/posts/[id]/action">) {
+export const POST = withSession<RouteContext<"/api/posts/[id]/action">>(async (req, ctx, me) => {
   const { id } = await ctx.params;
   const body = await readJson(req, bodySchema);
   if (!body.ok) return body.res;
+  body.data.role = me.role(body.data.role);
+  body.data.actor = me.actor(body.data.actor);
   const { action, role, actor, comment, goal } = body.data;
 
   try {
@@ -70,4 +73,4 @@ export async function POST(req: Request, ctx: RouteContext<"/api/posts/[id]/acti
   } catch (e) {
     return serverError(e, "posts/[id]/action");
   }
-}
+}, "posts/[id]/action");

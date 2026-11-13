@@ -1,9 +1,11 @@
+import { withSession } from "@/lib/session";
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { can, whoCan } from "@/lib/roles";
 import { actorSchema, clientId, fail, json, readJson, roleSchema, serverError } from "@/lib/api";
 import { bumpRulebook, db, getBrandContext, getCache, setCache } from "@/lib/db";
 import { callGemini, parseJson } from "@/lib/ai/gemini";
+import { useWorkspaceAiKey } from "@/lib/secrets";
 import { IMPORT_SYSTEM_PROMPT, buildImportPrompt, parseImportReply, quoteInDocument, type ImportedRule } from "@/lib/ai/import-prompt";
 import { allowAiCall } from "@/lib/review/rate-limit";
 import { documentText } from "@/lib/doc-text";
@@ -32,9 +34,11 @@ const bodySchema = z.object({
  * The text is read in plain code, the AI drafts rules, plain code checks every rule's quote is really
  * in the document, and the rules are saved as drafts: they aren't used in checks until approved.
  */
-export async function POST(req: Request) {
+export const POST = withSession(async (req, _ctx, me) => {
   const body = await readJson(req, bodySchema);
   if (!body.ok) return body.res;
+  body.data.role = me.role(body.data.role);
+  body.data.actor = me.actor(body.data.actor);
   const { role, actor, file } = body.data;
   if (!can(role, "manage_rules")) return fail(`Only ${whoCan("manage_rules")} can import rulebooks.`, 403);
 
@@ -50,11 +54,12 @@ export async function POST(req: Request) {
 
   try {
     const ctx = await getBrandContext();
+    await useWorkspaceAiKey(me.workspace.id);
     const { replace_document_id: replaceId, title } = body.data;
     if (replaceId && !ctx.documents.some((d) => d.id === replaceId)) return fail("The rulebook to replace wasn't found in this brand.", 404);
     // the rules the new ones are compared with: everything except the rulebook being replaced
     const others = ctx.rules.filter((r) => !replaceId || r.document_id !== replaceId);
-    const cacheKey = "import:" + createHash("sha256").update(clipped).update(others.map((r) => `${r.id}:${r.status}`).join(",")).digest("hex").slice(0, 32);
+    const cacheKey = "import:" + createHash("sha256").update(ctx.brand.settings.protected ? "" : ctx.brand.id).update(clipped).update(others.map((r) => `${r.id}:${r.status}`).join(",")).digest("hex").slice(0, 32);
     let drafted = await getCache<{ rules: ImportedRule[]; model: string }>(cacheKey);
     if (!drafted) {
       if (!allowAiCall(clientId(req))) return fail("The AI is busy (free-tier limit). Try again in a minute.", 429);
@@ -145,4 +150,4 @@ export async function POST(req: Request) {
   } catch (e) {
     return serverError(e, "rules/import");
   }
-}
+}, "rules/import");

@@ -1,3 +1,4 @@
+import { withSession } from "@/lib/session";
 import { z } from "zod";
 import { can, whoCan } from "@/lib/roles";
 import { actorSchema, fail, json, readJson, roleSchema, serverError } from "@/lib/api";
@@ -20,10 +21,12 @@ const bodySchema = z.object({
 });
 
 /** Edit or approve a rule (brand manager only). Bumps the rule's version and the rulebook version. */
-export async function PATCH(req: Request, ctx: RouteContext<"/api/rules/[id]">) {
+export const PATCH = withSession<RouteContext<"/api/rules/[id]">>(async (req, ctx, me) => {
   const { id } = await ctx.params;
   const body = await readJson(req, bodySchema);
   if (!body.ok) return body.res;
+  body.data.role = me.role(body.data.role);
+  body.data.actor = me.actor(body.data.actor);
   const { role, changes } = body.data;
   if (!can(role, "manage_rules")) return fail(`Only ${whoCan("manage_rules")} can change the Rulebook.`, 403);
   try {
@@ -43,15 +46,17 @@ export async function PATCH(req: Request, ctx: RouteContext<"/api/rules/[id]">) 
   } catch (e) {
     return serverError(e, "rules/[id]");
   }
-}
+}, "rules/[id]");
 
 const deleteSchema = z.object({ role: roleSchema, actor: actorSchema });
 
 /** Delete one rule (brand manager). Past reports keep their copy of it. */
-export async function DELETE(req: Request, ctx: RouteContext<"/api/rules/[id]">) {
+export const DELETE = withSession<RouteContext<"/api/rules/[id]">>(async (req, ctx, me) => {
   const { id } = await ctx.params;
   const body = await readJson(req, deleteSchema);
   if (!body.ok) return body.res;
+  body.data.role = me.role(body.data.role);
+  body.data.actor = me.actor(body.data.actor);
   if (!can(body.data.role, "manage_rules")) return fail(`Only ${whoCan("manage_rules")} can delete rules.`, 403);
   try {
     const brand = await getBrandRow();
@@ -63,4 +68,4 @@ export async function DELETE(req: Request, ctx: RouteContext<"/api/rules/[id]">)
   } catch (e) {
     return serverError(e, "rules/[id]");
   }
-}
+}, "rules/[id]");

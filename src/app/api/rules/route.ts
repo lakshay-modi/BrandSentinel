@@ -1,3 +1,4 @@
+import { withSession } from "@/lib/session";
 import { z } from "zod";
 import { can, whoCan } from "@/lib/roles";
 import { actorSchema, fail, json, readJson, roleSchema, serverError } from "@/lib/api";
@@ -21,9 +22,11 @@ const bodySchema = z.object({
 });
 
 /** Add a rule. New rules are checked by the AI (fast checks need code), and every change creates a new rulebook version. */
-export async function POST(req: Request) {
+export const POST = withSession(async (req, _ctx, me) => {
   const body = await readJson(req, bodySchema);
   if (!body.ok) return body.res;
+  body.data.role = me.role(body.data.role);
+  body.data.actor = me.actor(body.data.actor);
   const { role, rule } = body.data;
   if (!can(role, "manage_rules")) return fail(`Only ${whoCan("manage_rules")} can change the Rulebook.`, 403);
   try {
@@ -42,7 +45,7 @@ export async function POST(req: Request) {
   } catch (e) {
     return serverError(e, "rules");
   }
-}
+}, "rules");
 
 const bulkSchema = z.object({
   role: roleSchema,
@@ -52,9 +55,11 @@ const bulkSchema = z.object({
 });
 
 /** Approve or reject several draft rules at once (brand manager). Only drafts change; one new rulebook version. */
-export async function PATCH(req: Request) {
+export const PATCH = withSession(async (req, _ctx, me) => {
   const body = await readJson(req, bulkSchema);
   if (!body.ok) return body.res;
+  body.data.role = me.role(body.data.role);
+  body.data.actor = me.actor(body.data.actor);
   const { role, ids, changes } = body.data;
   if (!can(role, "manage_rules")) return fail(`Only ${whoCan("manage_rules")} can change the Rulebook.`, 403);
   try {
@@ -72,4 +77,4 @@ export async function PATCH(req: Request) {
   } catch (e) {
     return serverError(e, "rules");
   }
-}
+}, "rules");

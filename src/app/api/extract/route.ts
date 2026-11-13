@@ -1,3 +1,4 @@
+import { withSession } from "@/lib/session";
 import { z } from "zod";
 import { fail, json, readJson, serverError } from "@/lib/api";
 import { documentText } from "@/lib/doc-text";
@@ -13,7 +14,7 @@ const bodySchema = z.object({
 });
 
 /** Read the text of a dropped document (PDF or Word) so it can become a post's caption. Nothing is stored. */
-export async function POST(req: Request) {
+export const POST = withSession(async (req) => {
   const body = await readJson(req, bodySchema);
   if (!body.ok) return body.res;
   const { file } = body.data;
@@ -33,4 +34,4 @@ export async function POST(req: Request) {
     .trim();
   if (!text) return fail("No readable text found. If it's a scanned PDF, export it with selectable text first.", 422);
   return json({ text: text.slice(0, 3000), truncated: text.length > 3000 });
-}
+}, "extract");

@@ -1,3 +1,4 @@
+import { withSession } from "@/lib/session";
 import { z } from "zod";
 import { can, whoCan } from "@/lib/roles";
 import { actorSchema, fail, json, readJson, roleSchema, serverError } from "@/lib/api";
@@ -8,9 +9,11 @@ import { factFields } from "@/lib/schemas";
 const bodySchema = z.object({ role: roleSchema, actor: actorSchema, fact: factFields });
 
 /** Add an approved fact (brand manager or expert reviewer). Every fact needs a source and an end date. */
-export async function POST(req: Request) {
+export const POST = withSession(async (req, _ctx, me) => {
   const body = await readJson(req, bodySchema);
   if (!body.ok) return body.res;
+  body.data.role = me.role(body.data.role);
+  body.data.actor = me.actor(body.data.actor);
   const { role, fact } = body.data;
   if (!can(role, "manage_facts")) return fail(`Only ${whoCan("manage_facts")} can add approved facts.`, 403);
   try {
@@ -23,4 +26,4 @@ export async function POST(req: Request) {
   } catch (e) {
     return serverError(e, "facts");
   }
-}
+}, "facts");

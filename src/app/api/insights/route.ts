@@ -1,10 +1,11 @@
+import { withSession } from "@/lib/session";
 import { connection } from "next/server";
 import { db, getBrandContext } from "@/lib/db";
 import { json, serverError } from "@/lib/api";
 import { computeInsights } from "@/lib/insights";
 import { todayIST } from "@/lib/checks/text-utils";
 
-export async function GET() {
+export const GET = withSession(async () => {
   await connection();
   try {
     const { brand, rules, facts } = await getBrandContext();
@@ -21,4 +22,4 @@ export async function GET() {
   } catch (e) {
     return serverError(e, "insights");
   }
-}
+}, "insights");

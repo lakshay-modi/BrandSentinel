@@ -1,9 +1,10 @@
+import { withSession } from "@/lib/session";
 import { connection } from "next/server";
 import { db, getBrandRow } from "@/lib/db";
 import { json, serverError } from "@/lib/api";
 
 /** All posts for the selected brand, newest first, with their latest brand score. */
-export async function GET() {
+export const GET = withSession(async () => {
   await connection();
   try {
     const brand = await getBrandRow();
@@ -24,4 +25,4 @@ export async function GET() {
   } catch (e) {
     return serverError(e, "posts");
   }
-}
+}, "posts");

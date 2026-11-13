@@ -1,8 +1,10 @@
+import { withSession } from "@/lib/session";
 import { z } from "zod";
 import { can, whoCan } from "@/lib/roles";
 import { actorSchema, clientId, fail, json, postInputSchema, readJson, roleSchema, serverError } from "@/lib/api";
 import { addHistory, db, getBrandContext, getBrandContextForBrandId, type BrandContext } from "@/lib/db";
 import { runReview } from "@/lib/review/run-review";
+import { useWorkspaceAiKey } from "@/lib/secrets";
 import type { PostInput } from "@/lib/types";
 
 export const maxDuration = 60;
@@ -16,9 +18,11 @@ const bodySchema = z.object({
 });
 
 /** Check a post: creates it (first check) or updates it (re-check), runs the review and saves the result. */
-export async function POST(req: Request) {
+export const POST = withSession(async (req, _ctx, me) => {
   const body = await readJson(req, bodySchema);
   if (!body.ok) return body.res;
+  body.data.role = me.role(body.data.role);
+  body.data.actor = me.actor(body.data.actor);
   const { post_id, sample_id, role, actor } = body.data;
   if (!can(role, "check_posts")) return fail(`Only ${whoCan("check_posts")} writes and checks posts. Switch to Creator to check one.`, 403);
   const input = body.data.input as PostInput;
@@ -59,6 +63,7 @@ export async function POST(req: Request) {
     }
 
     if (!ctx) throw new Error("No brand for this post");
+    await useWorkspaceAiKey(me.workspace.id);
     const origin = new URL(req.url).origin;
     const result = await runReview(input, ctx, { origin, clientId: clientId(req) });
 
@@ -95,4 +100,4 @@ export async function POST(req: Request) {
   } catch (e) {
     return serverError(e, "review");
   }
-}
+}, "review");

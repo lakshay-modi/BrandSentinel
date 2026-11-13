@@ -1,9 +1,10 @@
+import { withSession } from "@/lib/session";
 import { connection } from "next/server";
 import { getBrandContext, listBrands } from "@/lib/db";
 import { json, serverError } from "@/lib/api";
 import { todayIST } from "@/lib/checks/text-utils";
 
-export async function GET() {
+export const GET = withSession(async () => {
   await connection();
   try {
     const [ctx, brands] = await Promise.all([getBrandContext(), listBrands()]);
@@ -11,4 +12,4 @@ export async function GET() {
   } catch (e) {
     return serverError(e, "brand");
   }
-}
+}, "brand");

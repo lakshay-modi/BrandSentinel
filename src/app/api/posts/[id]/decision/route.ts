@@ -1,3 +1,4 @@
+import { withSession } from "@/lib/session";
 import { z } from "zod";
 import { actorSchema, fail, json, readJson, roleSchema, serverError } from "@/lib/api";
 import { addHistory, db } from "@/lib/db";
@@ -16,10 +17,12 @@ const bodySchema = z
   .refine((b) => b.action !== "disagree" || (b.reason && b.reason.length >= 3), { message: "Say why you disagree (a few words is enough)", path: ["reason"] });
 
 /** Record a human decision on one finding: accept the fix, edit it, or disagree with a reason. */
-export async function POST(req: Request, ctx: RouteContext<"/api/posts/[id]/decision">) {
+export const POST = withSession<RouteContext<"/api/posts/[id]/decision">>(async (req, ctx, me) => {
   const { id } = await ctx.params;
   const body = await readJson(req, bodySchema);
   if (!body.ok) return body.res;
+  body.data.role = me.role(body.data.role);
+  body.data.actor = me.actor(body.data.actor);
   const b = body.data;
   try {
     if (!can(b.role, "decide_findings")) return fail(`Only ${whoCan("decide_findings")} accepts, edits or disagrees with problems.`, 403);
@@ -48,4 +51,4 @@ export async function POST(req: Request, ctx: RouteContext<"/api/posts/[id]/deci
   } catch (e) {
     return serverError(e, "posts/[id]/decision");
   }
-}
+}, "posts/[id]/decision");
