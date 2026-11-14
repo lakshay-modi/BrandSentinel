@@ -38,6 +38,7 @@ export const POST = withSession(async (req, _ctx, me) => {
       partner: input.partner,
       caption: input.caption,
       images: input.images,
+      video: input.video ?? null,
       updated_at: new Date().toISOString(),
     };
 

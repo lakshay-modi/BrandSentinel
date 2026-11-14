@@ -30,7 +30,9 @@ export function runVisualChecks(input: PostInput, rules: Map<string, Rule>, bran
     const location: Location = `image ${i + 1}`;
     const a = img.analysis;
 
-    if (alt?.status === "approved" && !img.alt_text.trim()) {
+    // a video frame is not an image people see on its own: no alt text or palette check, only its text
+    const frame = typeof img.t === "number";
+    if (alt?.status === "approved" && !frame && !img.alt_text.trim()) {
       out.push({
         ...base(alt, location),
         quotes: [],
@@ -64,7 +66,7 @@ export function runVisualChecks(input: PostInput, rules: Map<string, Rule>, bran
       }
     }
 
-    if (vis?.status === "approved") {
+    if (vis?.status === "approved" && !frame) {
       const tol = brand.palette_tolerance ?? 40;
       const off = a.dominant
         .filter((d) => d.share >= MIN_SHARE)

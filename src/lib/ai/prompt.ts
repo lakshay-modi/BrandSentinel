@@ -1,4 +1,5 @@
 // Builds the one AI request per post and defines the exact shape the answer must have.
+import { speechText } from "../video";
 import { z } from "zod";
 import type { Fact, Finding, PostInput, Rule } from "../types";
 
@@ -74,7 +75,8 @@ export function buildUserPrompt(opts: {
 }): string {
   const { brandName, input, rules, facts, codeFindings, today } = opts;
   const imageTexts = input.images.map((img, i) => `image ${i + 1}: text read from image = ${JSON.stringify(img.analysis?.ocr_text ?? "")}; alt text = ${JSON.stringify(img.alt_text)}`);
-  const allText = [input.caption, ...input.images.map((i) => i.analysis?.ocr_text ?? "")].join(" ");
+  const said = speechText(input.video);
+  const allText = [input.caption, ...input.images.map((i) => i.analysis?.ocr_text ?? ""), said].join(" ");
   const factLines = relevantFacts(facts, `${input.product} ${allText}`).map(
     (f) => `${f.id} | ${f.product} | ${f.fact} | valid until ${f.valid_until}${f.valid_until < today ? " (EXPIRED)" : ""}`,
   );
@@ -88,7 +90,10 @@ export function buildUserPrompt(opts: {
   return [
     `Brand: ${brandName}. Today: ${today}.`,
     `Post: channel=${input.channel}; post type=${input.post_type}; product=${input.product || "not given"}; paid/partner post=${input.partner ? "yes" : "no"}.`,
-    `<post>\nCaption: ${JSON.stringify(input.caption)}\n${imageTexts.length ? `Images:\n${imageTexts.join("\n")}` : "Images: none"}\n</post>`,
+    `<post>\nCaption: ${JSON.stringify(input.caption)}\n${imageTexts.length ? `Images:\n${imageTexts.join("\n")}` : "Images: none"}${said ? `\nSpeech (what is said in the video, one stretch per line): ${JSON.stringify(said)}` : ""}\n</post>`,
+    input.video
+      ? `This post is a video. The "images" are frames from it, in time order: do not write alt text for them. Check the speech like the caption (claims, tone, banned words), and use location "speech" for problems in it, with the quote copied exactly from the speech. Spoken words can't be edited, so give "fix": null and say in "fix_advice" what to say instead.`
+      : "",
     `Rules:\n${ruleLines.join("\n")}`,
     `Fact Bank:\n${factLines.join("\n")}`,
     `Already found by code checks:\n${codeLines.join("\n") || "(none)"}`,

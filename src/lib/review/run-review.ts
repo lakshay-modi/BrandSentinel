@@ -1,7 +1,7 @@
 // The full review pipeline: fast checks → AI checks → proof check → score.
 import "server-only";
 import { createHash } from "node:crypto";
-import type { PostInput, ReviewResult } from "../types";
+import type { Finding, PostInput, ReviewResult } from "../types";
 import { runCodeChecks } from "../checks/code-checks";
 import { runVisualChecks } from "../checks/visual-checks";
 import { todayIST } from "../checks/text-utils";
@@ -38,6 +38,13 @@ async function imagePart(src: string, origin: string): Promise<AiPart | null> {
   return null;
 }
 
+/** Spoken words can't be edited in place: a fix for something said becomes advice to re-record or cut it. */
+function spokenFix(f: Finding): Finding {
+  if (f.location !== "speech" || f.fix.kind === "manual") return f;
+  const to = f.fix.kind === "replace" ? f.fix.pairs.map((p) => p.to).filter(Boolean).join(" … ") : "";
+  return { ...f, fix: { kind: "manual", advice: to ? `This is said in the video, so re-record or cut that line. Say instead: “${to}”.` : "This is said in the video, so re-record or cut that line." } };
+}
+
 export async function runReview(input: PostInput, ctx: BrandContext, opts: { origin: string; clientId: string }): Promise<ReviewOutput> {
   const rules = new Map(ctx.rules.map((r) => [r.id, r]));
   const today = todayIST();
@@ -63,7 +70,8 @@ export async function runReview(input: PostInput, ctx: BrandContext, opts: { ori
           // each company's answers are cached apart (the demo brands keep their earlier cache)
           ...(ctx.brand.settings.protected ? {} : { brand: ctx.brand.id }),
           factsHash,
-          input: { ...input, images: input.images.map((i) => ({ alt: i.alt_text, ocr: i.analysis?.ocr_text ?? "" })) },
+          // (a post without a video has no "video" key here, so earlier cached answers still match)
+          input: { ...input, images: input.images.map((i) => ({ alt: i.alt_text, ocr: i.analysis?.ocr_text ?? "" })), video: input.video ? input.video.transcript.map((s) => s.text) : undefined },
           code: code.map((f) => f.id),
         }),
       )
@@ -86,12 +94,13 @@ export async function runReview(input: PostInput, ctx: BrandContext, opts: { ori
           alt_text: redactor.redact(img.alt_text),
           analysis: img.analysis && { ...img.analysis, ocr_text: redactor.redact(img.analysis.ocr_text) },
         })),
+        video: input.video && { ...input.video, transcript: input.video.transcript.map((s) => ({ ...s, text: redactor.redact(s.text) })) },
       };
       const aiCode = code.map((f) => ({ ...f, quotes: f.quotes.map((q) => redactor.redact(q)) }));
       redacted = redactor.map.size;
       const parts: AiPart[] = [{ text: buildUserPrompt({ brandName: ctx.brand.name, input: aiInput, rules: ctx.rules, facts: ctx.facts, codeFindings: aiCode, today }) }];
       for (const [i, img] of input.images.entries()) {
-        if (img.alt_text.trim()) continue; // the AI only needs to see images that need alt text
+        if (img.alt_text.trim() || typeof img.t === "number") continue; // the AI only needs to see images that need alt text (never video frames)
         const part = await imagePart(img.src, opts.origin);
         if (part) parts.push({ text: `Image ${i + 1}:` }, part);
       }
@@ -115,7 +124,7 @@ export async function runReview(input: PostInput, ctx: BrandContext, opts: { ori
 
   // 3. proof check: only AI findings with a real rule, quote and fact survive
   const proof = ai ? proofCheck(ai, code, input, rules, ctx.facts) : { findings: code, ask_human: [], dropped: 0 };
-  const findings = assignIds(proof.findings);
+  const findings = assignIds(proof.findings.map(spokenFix));
   const { score, band } = brandScore(findings);
 
   return {

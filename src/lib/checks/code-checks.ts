@@ -1,4 +1,5 @@
 // Fast checks: plain code, no AI. Same input always gives the same result.
+import { speechText } from "../video";
 import type { BrandSettings, Fact, Finding, Fix, Location, PostInput, Rule } from "../types";
 import { clauseAround, comparisonAround, emojis, escapeRegex, findAll, findPhrases, formatDate, hashtags, phraseRegex, type Match } from "./text-utils";
 import { extractNumbers, sameNumber } from "./numbers";
@@ -28,8 +29,8 @@ interface Hit {
 
 const DEFAULT_ACRONYMS = ["MRP", "FSSAI", "ASCI", "CCPA", "GST", "UPI", "COD", "EMI", "FAQ", "USA", "UK", "AI", "ID", "OTP", "QR", "DM", "IST"];
 
-/** Text sources: the caption plus the text read from each image. */
-function sources(input: PostInput): Source[] {
+/** Written text: the caption plus the text read from each image (a carousel's slides, or a video's frames). */
+function writtenSources(input: PostInput): Source[] {
   const out: Source[] = [{ location: "caption", text: input.caption }];
   input.images.forEach((img, i) => {
     const t = img.analysis?.ocr_text?.trim();
@@ -125,7 +126,12 @@ export function offerFacts(facts: Fact[]) {
 export function runCodeChecks(ctx: CheckContext): Finding[] {
   const { input, brand, facts, today } = ctx;
   const out: Finding[] = [];
-  const srcs = sources(input);
+  // Rules about wording and claims also apply to what is SAID in a video. Rules about how text is written
+  // (capitals, spelling, units, prices, name spelling) apply to written text only: a transcript's spelling
+  // is the transcriber's, not the speaker's.
+  const written = writtenSources(input);
+  const said = speechText(input.video);
+  const srcs: Source[] = said ? [...written, { location: "speech", text: said }] : written;
   const caption = srcs[0];
   const allText = srcs.map((s) => s.text).join("\n");
   const offers = offerFacts(facts);
@@ -164,7 +170,7 @@ export function runCodeChecks(ctx: CheckContext): Finding[] {
 
   if ((r = activeRule(ctx, "TONE-03"))) {
     const allowed = new Set<string>([...(r.params.allowed_caps ?? []), ...DEFAULT_ACRONYMS, ...offers.map((o) => o.code)]);
-    for (const s of srcs) {
+    for (const s of written) {
       const caps = findAll(s.text, /(?<![#@\w&])[A-Z]{2,}(?![\w&])/g).filter((m) => !allowed.has(m.text) && !brand.product_misspellings.includes(m.text));
       report(out, r, s, caps.map((m) => ({
         quote: m.text,
@@ -206,7 +212,7 @@ export function runCodeChecks(ctx: CheckContext): Finding[] {
       }
       return closestName(b, brand.products);
     };
-    for (const s of srcs) {
+    for (const s of written) {
       const listed = brand.product_misspellings.flatMap((w) => findAll(s.text, new RegExp(`(?<![#@\\w.])${escapeRegex(w)}(?!\\w)`, "g")));
       const generic = isOatvia ? findAll(s.text, /(?<![#@\w./])(?:oat[\s-]?via|pro[\s-]?bar)(?!\w|\.in\b)/gi).filter((m) => m.text !== "Oatvia" && m.text !== "ProBar") : [];
       const seen = new Set<number>();
@@ -231,7 +237,7 @@ export function runCodeChecks(ctx: CheckContext): Finding[] {
 
   if ((r = activeRule(ctx, "WORD-03"))) {
     const rep: Record<string, string> = r.params.replacements ?? {};
-    for (const s of srcs)
+    for (const s of written)
       report(out, r, s, findPhrases(s.text, Object.keys(rep)).map((m) => {
         const to = keepCase(m.text, rep[m.text.toLowerCase()]);
         return { quote: m.text, message: `US spelling “${m.text}”: write “${to}”.`, to };
@@ -239,7 +245,7 @@ export function runCodeChecks(ctx: CheckContext): Finding[] {
   }
 
   if ((r = activeRule(ctx, "WORD-04"))) {
-    for (const s of srcs) {
+    for (const s of written) {
       const ms = [...findAll(s.text, /\b(?:Rs\.?|INR)\s*\d[\d,]*/gi), ...findAll(s.text, /₹\s+\d[\d,]*/g)];
       report(out, r, s, ms.map((m) => {
         const to = "₹" + m.text.replace(/^(?:Rs\.?|INR|₹)\s*/i, "");
@@ -249,7 +255,7 @@ export function runCodeChecks(ctx: CheckContext): Finding[] {
   }
 
   if ((r = activeRule(ctx, "WORD-05"))) {
-    for (const s of srcs) {
+    for (const s of written) {
       const ms = [...findAll(s.text, /\b\d+(?:\.\d+)?\s?(?:gms|gm|grams|gram)\b/gi), ...findAll(s.text, /\b\d+(?:\.\d+)?(?:g|mg|kg|ml|kcal)\b/gi)];
       report(out, r, s, ms.map((m) => {
         const [, n, u = ""] = m.text.match(/^(\d+(?:\.\d+)?)\s?([a-z]+)$/i) ?? [];

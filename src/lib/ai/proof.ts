@@ -2,11 +2,13 @@
 // A finding survives only if its rule exists, its quote really is in the post, and every cited fact exists.
 import type { AskHuman, Fact, Finding, Fix, Location, PostInput, Rule } from "../types";
 import type { AiResponse } from "./prompt";
+import { speechText } from "../video";
 
 const norm = (s: string) => s.toLowerCase().replace(/[\u2018\u2019]/g, "'").replace(/[\u201c\u201d]/g, '"').replace(/\s+/g, " ").trim();
 
 function textAt(input: PostInput, location: string): string | null {
   if (location === "caption") return input.caption;
+  if (/^speech/i.test(location)) return speechText(input.video) || null;
   const m = location.match(/^image\s*(\d+)$/i);
   if (!m) return null;
   return input.images[Number(m[1]) - 1]?.analysis?.ocr_text ?? null;
@@ -15,10 +17,10 @@ function textAt(input: PostInput, location: string): string | null {
 /** Finds which location contains the quote (prefers the one the AI said). */
 function locate(input: PostInput, said: string, quote: string): Location | null {
   const q = norm(quote);
-  const candidates = [said, "caption", ...input.images.map((_, i) => `image ${i + 1}`)];
+  const candidates = [said, "caption", ...input.images.map((_, i) => `image ${i + 1}`), "speech"];
   for (const loc of candidates) {
     const t = textAt(input, loc);
-    if (t && norm(t).includes(q)) return (loc === "caption" ? "caption" : `image ${Number(loc.replace(/\D/g, ""))}`) as Location;
+    if (t && norm(t).includes(q)) return (loc === "caption" ? "caption" : /^speech/i.test(loc) ? "speech" : `image ${Number(loc.replace(/\D/g, ""))}`) as Location;
   }
   return null;
 }
