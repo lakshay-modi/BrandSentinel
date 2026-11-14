@@ -168,7 +168,7 @@ function RoleGuide({ open, onClose }: { open: boolean; onClose: () => void }) {
 function ActingAs() {
   const { role, setRole } = useRole();
   return (
-    <label className="flex items-center gap-1.5 text-[13px]">
+    <label className="acting-as flex items-center gap-1.5 text-[13px]">
       <span className="hidden text-ink-soft sm:inline">Acting as</span>
       <select
         value={role}
@@ -331,7 +331,12 @@ function AccountMenu({ me, others, busy, setBusy, signOut }: { me: Me; others: M
           </div>
         )}
         {!me.demo_account && (
-          <button type="button" onClick={() => setPwOpen(true)} className="mt-2 font-semibold text-ink underline-offset-4 hover:underline">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.currentTarget.closest("details")?.removeAttribute("open");
+              setPwOpen(true);
+            }} className="mt-2 font-semibold text-ink underline-offset-4 hover:underline">
             Change password
           </button>
         )}

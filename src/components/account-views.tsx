@@ -5,7 +5,7 @@ import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import type { Role } from "@/lib/types";
 import { ROLE_INFO } from "@/lib/roles";
 import { send } from "@/lib/client/send";
-import { afterSignIn, restartApp, useMeState } from "@/lib/client/use-me";
+import { afterSignIn, restartApp, useMe, useMeState } from "@/lib/client/use-me";
 import { ROLE_DOT } from "./role-note";
 import { Button, ErrorNote, PageSkeleton } from "./ui";
 
@@ -391,6 +391,7 @@ export function WelcomeView() {
 
 /** A reset link from a brand manager: choose a new password, then you are signed in. */
 export function ResetView({ token }: { token: string }) {
+  const me = useMe();
   const [email, setEmail] = useState<string | null>(null);
   const [linkError, setLinkError] = useState<string | null>(null);
   const [password, setPassword] = useState("");
@@ -447,6 +448,11 @@ export function ResetView({ token }: { token: string }) {
           </Card>
         ) : (
           <Card title={email ? `For ${email}` : "Your account"} lead="Your brand manager made this link for you. It works once, for 24 hours.">
+            {me?.signed_in && me.email && email && me.email.toLowerCase() !== email.toLowerCase() && (
+              <p className="mb-3.5 rounded-lg bg-med-bg px-3 py-2 text-[13px] text-ink">
+                You are signed in as {me.email} on this device. Saving signs you out of that account and into {email}.
+              </p>
+            )}
             <form onSubmit={submit} className="grid gap-3.5" noValidate>
               <Field label="New password" hint="At least 8 characters.">
                 <input className="field" type="password" autoComplete="new-password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} />
