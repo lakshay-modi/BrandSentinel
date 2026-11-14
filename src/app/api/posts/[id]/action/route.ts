@@ -1,8 +1,10 @@
 import { withSession } from "@/lib/session";
+import { after } from "next/server";
 import { z } from "zod";
 import { actorSchema, fail, json, readJson, ROLE_LABEL, roleSchema, serverError } from "@/lib/api";
 import { addHistory, db } from "@/lib/db";
 import { can } from "@/lib/roles";
+import { notify, type HookEvent, type HookPost } from "@/lib/hooks";
 import { needsExpert } from "@/lib/review/score";
 import type { Finding } from "@/lib/types";
 
@@ -27,6 +29,16 @@ export const POST = withSession<RouteContext<"/api/posts/[id]/action">>(async (r
     const { data: post } = await db().from("posts").select("*").eq("id", id).maybeSingle();
     if (!post) return fail("Post not found", 404);
     const now = new Date().toISOString();
+    const origin = new URL(req.url).origin;
+    /** After the answer is sent: tell the webhook and Slack what happened (never slows the person down). */
+    const tell = (event: HookEvent, status: string, waiting: HookPost["waiting_for"]) =>
+      after(async () => {
+        const [{ data: brand }, { data: last }] = await Promise.all([
+          me.db.from("brands").select("name").eq("id", post.brand_id).maybeSingle(),
+          me.db.from("reviews").select("score").eq("post_id", id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+        ]);
+        await notify(me.workspace, event, { id, title: post.title || "Untitled post", channel: post.channel, status, waiting_for: waiting, created_by: post.created_by ?? "", brand: brand?.name ?? "", score: last?.score ?? null }, origin);
+      });
 
     if (action === "confirm_goal") {
       if (!can(role, "check_posts")) return fail("Only the creator confirms the post's goal.", 403);
@@ -50,25 +62,29 @@ export const POST = withSession<RouteContext<"/api/posts/[id]/action">>(async (r
         why: expert ? (disputed ? "The creator disagreed with a finding." : "It has open claim or high-severity problems.") : "No open claims or serious problems.",
         comment,
       })]);
+      tell("post.submitted", "in_review", assigned);
       return json({ ok: true, assigned_role: assigned });
     }
 
     // approve / request_changes
     if (post.status !== "in_review") return fail("This post isn't waiting for review.", 409);
-    if (role !== post.assigned_role) return fail(`This post is waiting for the ${ROLE_LABEL[post.assigned_role as keyof typeof ROLE_LABEL] ?? "reviewer"}. Switch role to act on it.`, 403);
+    if (role !== post.assigned_role) return fail(`This post is waiting for the ${ROLE_LABEL[post.assigned_role as keyof typeof ROLE_LABEL] ?? "reviewer"}. ${me.canSwitchRole ? "Switch role to act on it." : "Only they can act on it now."}`, 403);
 
     if (action === "request_changes") {
       if (!comment || comment.length < 3) return fail("Tell the creator what to change.");
       await Promise.all([db().from("posts").update({ status: "changes_requested", assigned_role: null, expert_approved: false, updated_at: now }).eq("id", id), addHistory(id, "requested changes", role, actor, { comment })]);
+      tell("post.changes_requested", "changes_requested", "creator");
       return json({ ok: true });
     }
 
     if (role === "expert") {
       await Promise.all([db().from("posts").update({ expert_approved: true, assigned_role: "brand_manager", updated_at: now }).eq("id", id), addHistory(id, "expert approved", role, actor, { comment, next: "Brand manager" })]);
+      tell("post.expert_approved", "in_review", "brand_manager");
       return json({ ok: true, assigned_role: "brand_manager" });
     }
     if (post.needs_expert && !post.expert_approved) return fail("The expert reviewer must approve first.", 409);
     await Promise.all([db().from("posts").update({ status: "approved", assigned_role: null, updated_at: now }).eq("id", id), addHistory(id, "approved", role, actor, { comment })]);
+    tell("post.approved", "approved", null);
     return json({ ok: true, status: "approved" });
   } catch (e) {
     return serverError(e, "posts/[id]/action");
