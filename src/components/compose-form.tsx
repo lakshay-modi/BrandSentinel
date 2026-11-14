@@ -8,7 +8,7 @@ import { SAMPLE_HINT, SAMPLE_LABEL, samplePosts, type SamplePost } from "@/lib/d
 import type { Channel, PostImage, PostInput, SpeechSegment } from "@/lib/types";
 import { attachVideo, holdVideo, readVideo, VideoError, type VideoReading } from "@/lib/client/video";
 import { fmtTime, MAX_SLIDES, MAX_VIDEO_SECONDS } from "@/lib/video";
-import { Button, ErrorNote } from "./ui";
+import { Button, ErrorNote, possessive } from "./ui";
 import { useToast } from "./toast";
 import { send, toBase64 } from "@/lib/client/send";
 import { LivePreview } from "./live-preview";
@@ -102,8 +102,11 @@ function VideoPanel({ video, onChange, onRemove }: { video: DraftVideo; onChange
 export function ComposeForm() {
   const router = useRouter();
   const { role, name, setRole, fixed } = useRole();
-  const useMeDemo = !!useMe()?.demo_account;
-  const writer = can(role, "check_posts");
+  const meNow = useMe();
+  const useMeDemo = !!meNow?.demo_account;
+  // a brand manager of a real workspace may cover the creator role (for example a one-person team)
+  const covers = !!meNow?.can_switch && !can(role, "check_posts");
+  const writer = can(role, "check_posts") || covers;
   const [input, setInput] = useState<PostInput>(EMPTY);
   const [images, setImages] = useState<DraftImage[]>([]);
   const [sampleId, setSampleId] = useState<string | null>(null);
@@ -330,7 +333,8 @@ export function ComposeForm() {
         : undefined;
       if (video) prepared.push(...video.reading.frames.map((f) => ({ src: f.src, alt_text: "", analysis: f.analysis, t: f.t, t_end: f.t_end })));
       setBusy("Checking against the rules and the Fact Bank…");
-      const res = await api.review({ sample_id: sampleId ?? undefined, role, actor: name, input: { ...input, product, images: prepared, ...(videoInput ? { video: videoInput } : {}) } });
+      if (covers) setRole("creator"); // act as the creator for this post, so its page opens ready to fix and submit
+      const res = await api.review({ sample_id: sampleId ?? undefined, role: covers ? "creator" : role, actor: name, input: { ...input, product, images: prepared, ...(videoInput ? { video: videoInput } : {}) } });
       if (video) attachVideo(res.post_id);
       void refreshPosts();
       router.push(`/posts/${res.post_id}`);
@@ -352,7 +356,7 @@ export function ComposeForm() {
         </h1>
         <p className="mt-2 max-w-2xl text-[16px] leading-relaxed text-ink-soft">
           Paste a caption and add images, a carousel or a short video. Every problem comes with the rule or approved fact that proves it, and a fix that keeps your message.
-          {brandData && <> Checking against <strong className="font-semibold text-ink">{brandData.brand.name}</strong>&apos;s Rulebook.</>}
+          {brandData && <> Checking against <strong className="font-semibold text-ink">{possessive(brandData.brand.name)}</strong> Rulebook.</>}
         </p>
 
         <div
