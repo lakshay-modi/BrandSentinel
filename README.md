@@ -272,6 +272,12 @@ Other commands: `npm test` (82 tests), `npm run lint`, `npm run build`.
 - Webhook and Slack: signatures, blocked private addresses, message text.
 - Fixes, fixing text in images, document text, insights and API input checks.
 
+**Extension and Google Docs add-on (`npm run test:integrations`, needs Playwright with Chromium):**
+
+- The real extension runs in Chromium: the popup connects with the demo token and lists the brands, the checker marks 6 problems in typed text, **Apply fix** changes the text box, it re-checks while you keep typing, and a wrong token is reported in plain words.
+- The real Docs add-on code and sidebar run with stand-ins for Google's services: it checks the whole document or just the selection, applies a fix in the document, re-checks while you write, and refuses a non-HTTPS server address.
+- Both use a stand-in API that replays answers recorded from the live API (`tests/integrations/recorded-api.json`), so they run on any machine.
+
 **Database rules:** tested in SQL as three different people in two workspaces: a manager sees only their own workspace's brands, posts and team; a creator can't change brands, promote themselves, or read or delete another workspace's posts.
 
 **By hand, on the live app (14 November):**
@@ -287,6 +293,8 @@ Other commands: `npm test` (82 tests), `npm run lint`, `npm run build`.
 - Submit three times at once and approve twice at once: each took effect once.
 - The public check API with the demo token and with a workspace's own token; a wrong token is refused.
 - Bad input (unknown channel, empty caption, broken request, bad post address) is refused with a plain message.
+- Webhook **Send a test** to a public request inbox: delivered and signed; the signature was checked against the secret, and a changed body fails. Approving a post sent `post.approved` with the post and its link. A private or `http://` address and a non-Slack address are refused.
+- Slack messages are sent and logged for submitted, expert approved and approved (tested against an invalid Slack address, so the log shows Slack's 404).
 
 ## Roadmap
 
