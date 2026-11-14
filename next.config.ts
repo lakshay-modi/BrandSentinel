@@ -11,6 +11,8 @@ const csp = [
   "style-src 'self' 'unsafe-inline'",
   "font-src 'self'",
   "img-src 'self' data: blob:",
+  // a video is played from the visitor's own file (a blob: address); nothing is loaded from another site
+  "media-src 'self' blob:",
   "connect-src 'self' blob: data:",
   "object-src 'none'",
   "base-uri 'self'",
