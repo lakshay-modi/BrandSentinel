@@ -24,7 +24,7 @@ export const POST = withSession(async (req, _ctx, me) => {
   body.data.role = me.role(body.data.role);
   body.data.actor = me.actor(body.data.actor);
   const { post_id, sample_id, role, actor } = body.data;
-  if (!can(role, "check_posts")) return fail(`Only ${whoCan("check_posts")} writes and checks posts. Switch to Creator to check one.`, 403);
+  if (!can(role, "check_posts")) return fail(`Only ${whoCan("check_posts")} writes and checks posts.${me.canSwitchRole ? " Switch to Creator to check one." : ""}`, 403);
   const input = body.data.input as PostInput;
 
   try {

@@ -368,7 +368,7 @@ export function BrandsView() {
               {[
                 ["/rulebook", "Add a rulebook", "Upload the brand's guidelines PDF. The AI drafts rules; you approve them."],
                 ["/facts", "Add facts", "The numbers and claims posts may use, each with a source and an end date."],
-                ["/", "Check a post", "Switch to Creator and check a post against the new rules."],
+                ["/", "Check a post", "As a creator, check a post against the new rules."],
               ].map(([href, t, d], i) => (
                 <li key={href}>
                   <Link href={href} onClick={() => setCreating(false)} className="flex gap-3 rounded-xl border border-line p-3 hover:border-ink-faint hover:bg-paper/60">

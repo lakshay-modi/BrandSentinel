@@ -14,7 +14,7 @@ import { RoleNote } from "./role-note";
 const BAND_CLS: Record<string, string> = { green: "text-pass", amber: "text-med", red: "text-high" };
 
 export function QueueList() {
-  const { role, name } = useRole();
+  const { role, name, fixed } = useRole();
   const { rows, error } = usePosts(0);
   const [tab, setTab] = useState<"mine" | "all">("mine");
   const toast = useToast();
@@ -64,7 +64,7 @@ export function QueueList() {
         <div className="rounded-xl border border-dashed border-line-strong bg-surface p-10 text-center text-[14px]">
           <p className="text-[16px] font-semibold">Nothing waiting for you</p>
           <p className="mt-1 text-ink-soft">
-            {role === "creator" ? "Check a new post to start." : "When a creator submits a post that needs you, it appears here. Switch to Creator to submit one."}
+            {role === "creator" ? "Check a new post to start." : `When a creator submits a post that needs you, it appears here.${fixed ? "" : " Switch to Creator to submit one."}`}
           </p>
           <div className="mt-4 flex justify-center gap-2">
             <Link href="/" className="rounded-lg bg-ink px-4 py-2 font-semibold text-white">

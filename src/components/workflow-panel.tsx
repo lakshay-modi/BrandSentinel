@@ -5,7 +5,7 @@ import type { DecisionRow, HistoryRow, PostRow, ReviewRow } from "@/lib/client/a
 import { needsExpert } from "@/lib/review/score";
 import type { Role } from "@/lib/types";
 import { Button, ErrorNote, Panel, timeAgo } from "./ui";
-import { ROLE_LABEL } from "./role-provider";
+import { ROLE_LABEL, useRole } from "./role-provider";
 
 export function WorkflowPanel({
   className = "",
@@ -24,6 +24,7 @@ export function WorkflowPanel({
   unsaved: boolean;
   onAction: (action: "submit" | "approve" | "request_changes", comment?: string) => Promise<void>;
 }) {
+  const { fixed } = useRole();
   const [comment, setComment] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -94,7 +95,7 @@ export function WorkflowPanel({
               </Button>
             </>
           ) : (
-            <p className="text-ink-soft">Waiting for the creator to fix and submit this post. Switch to Creator at the top to act as the creator.</p>
+            <p className="text-ink-soft">Waiting for the creator to fix and submit this post.{fixed ? "" : " Switch to Creator at the top to act as the creator."}</p>
           )}
         </div>
       )}
@@ -129,7 +130,7 @@ export function WorkflowPanel({
               </div>
             </>
           ) : (
-            <p className="text-ink-soft">Switch to {ROLE_LABEL[post.assigned_role]} at the top to review it.</p>
+            <p className="text-ink-soft">{fixed ? `Only the ${ROLE_LABEL[post.assigned_role]} can act on it now.` : `Switch to ${ROLE_LABEL[post.assigned_role]} at the top to review it.`}</p>
           )}
         </div>
       )}
