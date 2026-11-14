@@ -57,7 +57,7 @@ export function computeInsights(input: InsightInput): Insights {
   }
 
   const gaps: Insights["gaps"] = [];
-  for (const r of latests) for (const h of r.ask_human) if (gaps.length < 8 && !gaps.some((g) => g.note === h.note)) gaps.push({ quote: h.quote, note: h.note });
+  for (const r of latests) for (const h of r.ask_human) if (gaps.length < 8 && !gaps.some((g) => g.note === h.note)) gaps.push({ quote: h.quote, note: tidy(h.note) });
 
   const soon = new Date(input.today + "T00:00:00Z");
   soon.setUTCDate(soon.getUTCDate() + 30);
@@ -97,4 +97,11 @@ export function computeInsights(input: InsightInput): Insights {
       .map((f) => ({ id: f.id, fact: f.fact, valid_until: f.valid_until, expired: f.valid_until < input.today }))
       .sort((a, b) => a.valid_until.localeCompare(b.valid_until)),
   };
+}
+
+/** An older note may hold the AI thinking aloud: keep its first two sentences. */
+function tidy(note: string): string {
+  const parts = note.match(/[^.!?]+[.!?]+(\s|$)/g);
+  const out = (parts ? parts.slice(0, 2).join("") : note).trim();
+  return out.length > 260 ? `${out.slice(0, 259).trimEnd()}…` : out;
 }

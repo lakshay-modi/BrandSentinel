@@ -6,6 +6,12 @@ import { speechText } from "../video";
 
 const norm = (s: string) => s.toLowerCase().replace(/[\u2018\u2019]/g, "'").replace(/[\u201c\u201d]/g, '"').replace(/\s+/g, " ").trim();
 
+/** The AI's first sentence only: when it is unsure it can ramble, and a person only needs the point. */
+export function brief(text: string, max = 180): string {
+  const first = (text.trim().match(/^[\s\S]*?[.!?](?=\s|$)/)?.[0] ?? text.trim()).replace(/\s+/g, " ");
+  return first.length > max ? `${first.slice(0, max - 1).trimEnd()}…` : first;
+}
+
 function textAt(input: PostInput, location: string): string | null {
   if (location === "caption") return input.caption;
   if (/^speech/i.test(location)) return speechText(input.video) || null;
@@ -86,7 +92,7 @@ export function proofCheck(ai: AiResponse, codeFindings: Finding[], input: PostI
       }
       dropped++;
       const where = quote ? locate(input, a.location, quote) : null;
-      if (quote && where) ask.push({ quote, location: where, note: `The AI suggested a problem under “${a.rule_id}”, which isn't an approved AI-checked rule. ${a.message}` });
+      if (quote && where) ask.push({ quote, location: where, note: `The AI suggested a problem under “${a.rule_id}”, which isn't an approved AI-checked rule. ${brief(a.message)}` });
       continue;
     }
     // 1b. the rule must cover this kind of post (its channel, or paid/partner posts only)

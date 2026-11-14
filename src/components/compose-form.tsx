@@ -185,7 +185,7 @@ export function ComposeForm() {
       if (reading.audio) {
         setVideoBusy("Turning the speech into text…");
         try {
-          const res = await send<{ segments: SpeechSegment[] }>("/api/transcribe", "POST", { audio: reading.audio, duration: reading.duration });
+          const res = await send<{ segments: SpeechSegment[] }>("/api/transcribe", "POST", { audio: reading.audio, duration: reading.duration, names: [brandData?.brand.name, ...(settings?.products ?? [])].filter(Boolean) });
           transcript = res.segments;
           source = transcript.length ? "ai" : "none";
           if (!transcript.length) note = "No speech was found in the sound. If someone does speak, type what they say below.";

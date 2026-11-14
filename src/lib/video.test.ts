@@ -119,3 +119,11 @@ describe("video posts", () => {
     expect(plain).not.toContain("video");
   });
 });
+
+describe("notes for a human", () => {
+  it("keeps only the AI's first sentence", async () => {
+    const { brief } = await import("./ai/proof");
+    expect(brief("Only 3 emojis are allowed. Wait, let's count: one, two. Actually no.")).toBe("Only 3 emojis are allowed.");
+    expect(brief("x".repeat(400)).length).toBe(180);
+  });
+});
