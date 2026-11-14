@@ -4,6 +4,7 @@
 import "server-only";
 import { createHmac } from "node:crypto";
 import { cookies } from "next/headers";
+import { connection } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { adminDb, DEMO_WORKSPACE, NoBrandError, requestScope, userDb } from "./db";
 import { fail, serverError } from "./api";
@@ -322,6 +323,8 @@ type Handler<C> = (req: Request, ctx: C, me: Session) => Promise<Response>;
  */
 export function withSession<C = unknown>(handler: Handler<C>, where = "api"): (req: Request, ctx: C) => Promise<Response> {
   return async (req, ctx) => {
+    // every route depends on who is asking, so none of them can be prepared ahead of time
+    await connection();
     let me: Session;
     try {
       me = await getSession();
