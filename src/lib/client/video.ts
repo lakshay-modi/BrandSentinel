@@ -206,17 +206,25 @@ export async function readVideo(file: File, onStatus: (text: string) => void): P
 
 // The video file a creator added, kept for this visit only so the post page can play it and jump to a moment.
 const players = new Map<string, string>();
-let pending: string | null = null;
+let pending: { url: string; file: File; sample: boolean } | null = null;
 
-/** Remember the file just added on the check page … */
-export function holdVideo(file: File) {
-  if (pending) URL.revokeObjectURL(pending);
-  pending = URL.createObjectURL(file);
+/** Remember the file just added on the check page … (`sample`: the public sample reel, which is never uploaded) */
+export function holdVideo(file: File, sample = false) {
+  if (pending) URL.revokeObjectURL(pending.url);
+  pending = { url: URL.createObjectURL(file), file, sample };
 }
-/** … and tie it to the post once it has been saved. */
+/** The public sample file to record with the post, if the held video is the sample reel. */
+export function heldSampleSrc(): string | undefined {
+  return pending?.sample ? "/demo/video/oatvia-probar-reel.mp4" : undefined;
+}
+/**
+ * … and tie it to the post once it has been saved. A video the creator added is then stored in the
+ * background, so reviewers on other devices can play it too.
+ */
 export function attachVideo(postId: string) {
   if (!pending) return;
-  players.set(postId, pending);
+  players.set(postId, pending.url);
+  if (!pending.sample) void storeVideo(postId, pending.file);
   pending = null;
 }
 export function setPostVideo(postId: string, file: File) {
@@ -226,4 +234,54 @@ export function setPostVideo(postId: string, file: File) {
 }
 export function postVideoUrl(postId: string): string | null {
   return players.get(postId) ?? null;
+}
+
+// ── Storing the video for reviewers (in the background, with progress the post page can show) ──────────
+export type StoreState = { state: "uploading"; percent: number } | { state: "done" } | { state: "failed"; reason: string };
+const stores = new Map<string, StoreState>();
+const storeListeners = new Set<() => void>();
+const setStore = (postId: string, s: StoreState) => {
+  stores.set(postId, s);
+  storeListeners.forEach((l) => l());
+};
+export function videoStoreState(postId: string): StoreState | null {
+  return stores.get(postId) ?? null;
+}
+export function onVideoStore(cb: () => void): () => void {
+  storeListeners.add(cb);
+  return () => storeListeners.delete(cb);
+}
+
+async function call(url: string, method: string, body: unknown) {
+  const res = await fetch(url, { method, headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error((data as { error?: string }).error ?? `Request failed (${res.status})`);
+  return data as Record<string, unknown>;
+}
+
+/** Upload straight to private storage with a one-time link, then ask the server to confirm it. */
+export async function storeVideo(postId: string, file: File): Promise<void> {
+  setStore(postId, { state: "uploading", percent: 0 });
+  try {
+    const type = file.type || (/\.webm$/i.test(file.name) ? "video/webm" : /\.mov$/i.test(file.name) ? "video/quicktime" : "video/mp4");
+    const { upload_url } = (await call(`/api/posts/${postId}/video`, "POST", { size: file.size, type })) as { upload_url: string };
+    await new Promise<void>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open("PUT", upload_url);
+      xhr.setRequestHeader("x-upsert", "true");
+      xhr.upload.onprogress = (e) => e.lengthComputable && setStore(postId, { state: "uploading", percent: Math.round((e.loaded / e.total) * 100) });
+      xhr.onload = () => (xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error(`Storage answered ${xhr.status}`)));
+      xhr.onerror = () => reject(new Error("The connection dropped during the upload"));
+      xhr.timeout = 10 * 60_000;
+      xhr.ontimeout = () => reject(new Error("The upload took too long"));
+      const form = new FormData();
+      form.append("cacheControl", "3600");
+      form.append("", new File([file], file.name, { type }));
+      xhr.send(form);
+    });
+    await call(`/api/posts/${postId}/video`, "PATCH", {});
+    setStore(postId, { state: "done" });
+  } catch (e) {
+    setStore(postId, { state: "failed", reason: e instanceof Error ? e.message : String(e) });
+  }
 }

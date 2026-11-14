@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useBrand } from "@/lib/client/use-brand";
 import { deleteLater, refreshPosts } from "@/lib/client/use-posts";
 import { useRouter } from "next/navigation";
@@ -13,12 +13,13 @@ import type { Fact, Finding, Goal, ImageAnalysis } from "@/lib/types";
 import { FindingCard } from "./finding-card";
 import { ProofText } from "./proof-text";
 import { findingTime, fmtTime, isFrame, whereLabel } from "@/lib/video";
-import { postVideoUrl, setPostVideo } from "@/lib/client/video";
+import { onVideoStore, postVideoUrl, setPostVideo, storeVideo, videoStoreState } from "@/lib/client/video";
 import { ScorePanel } from "./score-panel";
 import { HistoryList, WorkflowPanel } from "./workflow-panel";
 import { Button, CHANNEL_LABEL, ErrorNote, Panel, Skeleton, StatusTag } from "./ui";
 import { useToast } from "./toast";
 import { useRole } from "./role-provider";
+import { can } from "@/lib/roles";
 
 interface Data {
   post: PostRow;
@@ -88,10 +89,27 @@ export function PostWorkspace({ id }: { id: string }) {
   const [picked, setPicked] = useState<string | null>(null);
   const [active, setActive] = useState<string | null>(null); // problem pointed at by hover or keyboard
   const [filter, setFilter] = useState<Filter>("all");
-  // a video post: the file is played from this device only (it was never uploaded)
+  // a video post: played from this device's file if the creator just added it, otherwise from storage
   const playerRef = useRef<HTMLVideoElement>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(() => postVideoUrl(id));
+  const storeState = useSyncExternalStore(onVideoStore, () => videoStoreState(id), () => null);
   const [hideDone, setHideDone] = useState(false);
+  const videoInfo = data?.post.video;
+  const writerHere = can(role, "check_posts");
+  const storedNow = !!videoInfo?.stored || storeState?.state === "done";
+  useEffect(() => {
+    if (videoUrl || !videoInfo || (!videoInfo.src && !storedNow)) return;
+    let alive = true;
+    fetch(`/api/posts/${id}/video`)
+      .then((r) => r.json())
+      .then((d: { url?: string | null }) => {
+        if (alive && d.url) setVideoUrl(d.url);
+      })
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [id, videoUrl, videoInfo, storedNow]);
   const toast = useToast();
   // j / k move between the problems shown in the list (read from the page, so filters are respected)
   const activeRef = useRef<string | null>(null);
@@ -453,7 +471,7 @@ export function PostWorkspace({ id }: { id: string }) {
                   <p className="text-[13px] font-medium text-ink-soft">
                     Video: <span className="font-semibold text-ink">{post.video.name}</span> · {fmtTime(post.video.duration)}
                   </p>
-                  {!videoUrl && (
+                  {!videoUrl && !storedNow && (
                     <label className="cursor-pointer text-[13px] font-semibold text-ink underline underline-offset-2">
                       Load the video file to play it here
                       <input
@@ -472,9 +490,49 @@ export function PostWorkspace({ id }: { id: string }) {
                 </div>
                 {videoUrl ? (
                   <video ref={playerRef} src={videoUrl} controls playsInline preload="metadata" className="mt-2 max-h-[420px] w-full rounded-lg border border-line bg-ink" />
+                ) : storedNow ? (
+                  <p className="mt-1 text-[13px] text-ink-faint">Loading the video…</p>
                 ) : (
                   <p className="mt-1 text-[13px] text-ink-faint">
-                    The video file was never uploaded: only the frames below and the transcript were saved. Each problem shows the moment it happens; load the same file to play from there.
+                    This video wasn&apos;t stored, so only the frames below and what is said were saved. Each problem shows the moment it happens; load the same file to play from there.
+                  </p>
+                )}
+                {storeState?.state === "uploading" && (
+                  <p role="status" className="mt-2 text-[13px] text-ink-soft">
+                    Saving the video so reviewers can play it: {storeState.percent}%
+                  </p>
+                )}
+                {storeState?.state === "done" && <p className="mt-2 text-[13px] text-pass">Saved. Reviewers can play this video and jump to each problem.</p>}
+                {storeState?.state === "failed" && (
+                  <p className="mt-2 text-[13px] text-med">
+                    The video couldn&apos;t be saved for reviewers ({storeState.reason}). They still see the frames and what is said.{" "}
+                    {videoUrl?.startsWith("blob:") && (
+                      <button
+                        type="button"
+                        className="font-semibold text-ink underline underline-offset-2"
+                        onClick={async () => {
+                          const blob = await fetch(videoUrl).then((r) => r.blob());
+                          void storeVideo(id, new File([blob], videoInfo?.name ?? "video.mp4", { type: blob.type || "video/mp4" }));
+                        }}
+                      >
+                        Try again
+                      </button>
+                    )}
+                  </p>
+                )}
+                {!storedNow && !videoInfo?.src && !storeState && videoUrl?.startsWith("blob:") && writerHere && (
+                  <p className="mt-2 text-[13px] text-ink-soft">
+                    Reviewers can&apos;t play this video yet.{" "}
+                    <button
+                      type="button"
+                      className="font-semibold text-ink underline underline-offset-2"
+                      onClick={async () => {
+                        const blob = await fetch(videoUrl).then((r) => r.blob());
+                        void storeVideo(id, new File([blob], videoInfo?.name ?? "video.mp4", { type: blob.type || "video/mp4" }));
+                      }}
+                    >
+                      Save it for reviewers
+                    </button>
                   </p>
                 )}
                 <p className="mb-2 mt-5 text-[13px] font-medium text-ink-soft">What is said{post.video.transcript_source === "ai" ? " (written down by the AI from the sound)" : post.video.transcript_source === "typed" ? " (typed by the creator)" : ""}</p>

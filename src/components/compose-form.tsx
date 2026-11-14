@@ -6,7 +6,7 @@ import { api } from "@/lib/client/api";
 import { analyzeImage, shrinkImage } from "@/lib/client/analyze-image";
 import { SAMPLE_HINT, SAMPLE_LABEL, samplePosts, type SamplePost } from "@/lib/demo/samples";
 import type { Channel, PostImage, PostInput, SpeechSegment } from "@/lib/types";
-import { attachVideo, holdVideo, readVideo, VideoError, type VideoReading } from "@/lib/client/video";
+import { attachVideo, heldSampleSrc, holdVideo, readVideo, VideoError, type VideoReading } from "@/lib/client/video";
 import { fmtTime, MAX_SLIDES, MAX_VIDEO_SECONDS } from "@/lib/video";
 import { Button, ErrorNote, possessive } from "./ui";
 import { useToast } from "./toast";
@@ -164,7 +164,7 @@ export function ComposeForm() {
       if (!res.ok) throw new Error("The sample video couldn't be loaded.");
       const file = new File([await res.blob()], "oatvia-probar-reel.mp4", { type: "video/mp4" });
       setInput((p) => ({ ...p, title: "ProBar launch reel (sample video)", post_type: "launch", product: "Oatvia ProBar", caption: p.caption.trim() ? p.caption : "Meet the new ProBar Choco Almond. 20 g of protein in every bar. #OatviaEveryday" }));
-      await addVideo(file);
+      await addVideo(file, true);
     } catch (e) {
       setFileNote(e instanceof Error ? e.message : String(e));
       setVideoBusy(null);
@@ -176,12 +176,12 @@ export function ComposeForm() {
   const isVideo = (f: File) => f.type.startsWith("video/") || /\.(mp4|webm|mov|m4v)$/i.test(f.name);
 
   /** Read a video in the browser: frames every 2.5 s, the text in them, and the speech. */
-  async function addVideo(file: File) {
+  async function addVideo(file: File, sample = false) {
     setVideoBusy("Opening the video…");
     setError(null);
     try {
       const reading = await readVideo(file, setVideoBusy);
-      holdVideo(file);
+      holdVideo(file, sample);
       setImages([]);
       setSampleId(null);
       let transcript: SpeechSegment[] = [];
@@ -329,7 +329,13 @@ export function ComposeForm() {
       }
       // a video: its frames go in as images with their times, and the speech as a transcript
       const videoInput = video
-        ? { name: video.reading.name, duration: video.reading.duration, transcript: video.transcript.filter((t) => t.text.trim()), transcript_source: video.transcript.some((t) => t.text.trim()) ? video.source : ("none" as const) }
+        ? {
+            name: video.reading.name,
+            duration: video.reading.duration,
+            transcript: video.transcript.filter((t) => t.text.trim()),
+            transcript_source: video.transcript.some((t) => t.text.trim()) ? video.source : ("none" as const),
+            src: heldSampleSrc(),
+          }
         : undefined;
       if (video) prepared.push(...video.reading.frames.map((f) => ({ src: f.src, alt_text: "", analysis: f.analysis, t: f.t, t_end: f.t_end })));
       setBusy("Checking against the rules and the Fact Bank…");
