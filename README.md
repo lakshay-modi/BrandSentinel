@@ -23,6 +23,8 @@ Use these to try BrandSentinel. They are also listed on the sign-in page, where 
 - The demo accounts open only the demo workspace and its fictional brands (Oatvia Foods, Solvira Skincare, Voltaro). They can't create or join other workspaces.
 - **Your own workspace:** on the sign-in page, click **Create a workspace**. No confirmation email is sent, so it works at once, and only people you invite can see it.
 
+> **Webhook and Slack need your own workspace.** The demo workspace is shared by everyone, so it never sends anything outside BrandSentinel: on its Connect page the webhook and Slack settings are switched off, and approving a demo post only *logs* what would have been sent. To see a real webhook or Slack message, create your own workspace (takes a minute, steps below).
+
 ## Try it in 5 minutes
 
 1. Open the live app. On the sign-in page, click **Sign in as Creator**.
@@ -58,6 +60,15 @@ These are the three improvements named at Round 2. All three are live.
 - **“Post approved” signal:** a signed webhook (`x-brandsentinel-signature`, HMAC-SHA256) sent when a post is approved, which a scheduling tool can wait for. A tool can also ask `GET /api/v1/posts/<id>` whether a post is approved.
 - **Slack message** when a post needs someone: submitted for review, approved by the expert, or sent back.
 - The **Connect** page has the downloads, install steps, tokens, the webhook and Slack settings, a **Send a test** button and a log of the last 20 signals with what came back.
+- The browser extension and the Docs add-on work with the demo accounts straight away (they come with the demo token).
+
+**To try the webhook and Slack (they need your own workspace):**
+
+1. Sign out, then on the sign-in page click **Create a workspace**. Enter a name, any email address and a password. No confirmation email is needed.
+2. Open **Connect** in the menu.
+3. **Webhook:** paste an HTTPS address that shows what it receives, for example a free inbox from [webhook.site](https://webhook.site), and click **Save**. Copy the signing secret it shows once. Click **Send a test**: the request arrives at the inbox, and the log at the bottom of Connect shows "Delivered".
+4. **Slack:** in a Slack workspace you can use, create an incoming webhook for a channel (Slack → Apps → Incoming Webhooks), paste its `https://hooks.slack.com/services/…` address on Connect, save, and click **Send a test**. The message appears in the channel.
+5. To see the real signals, act as creator to check and submit a post, then approve it. As brand manager of your own workspace you can cover the creator and expert roles with **Acting as** at the top right. The webhook receives `post.approved`, and Slack gets a message at each step.
 
 ### 3. Video and carousel checks
 

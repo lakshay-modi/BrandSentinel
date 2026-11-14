@@ -148,7 +148,7 @@ export function ConnectView() {
   const { workspace, can_manage: canManage } = data;
   const token = newToken ?? data.demo_token ?? "bs_YOUR_TOKEN";
   const brand = data.brands[0]?.slug ?? "your-brand";
-  const ownOnly = workspace.isDemo ? "The shared demo sends nothing outside, so this is switched off here. " : "Only a brand manager can change this. ";
+  const ownOnly = workspace.isDemo ? "Needs your own workspace: the shared demo sends nothing outside, so this is switched off here. " : "Only a brand manager can change this. ";
 
   return (
     <div className="space-y-5">
@@ -483,7 +483,15 @@ Headers:
         ) : (
           <p className="rounded-lg bg-paper px-3.5 py-2.5 text-[14px] text-ink-soft">
             {ownOnly}
-            {workspace.isDemo && "Submit or approve a demo post and the log below shows the message Slack would get."}
+            {workspace.isDemo && (
+              <>
+                Submit or approve a demo post and the log below shows the message Slack would get.{" "}
+                <Link href="/signup" className="font-semibold text-ink underline underline-offset-2">
+                  Create a workspace
+                </Link>{" "}
+                to connect your own Slack channel.
+              </>
+            )}
           </p>
         )}
       </Section>
