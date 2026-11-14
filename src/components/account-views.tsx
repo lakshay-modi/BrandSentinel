@@ -164,6 +164,9 @@ export function LoginView() {
               {busy ? "Signing in…" : "Sign in"}
             </Button>
           </form>
+          <p className="mt-3 text-[13px] text-ink-soft">
+            Forgot your password? Ask a brand manager in your workspace for a reset link (Team → Reset password). No email is needed.
+          </p>
           <p className="mt-4 text-[14px] text-ink-soft">
             New here?{" "}
             <Link href="/signup" className="font-semibold text-ink underline underline-offset-4">
@@ -381,6 +384,83 @@ export function WelcomeView() {
             </div>
           </form>
         </Card>
+      </div>
+    </div>
+  );
+}
+
+/** A reset link from a brand manager: choose a new password, then you are signed in. */
+export function ResetView({ token }: { token: string }) {
+  const [email, setEmail] = useState<string | null>(null);
+  const [linkError, setLinkError] = useState<string | null>(null);
+  const [password, setPassword] = useState("");
+  const [again, setAgain] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    fetch(`/api/auth/reset?token=${encodeURIComponent(token)}`)
+      .then(async (res) => {
+        const data = await res.json().catch(() => ({}));
+        if (!alive) return;
+        if (!res.ok) setLinkError(data.error ?? "This reset link is not valid.");
+        else setEmail(data.email ?? "");
+      })
+      .catch(() => alive && setLinkError("Couldn't check the link. Check your connection and reload."));
+    return () => {
+      alive = false;
+    };
+  }, [token]);
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (busy) return;
+    if (password !== again) {
+      setError("The two passwords don't match.");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      await send("/api/auth/reset", "POST", { token, password });
+      restartApp("/");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+      setBusy(false);
+    }
+  };
+
+  if (email === null && !linkError) return <PageSkeleton rows={2} />;
+  return (
+    <div data-account-page className="mx-auto max-w-lg">
+      <h1 className="text-[28px] font-bold leading-tight tracking-tight">Choose a new password</h1>
+      <div className="mt-5">
+        {linkError ? (
+          <Card title="This reset link can't be used">
+            <p className="text-[14px] text-ink-soft">{linkError}</p>
+            <p className="mt-4">
+              <Link href="/login" className="text-[14px] font-semibold text-ink underline underline-offset-4">
+                Go to sign in
+              </Link>
+            </p>
+          </Card>
+        ) : (
+          <Card title={email ? `For ${email}` : "Your account"} lead="Your brand manager made this link for you. It works once, for 24 hours.">
+            <form onSubmit={submit} className="grid gap-3.5" noValidate>
+              <Field label="New password" hint="At least 8 characters.">
+                <input className="field" type="password" autoComplete="new-password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} />
+              </Field>
+              <Field label="New password again">
+                <input className="field" type="password" autoComplete="new-password" required value={again} onChange={(e) => setAgain(e.target.value)} />
+              </Field>
+              {error && <ErrorNote>{error}</ErrorNote>}
+              <Button variant="primary" type="submit" disabled={busy || password.length < 8 || !again}>
+                {busy ? "Saving…" : "Save and sign in"}
+              </Button>
+            </form>
+          </Card>
+        )}
       </div>
     </div>
   );

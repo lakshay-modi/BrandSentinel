@@ -68,7 +68,7 @@ export function restartApp(to = "/") {
   window.location.assign(to);
 }
 
-const ACCOUNT_PAGES = ["/login", "/signup", "/join", "/welcome"];
+const ACCOUNT_PAGES = ["/login", "/signup", "/join", "/welcome", "/reset"];
 
 /** True on the sign-in, sign-up and invite pages, which work without a session. */
 export function onAccountPage(): boolean {

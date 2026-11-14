@@ -71,6 +71,7 @@ export function WorkspaceView() {
   const [busy, setBusy] = useState<string | null>(null);
   const [invite, setInvite] = useState<{ role: Role; note: string }>({ role: "creator", note: "" });
   const [link, setLink] = useState<{ url: string; role: Role } | null>(null);
+  const [resetLink, setResetLink] = useState<{ url: string; name: string } | null>(null);
   const [remove, setRemove] = useState<Member | null>(null);
   const [aiKey, setAiKey] = useState("");
   const [rename, setRename] = useState<string | null>(null);
@@ -228,6 +229,21 @@ export function WorkspaceView() {
                       </option>
                     ))}
                   </select>
+                  {!m.you && (
+                    <Button
+                      size="sm"
+                      disabled={!!busy}
+                      title="A one-time link to choose a new password, for 24 hours"
+                      onClick={() =>
+                        run(`reset-${m.user_id}`, async () => {
+                          const res = await send<{ link: string }>(`/api/workspace/members/${m.user_id}/reset`, "POST", {});
+                          setResetLink({ url: res.link, name: m.name || m.email });
+                        })
+                      }
+                    >
+                      Reset password
+                    </Button>
+                  )}
                   <Button size="sm" variant="danger" disabled={!!busy} onClick={() => setRemove(m)}>
                     Remove
                   </Button>
@@ -238,6 +254,29 @@ export function WorkspaceView() {
             </li>
           ))}
         </ul>
+        {resetLink && (
+          <div className="mt-4 rounded-lg border border-pass/40 bg-pass-bg/60 p-3.5">
+            <p className="text-[13px] font-semibold">
+              Password reset link for {resetLink.name}. Send it to them yourself: it works once, for 24 hours, and is not shown again.
+            </p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <input readOnly className="field !mt-0 min-w-0 flex-1 font-mono text-[12.5px]" value={resetLink.url} aria-label="Password reset link" onFocus={(e) => e.currentTarget.select()} />
+              <Button
+                variant="primary"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(resetLink.url);
+                    toast("Reset link copied");
+                  } catch {
+                    toast("Couldn't copy. Select the link and copy it by hand.", "error");
+                  }
+                }}
+              >
+                Copy link
+              </Button>
+            </div>
+          </div>
+        )}
       </Section>
 
       {canManage && (

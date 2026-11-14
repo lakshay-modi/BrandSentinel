@@ -187,6 +187,78 @@ function ActingAs() {
   );
 }
 
+/** Change your own password: the current one is checked first. */
+function ChangePassword({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const [form, setForm] = useState({ current: "", password: "", again: "" });
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState(false);
+  const close = () => {
+    setForm({ current: "", password: "", again: "" });
+    setError(null);
+    setDone(false);
+    onClose();
+  };
+  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) => setForm((f) => ({ ...f, [k]: e.target.value }));
+  return (
+    <Dialog open={open} onClose={close} title="Change password">
+      {done ? (
+        <div>
+          <p className="text-[14px] text-pass">Your password was changed.</p>
+          <div className="mt-4 flex justify-end">
+            <Button variant="primary" onClick={close}>
+              Done
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <form
+          noValidate
+          className="grid gap-3.5"
+          onSubmit={async (e) => {
+            e.preventDefault();
+            if (busy) return;
+            if (form.password !== form.again) return setError("The two new passwords don't match.");
+            setBusy(true);
+            setError(null);
+            try {
+              await send("/api/auth/password", "POST", { current: form.current, password: form.password });
+              setDone(true);
+            } catch (err) {
+              setError(err instanceof Error ? err.message : String(err));
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          <label className="block">
+            <span className="field-label">Current password</span>
+            <input className="field" type="password" autoComplete="current-password" value={form.current} onChange={set("current")} />
+          </label>
+          <label className="block">
+            <span className="field-label">New password</span>
+            <input className="field" type="password" autoComplete="new-password" value={form.password} onChange={set("password")} />
+            <span className="field-hint">At least 8 characters.</span>
+          </label>
+          <label className="block">
+            <span className="field-label">New password again</span>
+            <input className="field" type="password" autoComplete="new-password" value={form.again} onChange={set("again")} />
+          </label>
+          {error && <p role="alert" className="text-[13px] text-high">{error}</p>}
+          <div className="flex justify-end gap-2">
+            <Button type="button" onClick={close}>
+              Cancel
+            </Button>
+            <Button variant="primary" type="submit" disabled={busy || !form.current || form.password.length < 8 || !form.again}>
+              {busy ? "Saving…" : "Change password"}
+            </Button>
+          </div>
+        </form>
+      )}
+    </Dialog>
+  );
+}
+
 /** Top right: who you are, your role and workspace. Nothing when signed out (only the sign-in page is shown then). */
 function AccountArea() {
   const me = useMe();
@@ -209,7 +281,9 @@ function AccountArea() {
 
 function AccountMenu({ me, others, busy, setBusy, signOut }: { me: Me; others: Me["workspaces"]; busy: boolean; setBusy: (b: boolean) => void; signOut: () => void }) {
   const { role } = useRole();
+  const [pwOpen, setPwOpen] = useState(false);
   return (
+    <>
     <details className="group relative text-[13px]">
       <summary className="flex cursor-pointer list-none items-center gap-2 rounded-lg border border-line-strong bg-surface px-2.5 py-1.5 font-semibold hover:border-ink-faint [&::-webkit-details-marker]:hidden">
         {me.role && me.role !== "guest" && <span className={`size-2 shrink-0 rounded-full ${ROLE_DOT[role]}`} aria-hidden="true" />}
@@ -256,6 +330,11 @@ function AccountMenu({ me, others, busy, setBusy, signOut }: { me: Me; others: M
             </ul>
           </div>
         )}
+        {!me.demo_account && (
+          <button type="button" onClick={() => setPwOpen(true)} className="mt-2 font-semibold text-ink underline-offset-4 hover:underline">
+            Change password
+          </button>
+        )}
         <div className="mt-3 flex items-center justify-between gap-2 border-t border-line pt-3">
           <Link href="/workspace" className="font-semibold text-ink underline-offset-4 hover:underline">
             Team and AI key
@@ -267,6 +346,8 @@ function AccountMenu({ me, others, busy, setBusy, signOut }: { me: Me; others: M
         {me.demo_account && <p className="mt-2 text-[12px] text-ink-soft">This is a shared demo account with one role. To use another role, sign out and sign in with that role&apos;s demo account.</p>}
       </div>
     </details>
+    <ChangePassword open={pwOpen} onClose={() => setPwOpen(false)} />
+    </>
   );
 }
 

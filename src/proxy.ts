@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 // Pages anyone can open. Everything else needs a signed-in session (a demo account or your own).
-const PUBLIC_PAGES = ["/login", "/signup", "/join/"];
+const PUBLIC_PAGES = ["/login", "/signup", "/join/", "/reset/"];
 
 /**
  * Sends a visitor without a session to the sign-in page, remembering where they were going.
