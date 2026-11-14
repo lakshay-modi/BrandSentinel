@@ -5,7 +5,7 @@ import { callGemini, parseJson } from "@/lib/ai/gemini";
 import { getCache, setCache } from "@/lib/db";
 import { allowAiCall } from "@/lib/review/rate-limit";
 import { can, whoCan } from "@/lib/roles";
-import { useWorkspaceAiKey } from "@/lib/secrets";
+import { loadWorkspaceAiKey } from "@/lib/secrets";
 import { withSession } from "@/lib/session";
 import { cleanTranscript, MAX_VIDEO_SECONDS } from "@/lib/video";
 import type { SpeechSegment } from "@/lib/types";
@@ -49,7 +49,7 @@ export const POST = withSession(async (req, _ctx, me) => {
   const cached = await getCache<{ segments: SpeechSegment[] }>(key).catch(() => null);
   if (cached) return json({ segments: cached.segments, source: "cached" });
 
-  const ai = await useWorkspaceAiKey(me.workspace.id);
+  const ai = await loadWorkspaceAiKey(me.workspace.id);
   if (ai.source === "none") return fail("AI is off on this server, so speech can't be turned into text. Type the script by hand.", 503);
   if (!allowAiCall(clientId(req))) return fail("The AI is busy (free-tier limit). Try again in a minute, or type the script by hand.", 429);
 

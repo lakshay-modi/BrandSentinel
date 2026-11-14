@@ -5,7 +5,7 @@ import { can, whoCan } from "@/lib/roles";
 import { actorSchema, clientId, fail, json, readJson, roleSchema, serverError } from "@/lib/api";
 import { bumpRulebook, db, getBrandContext, getCache, setCache } from "@/lib/db";
 import { callGemini, parseJson } from "@/lib/ai/gemini";
-import { useWorkspaceAiKey } from "@/lib/secrets";
+import { loadWorkspaceAiKey } from "@/lib/secrets";
 import { IMPORT_SYSTEM_PROMPT, buildImportPrompt, parseImportReply, quoteInDocument, type ImportedRule } from "@/lib/ai/import-prompt";
 import { allowAiCall } from "@/lib/review/rate-limit";
 import { documentText } from "@/lib/doc-text";
@@ -54,7 +54,7 @@ export const POST = withSession(async (req, _ctx, me) => {
 
   try {
     const ctx = await getBrandContext();
-    await useWorkspaceAiKey(me.workspace.id);
+    await loadWorkspaceAiKey(me.workspace.id);
     const { replace_document_id: replaceId, title } = body.data;
     if (replaceId && !ctx.documents.some((d) => d.id === replaceId)) return fail("The rulebook to replace wasn't found in this brand.", 404);
     // the rules the new ones are compared with: everything except the rulebook being replaced

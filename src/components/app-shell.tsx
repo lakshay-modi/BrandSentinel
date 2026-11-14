@@ -19,6 +19,7 @@ const NAV = [
   { href: "/rulebook", label: "Rulebook" },
   { href: "/facts", label: "Fact Bank" },
   { href: "/insights", label: "Insights" },
+  { href: "/connect", label: "Connect" },
   { href: "/workspace", label: "Team" },
 ];
 

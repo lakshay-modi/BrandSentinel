@@ -61,7 +61,7 @@ export async function aiKeyInfo(workspaceId: string): Promise<AiKeyInfo & { key:
 }
 
 /** Before an AI call: use this workspace's own key for the rest of the request, if it has one. */
-export async function useWorkspaceAiKey(workspaceId: string): Promise<AiKeyInfo> {
+export async function loadWorkspaceAiKey(workspaceId: string): Promise<AiKeyInfo> {
   const info = await aiKeyInfo(workspaceId).catch(() => ({ source: process.env.GEMINI_API_KEY ? ("shared" as const) : ("none" as const), hint: null, key: process.env.GEMINI_API_KEY ?? null }));
   const scope = requestScope.getStore();
   if (scope) scope.aiKey = info.key;

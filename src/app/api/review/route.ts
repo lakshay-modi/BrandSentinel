@@ -4,7 +4,7 @@ import { can, whoCan } from "@/lib/roles";
 import { actorSchema, clientId, fail, json, postInputSchema, readJson, roleSchema, serverError } from "@/lib/api";
 import { addHistory, db, getBrandContext, getBrandContextForBrandId, type BrandContext } from "@/lib/db";
 import { runReview } from "@/lib/review/run-review";
-import { useWorkspaceAiKey } from "@/lib/secrets";
+import { loadWorkspaceAiKey } from "@/lib/secrets";
 import type { PostInput } from "@/lib/types";
 
 export const maxDuration = 60;
@@ -64,7 +64,7 @@ export const POST = withSession(async (req, _ctx, me) => {
     }
 
     if (!ctx) throw new Error("No brand for this post");
-    await useWorkspaceAiKey(me.workspace.id);
+    await loadWorkspaceAiKey(me.workspace.id);
     const origin = new URL(req.url).origin;
     const result = await runReview(input, ctx, { origin, clientId: clientId(req) });
 
