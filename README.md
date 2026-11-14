@@ -6,25 +6,33 @@ Built by Team O(1) for the CodeTitans India 2026 hackathon (problem statement by
 
 **Live app:** https://brand-sentinel-delta.vercel.app
 
-| How to get in | What you get |
-| --- | --- |
-| **No sign-in** | The open demo. Switch between all three roles at the top right. |
-| **Sign in → Try as Creator / Expert reviewer / Brand manager** | One click into a ready-made demo account with one fixed role, the way a real team member works. |
-| Demo account emails | `creator@brandsentinel.demo`, `expert@brandsentinel.demo`, `manager@brandsentinel.demo`, password `brandsentinel-demo` (also shown on the sign-in page) |
-| **Sign in → Create a workspace** | Your own private workspace. No confirmation email is sent, so it works at once. |
+The app opens on a **sign-in page**. Every page needs a signed-in account: a demo account or your own.
 
-The demo workspace holds only fictional brands (Oatvia Foods, Solvira Skincare, Voltaro).
+## Demo accounts
+
+Use these to try BrandSentinel. They are also listed on the sign-in page, where one click signs you in.
+
+| Role | Email | Password | What this person does |
+| --- | --- | --- | --- |
+| Creator | `creator@brandsentinel.demo` | `brandsentinel-demo` | Writes posts, checks them and fixes problems before review |
+| Expert reviewer | `expert@brandsentinel.demo` | `brandsentinel-demo` | Signs off claims and keeps the Fact Bank true |
+| Brand manager | `manager@brandsentinel.demo` | `brandsentinel-demo` | Owns the brand: its rulebooks, facts and final approval |
+
+- On the sign-in page, click **Sign in as Creator / Expert reviewer / Brand manager**, or type an email and the password above.
+- After signing in, the **Demo role** switch at the top right signs you in as one of the other demo people in one click. That is how one person walks a post through the whole approval flow.
+- The demo accounts open only the demo workspace and its fictional brands (Oatvia Foods, Solvira Skincare, Voltaro). They can't create or join other workspaces.
+- **Your own workspace:** on the sign-in page, click **Create a workspace**. No confirmation email is sent, so it works at once, and only people you invite can see it.
 
 ## Try it in 5 minutes
 
-1. Open the live app. Without signing in you are the **Creator** (switch roles at the top right).
+1. Open the live app. On the sign-in page, click **Sign in as Creator**.
 2. Click a sample post, for example **Launch post**. The **live preview** underlines problems while you type. Click **Check post**.
 3. Every problem is underlined and numbered. Each shows the rule ID, the fact that proves it, and a fix. **Accept**, **Edit** or **Reject** (with a reason), then **Re-check** and **Submit for review**.
-4. Switch to **Expert reviewer** or **Brand manager** and approve it or send it back from the **Review queue**.
+4. Use **Demo role** at the top right to become the **Expert reviewer** or **Brand manager**, and approve the post or send it back from the **Review queue**.
 5. **Video:** on Check a post, click **Try the sample reel**. The browser takes a frame every 2.5 seconds, reads the on-screen text and turns the speech into text. After the check, every problem has a time; click it to jump to that second.
 6. **Carousel:** add several images to one post. They are checked slide by slide and each problem names its slide.
 7. **Connect** (in the menu): download the browser extension or the Google Docs add-on. Both come set up for the demo, so they work straight away.
-8. **Sign in → Create a workspace.** You start as brand manager with 14 starter rules, so the first check already finds problems. Open **Team** to invite people with a role or connect your own AI key.
+8. **Sign out, then Create a workspace.** You start as brand manager with 14 starter rules, so the first check already finds problems. Open **Team** to invite people with a role or connect your own AI key.
 9. As **Brand manager**, open **Rulebook → Add a rulebook** to turn a guidelines PDF into draft rules, and **Insights** to see the most common problems and the rules people disagree with.
 10. **Test results** (link in the footer) runs the fast checks on all 10 sample posts in your browser and compares them with the answer key.
 
@@ -39,7 +47,7 @@ These are the three improvements named at Round 2. All three are live.
 - **Database rules.** The server talks to the database *as the signed-in person* (with their own session token), so Postgres row level security decides what they can read and change. One company can't see another's rows, even if the app's code had a bug. See `supabase/migrations/0010_workspaces.sql`.
 - **Invites with roles.** A brand manager creates an invite link for a creator, expert reviewer or brand manager. The link works for one person for 7 days; only a fingerprint of it is stored. Roles can be changed and people removed.
 - **Your own AI key.** A workspace can connect its own Gemini API key, so its posts are processed under the company's own Google account and data terms. The key is checked with Google, encrypted (AES-256-GCM) before it is stored, and never shown again.
-- **Judges keep full access.** The open demo needs no sign-in, and **Try as…** signs straight into a demo account.
+- **Judges keep full access.** The sign-in page lists the three demo accounts with their password, and one click signs into each. No sign-up is needed.
 - A brand manager of a real workspace can also act as creator or expert, so a one-person team isn't stuck. History records their own name on everything.
 
 ### 2. Check content where it is made and published
@@ -66,7 +74,7 @@ These are the three improvements named at Round 2. All three are live.
 - **Speech rules.** Rules about how text is written (capitals, spelling, units, prices) are not applied to speech, because a transcript's spelling is the transcriber's.
 - **Extension fixes** are applied in plain text boxes. In rich editors (for example LinkedIn's) the problems are listed and the fix is copied by hand.
 - **Google Docs add-on** is installed by pasting three files into Apps Script (about 2 minutes). It is not in the Workspace Marketplace.
-- **The open demo is shared.** Other visitors' changes show up. **Reset demo** (for testing only) restores the demo brands. Your own workspace is never reset.
+- **The demo workspace is shared.** Everyone using the demo accounts sees each other's changes. **Reset demo** (for testing only) restores the demo brands. Your own workspace is never reset.
 - **Fixing text inside images** is for small wording changes only. It uses a standard font and refuses on photos, strong gradients and styled lettering.
 - **New brands** get the starter rules as fast checks; rules imported from a PDF are checked by AI, so they need the AI to be available.
 - **No password reset by email** yet (the free plan has no mail budget). A brand manager can remove a member and send a new invite.
@@ -194,7 +202,7 @@ Browser ──► Next.js API routes ──► Supabase Postgres (row level secu
 Extension, Docs add-on ──► POST /api/v1/check (workspace token)
 ```
 
-1. **Session.** `withSession` (`src/lib/session.ts`) wraps every API route. It finds out who is asking and gives the route a database client that carries that person's token. Not signed in means a guest account that belongs only to the demo workspace.
+1. **Session.** `withSession` (`src/lib/session.ts`) wraps every API route. It finds out who is asking and gives the route a database client that carries that person's token. Without a session the API answers 401, and `src/proxy.ts` sends pages to the sign-in page.
 2. **Roles.** One table (`src/lib/roles.ts`) says who may do what. The role comes from the person's membership, never from the request. The database policies repeat the important rules.
 3. **A check** (`src/lib/review/run-review.ts`): fast checks in plain code, then one AI call for what code missed, then the proof check, which drops any AI finding without a real rule, an exact quote and real facts.
 4. **Secrets** (`src/lib/secrets.ts`): a workspace's AI key, webhook address and Slack address are encrypted before they are stored.
@@ -252,7 +260,7 @@ cp .env.example .env.local
 npm run dev
 ```
 
-Open http://localhost:3000. The guest account and the three demo accounts are created by the server the first time they are needed. `http://localhost:3000/api/health` should show `"db":"ok"` and `"auth":"ok"`.
+Open http://localhost:3000. You land on the sign-in page. The three demo accounts are created by the server the first time someone signs in with them. `http://localhost:3000/api/health` should show `"db":"ok"` and `"auth":"ok"`.
 
 Other commands: `npm test` (82 tests), `npm run lint`, `npm run build`.
 
@@ -333,7 +341,7 @@ Other commands: `npm test` (82 tests), `npm run lint`, `npm run build`.
 - **Login and workspaces.** Sessions are httpOnly, Secure, SameSite cookies. Sign-in and sign-up are rate-limited. Each request reaches the database with the person's own token, so row level security keeps workspaces apart (`0010_workspaces.sql`); the server's own secret key is used only to create accounts, for the AI answer cache, for encrypted workspace secrets and for Reset demo.
 - **Secrets at rest.** A workspace's AI key, webhook address, signing secret and Slack address are encrypted with AES-256-GCM. Invite links and API tokens are stored only as SHA-256 fingerprints and shown once.
 - **Outgoing requests.** A webhook must be HTTPS and may not point at a private or local address (checked again after DNS lookup); Slack addresses must be on `hooks.slack.com`. Requests time out after a few seconds and are signed.
-- **Public API.** `/api/v1/*` needs a workspace token, is rate-limited per token and visitor, and the open demo's public token can only read and check the fictional demo brands.
+- **Public API.** `/api/v1/*` needs a workspace token, is rate-limited per token and visitor, and the demo workspace's public token can only read and check the fictional demo brands.
 - **Errors don't leak.** Server errors are logged; the browser only sees a plain message.
 - **Prompt injection.** Post text and imported PDFs are marked as content to review, never instructions, and the proof check drops anything without a real rule, quote and fact.
 - **Security headers.** A Content Security Policy allows only the site's own scripts, styles, fonts (self-hosted), images, workers and API; framing is blocked; HSTS, `nosniff`, a strict referrer policy and a locked-down permissions policy are on.
