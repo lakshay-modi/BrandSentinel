@@ -147,7 +147,7 @@ caption + images
    └─ 4. brand score                          100 minus 15 / 7 / 3 per high / medium / low problem
 ```
 
-If the AI is busy (free-tier limit) or off, the fast checks still return a full report. The app tries Gemini Flash first and falls back to Flash-Lite when Flash is overloaded. If no Gemini model answers (for example when the free quota runs out while many people test at once), the text checks go to a backup AI, ASI:One, and the report says so. The backup reads text only: the caption, the text found in images and the speech, not the pictures themselves. AI results are cached by content, so repeat checks cost nothing.
+If the AI is busy (free-tier limit) or off, the fast checks still return a full report. The app tries Gemini Flash first and falls back to Flash-Lite when Flash is overloaded. If Gemini fails (for example when the free quota runs out while many people test at once), the text checks go straight to a backup AI, ASI:One; if Gemini is just slow, ASI:One starts after 10 seconds as well and the first good answer is used. The report says when the backup did the check. The backup reads text only: the caption, the text found in images and the speech, not the pictures themselves. AI results are cached by content, so repeat checks cost nothing.
 
 ## Tested against an answer key
 
@@ -160,7 +160,7 @@ npm test
 - The fast checks alone catch **all 41 planted mistakes with zero false flags** on these posts. (The same rules and posts were written by the same team, so this proves the checks work, not that they catch everything. The AI layer exists for reworded and new cases.)
 - The proof check is tested to drop hallucinated quotes, unknown rules and fake fact IDs, and to merge duplicates.
 - Fix application and insights (unclear-rule detection, expiring facts) have their own tests.
-- 95 automated tests in total (`npm test`), plus a live run of all 10 posts with the AI on: every score matches the answer key.
+- 98 automated tests in total (`npm test`), plus a live run of all 10 posts with the AI on: every score matches the answer key.
 - The PDF import's quote check is tested against the sample PDF.
 
 ## Works for any brand: tested with a second brand
@@ -196,7 +196,7 @@ A second fictional brand, **Solvira Skincare**, was set up only through the prod
 | Colour and contrast | Canvas pixel maths in the browser, WCAG contrast formula |
 | Extension | Chrome Manifest V3, plain JavaScript (`/extension`) |
 | Docs add-on | Google Apps Script (`/public/downloads/google-docs-addon`) |
-| Tests | Vitest (95 tests) |
+| Tests | Vitest (98 tests) |
 | Hosting | Vercel, Mumbai region, next to the database |
 
 Everything runs on free tiers.
@@ -276,7 +276,7 @@ npm run dev
 
 Open http://localhost:3000. You land on the sign-in page. The three demo accounts are created by the server the first time someone signs in with them. `http://localhost:3000/api/health` should show `"db":"ok"` and `"auth":"ok"`.
 
-Other commands: `npm test` (95 tests), `npm run lint`, `npm run build`.
+Other commands: `npm test` (98 tests), `npm run lint`, `npm run build`.
 
 **Extension:** open `chrome://extensions`, turn on Developer mode, click **Load unpacked** and choose the `extension` folder. In its Connection settings, set the address to `http://localhost:3000` and paste a token from the Connect page.
 
@@ -284,7 +284,7 @@ Other commands: `npm test` (95 tests), `npm run lint`, `npm run build`.
 
 ## Testing
 
-**Automated (`npm test`, 95 tests in 14 files):**
+**Automated (`npm test`, 98 tests in 14 files):**
 
 - The fast checks against the answer key for the 10 sample posts: 41 planted mistakes, all caught, with no extra findings on the clean post.
 - The proof check: unknown rules, quotes that aren't in the post, made-up facts and out-of-scope rules are dropped.
@@ -292,7 +292,7 @@ Other commands: `npm test` (95 tests), `npm run lint`, `npm run build`.
 - Starter rules on a brand that is not the demo brand.
 - Video: timestamps for spoken and on-screen problems, speech checked like a caption, frames checked like images.
 - Webhook and Slack: signatures, blocked private addresses, message text.
-- Backup AI: used only when Gemini is busy, gets text only, never used for speech-to-text or for a company with its own Gemini key, and stops at its time limit.
+- Backup AI: starts at once when Gemini fails and alongside a slow Gemini (first good answer wins), gets text only, never used for speech-to-text or for a company with its own Gemini key, and stops at its time limit.
 - Fixes, fixing text in images, document text, insights and API input checks.
 
 **Extension and Google Docs add-on (`npm run test:integrations`, needs Playwright with Chromium):**
@@ -316,6 +316,7 @@ Other commands: `npm test` (95 tests), `npm run lint`, `npm run build`.
 - Submit three times at once and approve twice at once: each took effect once.
 - The public check API with the demo token and with a workspace's own token; a wrong token is refused.
 - Bad input (unknown channel, empty caption, broken request, bad post address) is refused with a plain message.
+- Backup AI on the live site: ASI:One answered a test question in about 1 second, and ran a full check of a sample Oatvia post on its own in about 34 seconds. It found the made-up health claim, and its rewrite passed the proof check with nothing dropped.
 - Saved video: a creator added a video and checked it, and it uploaded to private storage. Signed in as the expert, the post page played it from a signed link, and clicking a problem jumped the player to 0:10. Deleting the draft removed the file.
 - The full approval journey as the three demo accounts (check, send back, re-check, disagree, resubmit, expert approval, final approval).
 - Passwords: a wrong current password is refused; after a change the old password fails and the new one works. A reset link shows whose account it is for, refuses a short password, signs the person in and can't be used twice. A creator can't make reset links, and the demo password can't be changed.

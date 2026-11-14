@@ -6,11 +6,11 @@ import { backupAvailable, backupPrompt, callGemini, stripThinking } from "./gemi
 const GEMINI = "generativelanguage.googleapis.com";
 const ASI = "api.asi1.ai";
 
-function answer(url: string, gemini: number, asi: number | "timeout") {
+function answer(url: string, gemini: number | "hang", asi: number | "timeout") {
   if (url.includes(GEMINI)) {
     return gemini === 200
       ? new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: '{"from":"gemini"}' }] } }] }), { status: 200 })
-      : new Response("busy", { status: gemini });
+      : new Response("busy", { status: gemini as number });
   }
   if (asi === "timeout") return new Promise<Response>(() => undefined);
   return asi === 200
@@ -18,13 +18,13 @@ function answer(url: string, gemini: number, asi: number | "timeout") {
     : new Response("busy", { status: asi });
 }
 
-function mockFetch(gemini: number, asi: number | "timeout" = 200) {
+function mockFetch(gemini: number | "hang", asi: number | "timeout" = 200) {
   const calls: string[] = [];
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string, init?: RequestInit) => {
       calls.push(url.includes(ASI) ? "asi1" : "gemini");
-      if (asi === "timeout" && url.includes(ASI)) {
+      if ((asi === "timeout" && url.includes(ASI)) || (gemini === "hang" && url.includes(GEMINI))) {
         return new Promise<Response>((_, reject) => init?.signal?.addEventListener("abort", () => reject(Object.assign(new Error("aborted"), { name: "AbortError" }))));
       }
       return answer(url, gemini, asi);
@@ -59,6 +59,15 @@ describe("backup AI", () => {
     expect(calls.at(-1)).toBe("asi1");
   });
 
+  it("starts while Gemini is still slow, and the first good answer wins", async () => {
+    const calls = mockFetch("hang");
+    const t0 = Date.now();
+    const res = await callGemini("sys", [{ text: "post" }], 8000, { firstMs: 5000, laterMs: 5000 }, 300);
+    expect(res).toMatchObject({ ok: true, model: "asi1" });
+    expect(Date.now() - t0).toBeLessThan(2000);
+    expect(calls).toContain("asi1");
+  });
+
   it("reports busy when both are busy", async () => {
     mockFetch(429, 429);
     const res = await callGemini("sys", [{ text: "post" }]);
@@ -68,7 +77,7 @@ describe("backup AI", () => {
   it("stops at its time limit", async () => {
     mockFetch(429, "timeout");
     const t0 = Date.now();
-    const res = await callGemini("sys", [{ text: "post" }], 6000, { firstMs: 1000, laterMs: 1000 }, 2000);
+    const res = await callGemini("sys", [{ text: "post" }], 6000, { firstMs: 1000, laterMs: 1000 }, 500);
     expect(res.ok).toBe(false);
     expect(Date.now() - t0).toBeLessThan(6500);
   }, 10000);

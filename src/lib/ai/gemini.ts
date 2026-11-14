@@ -114,7 +114,8 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
  * Calls the AI and returns the raw JSON text.
  * Free-tier limits and outages are per model, so on "busy" answers (429, 5xx) or an unknown model (404)
  * it retries once and then falls back to the next Flash model, within a total time budget.
- * If no Gemini model answers, text-only work goes to the backup AI in the time kept back for it.
+ * Text-only work also has the backup AI: it starts at once when Gemini fails, or after hedgeMs when Gemini
+ * is slow, and the first good answer is used.
  */
 export async function callGemini(
   system: string,
@@ -122,30 +123,54 @@ export async function callGemini(
   budgetMs = 50000,
   /** time allowed for the first model, then for each fallback (long answers like a whole Rulebook need more) */
   limits: { firstMs: number; laterMs: number } = { firstMs: 14000, laterMs: 20000 },
-  /** time kept back for the backup AI when Gemini doesn't answer */
-  backupMs = 18000,
+  /** if Gemini hasn't answered by then, the backup AI starts as well and the first good answer wins */
+  hedgeMs = 10000,
 ): Promise<AiCallResult> {
   const start = Date.now();
+  const left = () => budgetMs - (Date.now() - start);
   // the backup reads text only, so it can't stand in for work that is all about sound (speech to text)
   const backup = backupAvailable() && !parts.some((p) => p.image && !p.image.mimeType.startsWith("image/"));
+  if (!backup) return callGeminiOnly(system, parts, budgetMs, limits);
+
   // AI_BACKUP_FIRST=1 sends work to the backup first (used to test it); Gemini still answers if the backup can't
-  if (backup && process.env.AI_BACKUP_FIRST === "1") {
-    const first = await callBackup(system, parts, Math.min(backupMs + 10000, budgetMs - 15000));
+  if (process.env.AI_BACKUP_FIRST === "1") {
+    const first = await callBackup(system, parts, Math.max(budgetMs - 15000, 5000));
     if (first.ok) return first;
     console.warn(`[ai] backup first didn't answer: ${first.detail}`);
-    // Gemini gets the rest of the time; the backup isn't asked twice
-    return callGeminiOnly(system, parts, budgetMs - (Date.now() - start), limits);
+    return callGeminiOnly(system, parts, left(), limits);
   }
-  const geminiBudget = budgetMs - (Date.now() - start) - (backup ? backupMs : 0);
-  const main = await callGeminiOnly(system, parts, geminiBudget, limits);
-  if (main.ok || !backup) return main;
-  const left = budgetMs - (Date.now() - start);
-  if (left < 4000) return main;
-  const second = await callBackup(system, parts, left);
-  if (second.ok) return second;
-  console.warn(`[ai] backup didn't answer either: ${second.detail}`);
-  const status = main.status === "off" ? second.status : main.status === "busy" || second.status === "busy" ? "busy" : "error";
-  return { ok: false, status, detail: `${main.detail}. Backup: ${second.detail}` };
+
+  const gemini = callGeminiOnly(system, parts, budgetMs, limits);
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const early = await Promise.race([gemini, new Promise<null>((r) => (timer = setTimeout(() => r(null), hedgeMs)))]);
+  clearTimeout(timer);
+  if (early?.ok) return early;
+  // Gemini failed quickly (often: free quota used up) or is slow: the backup starts now with the time left
+  if (left() < 4000) return early ?? gemini;
+  const second = callBackup(system, parts, left());
+  const result = early ? await second : await firstOk(gemini, second);
+  if (result.ok) return result;
+  const main = early ?? (await gemini);
+  const backupResult = await second;
+  if (main.ok) return main;
+  if (backupResult.ok) return backupResult;
+  console.warn(`[ai] neither AI answered: ${main.detail}. Backup: ${backupResult.detail}`);
+  const status = main.status === "off" ? backupResult.status : main.status === "busy" || backupResult.status === "busy" ? "busy" : "error";
+  return { ok: false, status, detail: `${main.detail}. Backup: ${backupResult.detail}` };
+}
+
+/** The first answer that worked, or (when neither did) the first one's failure. */
+function firstOk(a: Promise<AiCallResult>, b: Promise<AiCallResult>): Promise<AiCallResult> {
+  return new Promise((resolve) => {
+    let failed: AiCallResult | null = null;
+    for (const p of [a, b]) {
+      void p.then((r) => {
+        if (r.ok) resolve(r);
+        else if (failed) resolve(failed);
+        else failed = r;
+      });
+    }
+  });
 }
 
 async function callGeminiOnly(system: string, parts: AiPart[], budgetMs: number, limits: { firstMs: number; laterMs: number }): Promise<AiCallResult> {
