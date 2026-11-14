@@ -21,7 +21,7 @@ The demo workspace holds only fictional brands (Oatvia Foods, Solvira Skincare, 
 2. Click a sample post, for example **Launch post**. The **live preview** underlines problems while you type. Click **Check post**.
 3. Every problem is underlined and numbered. Each shows the rule ID, the fact that proves it, and a fix. **Accept**, **Edit** or **Reject** (with a reason), then **Re-check** and **Submit for review**.
 4. Switch to **Expert reviewer** or **Brand manager** and approve it or send it back from the **Review queue**.
-5. **Video:** on Check a post, click **Try the sample video**. The browser takes a frame every 2.5 seconds, reads the on-screen text and turns the speech into text. After the check, every problem has a time; click it to jump to that second.
+5. **Video:** on Check a post, click **Try the sample reel**. The browser takes a frame every 2.5 seconds, reads the on-screen text and turns the speech into text. After the check, every problem has a time; click it to jump to that second.
 6. **Carousel:** add several images to one post. They are checked slide by slide and each problem names its slide.
 7. **Connect** (in the menu): download the browser extension or the Google Docs add-on. Both come set up for the demo, so they work straight away.
 8. **Sign in → Create a workspace.** You start as brand manager with 14 starter rules, so the first check already finds problems. Open **Team** to invite people with a role or connect your own AI key.
