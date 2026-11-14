@@ -264,7 +264,7 @@ cp .env.example .env.local
 | `SUPABASE_PUBLISHABLE_KEY` | no | The project's publishable key. If set, people's requests use it instead of the secret key. |
 | `BRANDSENTINEL_ENC_KEY` | no | A separate secret for encrypting workspace keys, if you don't want to derive it from the database key. |
 | `ASI1_API_KEY` (or `ASIAPI`) | no | A key for ASI:One, the backup AI used for text when Gemini is busy. Without it, a busy Gemini means the fast checks only. Never used for a workspace with its own Gemini key. |
-| `AI_BACKUP_FIRST` | no | Set to `1` to send text checks to the backup AI first (for testing it). |
+| `AI_BACKUP_FIRST` | no | Set to `1` to send text checks to the backup AI first (for testing it). A brand manager can also test the backup with `POST /api/ai/backup-check`. |
 | `GEMINI_MODEL` | no | Model name override |
 | `HEALTH_TOKEN` | no | Lets `/api/health?ai=1` probe the AI models (sent as an `x-health-token` header) |
 

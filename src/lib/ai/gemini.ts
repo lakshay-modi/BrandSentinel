@@ -58,6 +58,15 @@ export function stripThinking(text: string): string {
   return text.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
 }
 
+export function backupConfigured(): boolean {
+  return !!backupKey();
+}
+
+/** One tiny question to the backup AI, to check it is set up (Team page test). */
+export function probeBackup(): Promise<AiCallResult> {
+  return callBackup('You check that a service works. Reply with JSON only.', [{ text: 'Reply with exactly {"ok":true}' }], 30000);
+}
+
 async function callBackup(system: string, parts: AiPart[], budgetMs: number): Promise<AiCallResult> {
   const key = backupKey();
   if (!key) return { ok: false, status: "off", detail: "No backup AI key is set" };
@@ -118,6 +127,9 @@ export async function callGemini(
   if (backup && process.env.AI_BACKUP_FIRST === "1") {
     const first = await callBackup(system, parts, Math.min(backupMs + 10000, budgetMs - 15000));
     if (first.ok) return first;
+    console.warn(`[ai] backup first didn't answer: ${first.detail}`);
+    // Gemini gets the rest of the time; the backup isn't asked twice
+    return callGeminiOnly(system, parts, budgetMs - (Date.now() - start), limits);
   }
   const geminiBudget = budgetMs - (Date.now() - start) - (backup ? backupMs : 0);
   const main = await callGeminiOnly(system, parts, geminiBudget, limits);
@@ -126,6 +138,7 @@ export async function callGemini(
   if (left < 4000) return main;
   const second = await callBackup(system, parts, left);
   if (second.ok) return second;
+  console.warn(`[ai] backup didn't answer either: ${second.detail}`);
   const status = main.status === "off" ? second.status : main.status === "busy" || second.status === "busy" ? "busy" : "error";
   return { ok: false, status, detail: `${main.detail}. Backup: ${second.detail}` };
 }

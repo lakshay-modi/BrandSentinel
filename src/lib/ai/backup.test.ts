@@ -109,6 +109,14 @@ describe("backup AI", () => {
     expect(calls).toEqual(["asi1"]);
   });
 
+  it("when tried first and it fails, Gemini answers and the backup isn't asked twice", async () => {
+    vi.stubEnv("AI_BACKUP_FIRST", "1");
+    const calls = mockFetch(200, 500);
+    const res = await callGemini("sys", [{ text: "post" }]);
+    expect(res).toMatchObject({ ok: true, text: '{"from":"gemini"}' });
+    expect(calls.filter((c) => c === "asi1")).toHaveLength(1);
+  });
+
   it("gets the text only, and is told the images are missing", () => {
     const prompt = backupPrompt([{ text: "the post" }, { text: "Image 1:" }, { image: { mimeType: "image/png", base64: "AAAA" } }]);
     expect(prompt).toContain("the post");
