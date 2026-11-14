@@ -45,7 +45,7 @@ function spokenFix(f: Finding): Finding {
   return { ...f, fix: { kind: "manual", advice: to ? `This is said in the video, so re-record or cut that line. Say instead: “${to}”.` : "This is said in the video, so re-record or cut that line." } };
 }
 
-export async function runReview(input: PostInput, ctx: BrandContext, opts: { origin: string; clientId: string }): Promise<ReviewOutput> {
+export async function runReview(input: PostInput, ctx: BrandContext, opts: { origin: string; clientId: string; /** fast checks only, for checks while typing in other tools */ codeOnly?: boolean }): Promise<ReviewOutput> {
   const rules = new Map(ctx.rules.map((r) => [r.id, r]));
   const today = todayIST();
   const settings = ctx.brand.settings;
@@ -60,7 +60,7 @@ export async function runReview(input: PostInput, ctx: BrandContext, opts: { ori
   let detail: string | undefined;
   let redacted = 0;
 
-  if (aiConfigured()) {
+  if (!opts.codeOnly && aiConfigured()) {
     const factsHash = createHash("sha256").update(JSON.stringify(ctx.facts)).digest("hex").slice(0, 12);
     const cacheKey = createHash("sha256")
       .update(
