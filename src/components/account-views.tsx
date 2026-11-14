@@ -5,7 +5,7 @@ import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import type { Role } from "@/lib/types";
 import { ROLE_INFO } from "@/lib/roles";
 import { send } from "@/lib/client/send";
-import { restartApp, useMeState } from "@/lib/client/use-me";
+import { afterSignIn, restartApp, useMeState } from "@/lib/client/use-me";
 import { ROLE_DOT } from "./role-note";
 import { Button, ErrorNote, PageSkeleton } from "./ui";
 
@@ -42,7 +42,7 @@ function TryAs() {
     setError(null);
     try {
       await send("/api/auth/demo", "POST", { role });
-      restartApp(role === "creator" ? "/" : "/queue");
+      restartApp(afterSignIn(role === "creator" ? "/" : "/queue"));
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       setBusy(null);
@@ -61,7 +61,7 @@ function TryAs() {
             >
               <span className={`size-2.5 shrink-0 rounded-full ${ROLE_DOT[r]}`} aria-hidden="true" />
               <span className="min-w-0 flex-1">
-                <span className="block text-[14px] font-bold">{busy === r ? "Signing in…" : `Try as ${ROLE_INFO[r].label}`}</span>
+                <span className="block text-[14px] font-bold">{busy === r ? "Signing in…" : `Sign in as ${ROLE_INFO[r].label}`}</span>
                 <span className="block text-[13px] text-ink-soft">{ROLE_INFO[r].summary}</span>
               </span>
               <span aria-hidden="true" className="text-ink-faint">
@@ -76,30 +76,52 @@ function TryAs() {
           <ErrorNote>{error}</ErrorNote>
         </div>
       )}
-      <details className="mt-4 rounded-lg bg-paper px-3.5 py-2.5 text-[13px]">
-        <summary className="cursor-pointer font-semibold">Demo account emails and password</summary>
-        <p className="mt-2 text-ink-soft">The buttons above use these accounts. You can also type them into the sign-in form.</p>
-        <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
-          {ROLES.map((r) => (
-            <div key={r} className="contents">
-              <dt className="text-ink-soft">{ROLE_INFO[r].label}</dt>
-              <dd className="break-all font-mono text-[12.5px]">{DEMO_LOGINS[r]}</dd>
-            </div>
-          ))}
-          <dt className="text-ink-soft">Password (all three)</dt>
-          <dd className="font-mono text-[12.5px]">{DEMO_PASSWORD}</dd>
-        </dl>
-        <p className="mt-2 text-ink-soft">These accounts open only the demo workspace and its fictional brands.</p>
-      </details>
+    </div>
+  );
+}
+
+/** The demo accounts' emails and password, shown openly so judges and testers can type them too. */
+function DemoCredentials({ onPick }: { onPick: (email: string) => void }) {
+  return (
+    <div className="mt-4 rounded-lg bg-paper px-3.5 py-3 text-[13px]">
+      <p className="font-semibold">Demo accounts</p>
+      <p className="mt-0.5 text-ink-soft">Use the buttons above, or type one of these into the sign-in form. Click an email to fill the form.</p>
+      <ul className="mt-2 grid gap-1.5">
+        {ROLES.map((r) => (
+          <li key={r} className="flex flex-col sm:flex-row sm:items-baseline sm:gap-3">
+            <span className="text-ink-soft sm:w-28 sm:shrink-0">{ROLE_INFO[r].label}</span>
+            <button
+              type="button"
+              onClick={() => onPick(DEMO_LOGINS[r])}
+              title="Put this email and the password in the sign-in form"
+              className="self-start whitespace-nowrap text-left font-mono text-[12.5px] underline decoration-line-strong underline-offset-2 hover:decoration-ink"
+            >
+              {DEMO_LOGINS[r]}
+            </button>
+          </li>
+        ))}
+        <li className="flex flex-col sm:flex-row sm:items-baseline sm:gap-3">
+          <span className="text-ink-soft sm:w-28 sm:shrink-0">Password (all three)</span>
+          <span className="font-mono text-[12.5px]">{DEMO_PASSWORD}</span>
+        </li>
+      </ul>
+      <p className="mt-2 text-ink-soft">They open only the demo workspace and its fictional brands (Oatvia Foods, Solvira Skincare, Voltaro).</p>
     </div>
   );
 }
 
 export function LoginView() {
+  const { me } = useMeState();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // already signed in (for example the sign-in page was opened from a bookmark): go to the app
+  useEffect(() => {
+    if (me?.signed_in) window.location.replace(afterSignIn("/"));
+  }, [me]);
+
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (busy) return;
@@ -107,30 +129,29 @@ export function LoginView() {
     setError(null);
     try {
       await send("/api/auth/signin", "POST", { email, password });
-      restartApp("/");
+      restartApp(afterSignIn("/"));
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
       setBusy(false);
     }
   };
+  const pick = (demoEmail: string) => {
+    setEmail(demoEmail);
+    setPassword(DEMO_PASSWORD);
+    setError(null);
+  };
   return (
     <div data-account-page className="mx-auto max-w-4xl">
-      <h1 className="text-[28px] font-bold leading-tight tracking-tight">Sign in</h1>
+      <h1 className="text-[28px] font-bold leading-tight tracking-tight">Sign in to BrandSentinel</h1>
       <p className="mt-1 max-w-2xl text-[15px] text-ink-soft">
-        Try a ready-made demo account, sign in to your own workspace, or keep using the open demo without signing in.
+        BrandSentinel checks your brand&apos;s posts against its own rules and approved facts before they go live. Sign in with a demo account to try it, or with your own workspace.
       </p>
       <div className="mt-5 grid gap-5 md:grid-cols-2">
-        <Card title="Try the demo" lead="One click, nothing to type. Each account has one role in the demo workspace, the way a real team member would.">
+        <Card title="Try the demo" lead="One click, nothing to type. Each demo account has one role, the way a real team member does. You can switch role after signing in.">
           <TryAs />
-          <p className="mt-4 text-[13px] text-ink-soft">
-            Or{" "}
-            <Link href="/" className="font-semibold text-ink underline underline-offset-4">
-              continue without signing in
-            </Link>
-            : the open demo lets you switch between all three roles.
-          </p>
+          <DemoCredentials onPick={pick} />
         </Card>
-        <Card title="Your workspace" lead="For your own company's brands, rules and posts. Only your team can see them.">
+        <Card title="Sign in" lead="With a demo account above, or with your own account for your company's private workspace.">
           <form onSubmit={submit} className="grid gap-3.5" noValidate>
             <Field label="Email">
               <input className="field" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
@@ -147,7 +168,8 @@ export function LoginView() {
             New here?{" "}
             <Link href="/signup" className="font-semibold text-ink underline underline-offset-4">
               Create a workspace
-            </Link>
+            </Link>{" "}
+            for your own company. No confirmation email is needed.
           </p>
         </Card>
       </div>

@@ -3,7 +3,7 @@
 import { createContext, useContext, useSyncExternalStore } from "react";
 import type { Role } from "@/lib/types";
 import { ROLE_INFO } from "@/lib/roles";
-import { useMe } from "@/lib/client/use-me";
+import { switchDemoAccount, useMe } from "@/lib/client/use-me";
 
 export { ROLE_LABEL } from "@/lib/roles";
 export const ROLE_HINT: Record<Role, string> = {
@@ -64,13 +64,15 @@ export function RoleProvider({ children }: { children: React.ReactNode }) {
     /* ignore a bad stored value */
   }
 
-  // A signed-in person has one role in their workspace, set by their brand manager. Only the public demo's
-  // visitor (not signed in) may switch between the three roles. The server enforces the same thing.
+  // A signed-in person has one role in their workspace, set by their brand manager. The server enforces it.
+  // A demo account also has one role; "switching role" signs in as the demo person who holds the other role.
   const me = useMe();
   const own = me?.role && me.role !== "guest" ? me.role : null;
   // a brand manager of a real workspace may cover the other roles; they start as themselves
   const covering = own && me?.can_switch ? ((storedActing as Role | null) ?? own) : null;
-  const value: RoleState = covering
+  const value: RoleState = own && me?.demo_account
+    ? { role: own, name: me.name || "Demo", setRole: (r) => void switchDemoAccount(r).catch(() => undefined), setName: () => {}, fixed: false }
+    : covering
     ? { role: ROLES_ALL.includes(covering) ? covering : own!, name: me?.name || "Member", setRole: (r) => write("bs-acting", r), setName: () => {}, fixed: false }
     : own
     ? { role: own, name: me?.name || "Member", setRole: () => {}, setName: () => {}, fixed: true }

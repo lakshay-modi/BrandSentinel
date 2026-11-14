@@ -3,11 +3,11 @@
 import Link from "next/link";
 import { Suspense, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
-import { restartApp, useMe, type Me } from "@/lib/client/use-me";
+import { goToSignIn, onAccountPage, restartApp, useMe, type Me } from "@/lib/client/use-me";
 import { send } from "@/lib/client/send";
 import type { Role } from "@/lib/types";
 import { ROLE_INFO } from "@/lib/roles";
-import { ROLE_HINT, ROLE_LABEL, useRole } from "./role-provider";
+import { ROLE_LABEL, useRole } from "./role-provider";
 import { switchBrand, useBrand } from "@/lib/client/use-brand";
 import { resetPosts, usePosts, waitingFor } from "@/lib/client/use-posts";
 import { ROLE_DOT } from "./role-note";
@@ -23,8 +23,6 @@ const NAV = [
   { href: "/workspace", label: "Team" },
 ];
 
-// pages about the account itself: no brand bar, because they are not about a brand
-const ACCOUNT_PAGES = ["/login", "/signup", "/join", "/welcome"];
 
 const ROLES: Role[] = ["creator", "expert", "brand_manager"];
 
@@ -47,7 +45,7 @@ function MainNav({ path }: { path: string | null }) {
   const todo = useTodo();
   const badge: Record<string, number> = { "/queue": todo.ready ? todo.posts(role) : 0, "/rulebook": role === "brand_manager" ? todo.drafts : 0 };
   return (
-    <nav aria-label="Main" className="thin-scroll -mb-px flex gap-5 overflow-x-auto text-[14px]">
+    <nav aria-label="Main" className="main-nav thin-scroll -mb-px flex gap-5 overflow-x-auto text-[14px]">
       {NAV.map((n) => {
         const active = path !== null && (n.href === "/" ? path === "/" : path.startsWith(n.href) || (n.href === "/queue" && path.startsWith("/posts")));
         const b = badge[n.href] ?? 0;
@@ -85,7 +83,7 @@ function Mark() {
 /** Who does what, and what's waiting for each person. Opened from the role bar. */
 function RoleGuide({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { role, setRole, fixed } = useRole();
-  const signedIn = !!useMe()?.signed_in;
+  const demo = !!useMe()?.demo_account;
   const todo = useTodo();
   const waiting = (r: Role) => {
     const n = todo.posts(r);
@@ -99,9 +97,9 @@ function RoleGuide({ open, onClose }: { open: boolean; onClose: () => void }) {
         Three people share the work, and each step is locked to the person who owns it.{" "}
         {fixed
           ? "You are signed in with one role, set by your brand manager."
-          : signedIn
-            ? "As a brand manager you can also cover the creator and expert roles when the team is small. Whatever you do is recorded under your own name."
-            : "You are in the open demo without signing in, so you can switch roles to play each one."}
+          : demo
+            ? "You are using a demo account. Each demo account has one role; switching role signs you in as the demo person who holds it, in one click."
+            : "As a brand manager you can also cover the creator and expert roles when the team is small. Whatever you do is recorded under your own name."}
       </p>
       <ol className="mt-3 flex flex-wrap items-center gap-2 text-[12px] font-semibold text-ink-soft" aria-label="How a post moves">
         <li className="rounded-md bg-paper px-2 py-1">Creator writes and fixes</li>
@@ -144,7 +142,7 @@ function RoleGuide({ open, onClose }: { open: boolean; onClose: () => void }) {
               <p className="mt-3 rounded-lg bg-paper px-2.5 py-1.5 text-[12px] font-medium">{todo.ready ? waiting(r) : "Loading what's waiting…"}</p>
               <div className="mt-3 pt-1 [&]:mt-auto">
                 {on ? (
-                  <p className="pt-3 text-[13px] font-semibold text-pass">{fixed ? "This is your role" : "You're playing this role"}</p>
+                  <p className="pt-3 text-[13px] font-semibold text-pass">{fixed || demo ? "This is your role" : "You're acting as this role"}</p>
                 ) : fixed ? null : (
                   <Button
                     size="sm"
@@ -166,51 +164,25 @@ function RoleGuide({ open, onClose }: { open: boolean; onClose: () => void }) {
   );
 }
 
-/** The open demo (not signed in): everyone can play every person in the approval flow. */
-function RoleSwitcher() {
-  const { role, setRole, name, setName } = useRole();
-  return (
-    <div className="flex items-center gap-2 text-[13px]">
-      <div role="group" aria-label="Acting as" className="flex rounded-lg border border-line-strong bg-paper p-0.5">
-        {ROLES.map((r) => {
-          const on = r === role;
-          return (
-            <button
-              key={r}
-              type="button"
-              aria-pressed={on}
-              title={ROLE_HINT[r]}
-              onClick={() => setRole(r)}
-              className={`flex items-center gap-1.5 whitespace-nowrap rounded-md px-2.5 py-1 font-medium transition-colors ${on ? "bg-ink text-white shadow-sm" : "text-ink-soft hover:text-ink"}`}
-            >
-              <span className={`size-1.5 rounded-full ${ROLE_DOT[r]}`} aria-hidden="true" />
-              {ROLE_INFO[r].short}
-            </button>
-          );
-        })}
-      </div>
-      <input
-        value={name}
-        maxLength={40}
-        onChange={(e) => setName(e.target.value.replace(/[^\p{L}\p{N} .'_-]/gu, ""))}
-        className="hidden w-24 rounded-lg border border-line-strong bg-surface px-2 py-1 font-medium sm:block"
-        aria-label={`Your name as ${ROLE_LABEL[role]}`}
-      />
-    </div>
-  );
-}
-
-/** A brand manager of a real workspace can cover the creator and expert roles; their name stays on everything. */
-function ActingAs() {
+/**
+ * Switch role. A demo account: signs in as the demo person with that role. A brand manager of a real
+ * workspace: covers the creator or expert role, with their own name on everything.
+ */
+function ActingAs({ demo }: { demo: boolean }) {
   const { role, setRole } = useRole();
+  const [busy, setBusy] = useState(false);
   return (
     <label className="flex items-center gap-1.5 text-[13px]">
-      <span className="hidden text-ink-soft sm:inline">Acting as</span>
+      <span className="hidden text-ink-soft sm:inline">{busy ? "Switching…" : demo ? "Demo role" : "Acting as"}</span>
       <select
         value={role}
-        onChange={(e) => setRole(e.target.value as Role)}
-        title="As brand manager you can also cover the creator and expert roles. Your name is recorded on everything you do."
-        aria-label="Acting as"
+        disabled={busy}
+        onChange={(e) => {
+          if (demo) setBusy(true);
+          setRole(e.target.value as Role);
+        }}
+        title={demo ? "Sign in as the demo person with another role. One click, no password needed." : "As brand manager you can also cover the creator and expert roles. Your name is recorded on everything you do."}
+        aria-label={demo ? "Demo role" : "Acting as"}
         className="rounded-lg border border-line-strong bg-surface px-2 py-1.5 font-semibold"
       >
         {ROLES.map((r) => (
@@ -223,30 +195,21 @@ function ActingAs() {
   );
 }
 
-/** Top right: who you are. Signed in: your name, role and workspace. Not signed in: the role switcher and Sign in. */
+/** Top right: who you are, your role and workspace. Nothing when signed out (only the sign-in page is shown then). */
 function AccountArea() {
   const me = useMe();
   const [busy, setBusy] = useState(false);
   if (!me) return <span className="inline-block h-8 w-56 animate-pulse rounded-lg bg-line/70" aria-hidden="true" />;
-  if (!me.signed_in) {
-    return (
-      <div className="flex flex-wrap items-center justify-end gap-2">
-        <RoleSwitcher />
-        <Link href="/login" className="inline-flex h-8 items-center whitespace-nowrap rounded-lg bg-ink px-3 text-[13px] font-semibold text-white shadow-sm hover:bg-[#26304a]">
-          Sign in
-        </Link>
-      </div>
-    );
-  }
+  if (!me.signed_in) return null;
   const signOut = async () => {
     setBusy(true);
     await send("/api/auth/signout", "POST", {}).catch(() => undefined);
-    restartApp("/");
+    restartApp("/login");
   };
   const others = me.workspaces.filter((w) => w.id !== me.workspace?.id);
   return (
     <div className="flex flex-wrap items-center justify-end gap-2">
-      {me.can_switch && <ActingAs />}
+      {(me.can_switch || me.demo_account) && <ActingAs demo={me.demo_account} />}
       <AccountMenu me={me} others={others} busy={busy} setBusy={setBusy} signOut={signOut} />
     </div>
   );
@@ -309,7 +272,7 @@ function AccountMenu({ me, others, busy, setBusy, signOut }: { me: Me; others: M
             {busy ? "Signing out…" : "Sign out"}
           </Button>
         </div>
-        {me.demo_account && <p className="mt-2 text-[12px] text-ink-soft">This is a shared demo account. Sign out to switch roles freely, or create your own workspace.</p>}
+        {me.demo_account && <p className="mt-2 text-[12px] text-ink-soft">This is a shared demo account. Use “Demo role” to switch to another demo person, or sign out and create your own workspace.</p>}
       </div>
     </details>
   );
@@ -400,11 +363,13 @@ function RoleBar() {
   );
 }
 
-/** A signed-in person with no workspace yet is sent to create one. */
+/** Signed out: go to sign in. Signed in with no workspace yet: go and create one. */
 function NeedsWorkspace() {
   const me = useMe();
   useEffect(() => {
-    if (me?.signed_in && !me.workspace && !ACCOUNT_PAGES.some((p) => window.location.pathname === p || window.location.pathname.startsWith(`${p}/`))) window.location.replace("/welcome");
+    if (!me || onAccountPage()) return;
+    if (!me.signed_in) goToSignIn();
+    else if (!me.workspace) window.location.replace("/welcome");
   }, [me]);
   return null;
 }

@@ -177,7 +177,7 @@ export function WorkspaceView() {
       {workspace.isDemo && (
         <Section
           title="This is the shared demo"
-          lead="Anyone can open it, and without signing in you can switch between all three roles. It has no invites and uses BrandSentinel's shared AI key, so it holds only fictional brands."
+          lead="Everyone signs in to it with the demo accounts, one per role, and can switch role in one click. It has no invites and uses BrandSentinel's shared AI key, so it holds only fictional brands."
         >
           <div className="flex flex-wrap items-center gap-3">
             <Link href="/signup" className="inline-flex h-10 items-center rounded-lg bg-ink px-4 text-[14px] font-semibold text-white shadow-sm hover:bg-[#26304a]">

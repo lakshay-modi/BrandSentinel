@@ -5,7 +5,7 @@ import { randomBytes } from "node:crypto";
 import { adminDb, DEMO_WORKSPACE } from "./db";
 import { sha256 } from "./secrets";
 
-/** The open demo's token: published on the Connect page, so anyone can try the extension and the add-on. */
+/** The demo workspace's token: published on the Connect page, so anyone can try the extension and the add-on. */
 export const DEMO_TOKEN = "bs_demo_public_token";
 
 export function newToken(): { token: string; hash: string; hint: string } {

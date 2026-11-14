@@ -1,6 +1,7 @@
 "use client";
 // Small typed wrappers around the app's API routes.
 import type { Brand, Fact, Goal, GuidelineDoc, PostInput, ReviewResult, Role, Rule } from "../types";
+import { goToSignIn } from "./use-me";
 
 export interface ReviewRow extends ReviewResult {
   id: string;
@@ -69,6 +70,7 @@ export interface BrandData {
 async function call<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, { ...init, headers: { "content-type": "application/json", ...(init?.headers ?? {}) } });
   const data = await res.json().catch(() => ({}));
+  if (res.status === 401) goToSignIn();
   if (!res.ok) throw new Error(data.error ?? `Request failed (${res.status})`);
   return data as T;
 }

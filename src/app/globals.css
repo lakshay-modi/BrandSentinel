@@ -238,6 +238,7 @@ h3 {
 }
 
 /* Account pages (sign in, sign up, join, new workspace) are not about a brand: no brand bar there. */
-body:has([data-account-page]) .brand-bar {
+body:has([data-account-page]) .brand-bar,
+body:has([data-account-page]) .main-nav {
   display: none;
 }
