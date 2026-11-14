@@ -82,7 +82,7 @@ export const POST = withSession<RouteContext<"/api/posts/[id]/action">>(async (r
 
     // approve / request_changes
     if (post.status !== "in_review") return fail("This post isn't waiting for review.", 409);
-    if (role !== post.assigned_role) return fail(`This post is waiting for the ${ROLE_LABEL[post.assigned_role as keyof typeof ROLE_LABEL] ?? "reviewer"}. ${me.canSwitchRole ? "Switch role to act on it." : "Only they can act on it now."}`, 403);
+    if (role !== post.assigned_role) return fail(`This post is waiting for the ${ROLE_LABEL[post.assigned_role as keyof typeof ROLE_LABEL] ?? "reviewer"}. ${me.canSwitchRole ? "Switch role to act on it." : me.demoAccount ? "To act as them, sign out and sign in with their demo account." : "Only they can act on it now."}`, 403);
 
     if (action === "request_changes") {
       if (!comment || comment.length < 3) return fail("Tell the creator what to change.");

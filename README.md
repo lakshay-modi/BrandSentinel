@@ -19,7 +19,7 @@ Use these to try BrandSentinel. They are also listed on the sign-in page, where 
 | Brand manager | `manager@brandsentinel.demo` | `brandsentinel-demo` | Owns the brand: its rulebooks, facts and final approval |
 
 - On the sign-in page, click **Sign in as Creator / Expert reviewer / Brand manager**, or type an email and the password above.
-- After signing in, the **Demo role** switch at the top right signs you in as one of the other demo people in one click. That is how one person walks a post through the whole approval flow.
+- Each demo account has one fixed role. To act as another person, **sign out** (menu at the top right) and sign in with that role's account. That is how one person walks a post through the whole approval flow.
 - The demo accounts open only the demo workspace and its fictional brands (Oatvia Foods, Solvira Skincare, Voltaro). They can't create or join other workspaces.
 - **Your own workspace:** on the sign-in page, click **Create a workspace**. No confirmation email is sent, so it works at once, and only people you invite can see it.
 
@@ -28,7 +28,7 @@ Use these to try BrandSentinel. They are also listed on the sign-in page, where 
 1. Open the live app. On the sign-in page, click **Sign in as Creator**.
 2. Click a sample post, for example **Launch post**. The **live preview** underlines problems while you type. Click **Check post**.
 3. Every problem is underlined and numbered. Each shows the rule ID, the fact that proves it, and a fix. **Accept**, **Edit** or **Reject** (with a reason), then **Re-check** and **Submit for review**.
-4. Use **Demo role** at the top right to become the **Expert reviewer** or **Brand manager**, and approve the post or send it back from the **Review queue**.
+4. Sign out and sign in as the **Expert reviewer** or **Brand manager**, then approve the post or send it back from the **Review queue**.
 5. **Video:** on Check a post, click **Try the sample reel**. The browser takes a frame every 2.5 seconds, reads the on-screen text and turns the speech into text. After the check, every problem has a time; click it to jump to that second.
 6. **Carousel:** add several images to one post. They are checked slide by slide and each problem names its slide.
 7. **Connect** (in the menu): download the browser extension or the Google Docs add-on. Both come set up for the demo, so they work straight away.

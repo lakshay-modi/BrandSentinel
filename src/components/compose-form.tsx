@@ -15,6 +15,7 @@ import { LivePreview } from "./live-preview";
 import { useBrand } from "@/lib/client/use-brand";
 import { refreshPosts } from "@/lib/client/use-posts";
 import { useRole } from "./role-provider";
+import { useMe } from "@/lib/client/use-me";
 import { can, ROLE_INFO } from "@/lib/roles";
 import Link from "next/link";
 
@@ -101,6 +102,7 @@ function VideoPanel({ video, onChange, onRemove }: { video: DraftVideo; onChange
 export function ComposeForm() {
   const router = useRouter();
   const { role, name, setRole, fixed } = useRole();
+  const useMeDemo = !!useMe()?.demo_account;
   const writer = can(role, "check_posts");
   const [input, setInput] = useState<PostInput>(EMPTY);
   const [images, setImages] = useState<DraftImage[]>([]);
@@ -555,7 +557,7 @@ export function ComposeForm() {
                   </Button>
                 )}
                 <span className="text-[13px] text-ink-soft">
-                  Creators write and check posts. As {ROLE_INFO[role].label.toLowerCase()}, you review them in the{" "}
+                  Creators write and check posts.{useMeDemo ? " To check one, sign out and sign in with the Creator demo account." : ""} As {ROLE_INFO[role].label.toLowerCase()}, you review them in the{" "}
                   <Link href="/queue" className="font-semibold text-ink underline underline-offset-2">
                     Review queue
                   </Link>

@@ -88,13 +88,3 @@ export function afterSignIn(fallback = "/"): string {
   const next = new URLSearchParams(window.location.search).get("next");
   return next && next.startsWith("/") && !next.startsWith("//") && !next.startsWith("/login") ? next : fallback;
 }
-
-/** A demo account plays one role. Switching role signs in as the demo person who has that role. */
-export async function switchDemoAccount(role: Role): Promise<void> {
-  const res = await fetch("/api/auth/demo", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ role }) });
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error((data as { error?: string }).error ?? "Couldn't switch the demo account. Try again.");
-  }
-  window.location.reload();
-}

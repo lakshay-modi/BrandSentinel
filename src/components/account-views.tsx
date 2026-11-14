@@ -147,7 +147,7 @@ export function LoginView() {
         BrandSentinel checks your brand&apos;s posts against its own rules and approved facts before they go live. Sign in with a demo account to try it, or with your own workspace.
       </p>
       <div className="mt-5 grid gap-5 md:grid-cols-2">
-        <Card title="Try the demo" lead="One click, nothing to type. Each demo account has one role, the way a real team member does. You can switch role after signing in.">
+        <Card title="Try the demo" lead="One click, nothing to type. Each demo account has one role, the way a real team member does. To change role, sign out and sign in with another demo account.">
           <TryAs />
           <DemoCredentials onPick={pick} />
         </Card>

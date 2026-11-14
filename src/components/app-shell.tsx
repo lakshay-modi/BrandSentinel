@@ -98,7 +98,7 @@ function RoleGuide({ open, onClose }: { open: boolean; onClose: () => void }) {
         {fixed
           ? "You are signed in with one role, set by your brand manager."
           : demo
-            ? "You are using a demo account. Each demo account has one role; switching role signs you in as the demo person who holds it, in one click."
+            ? "You are using a demo account, which has one role. To act as another person, sign out and sign in with their demo account."
             : "As a brand manager you can also cover the creator and expert roles when the team is small. Whatever you do is recorded under your own name."}
       </p>
       <ol className="mt-3 flex flex-wrap items-center gap-2 text-[12px] font-semibold text-ink-soft" aria-label="How a post moves">
@@ -164,25 +164,17 @@ function RoleGuide({ open, onClose }: { open: boolean; onClose: () => void }) {
   );
 }
 
-/**
- * Switch role. A demo account: signs in as the demo person with that role. A brand manager of a real
- * workspace: covers the creator or expert role, with their own name on everything.
- */
-function ActingAs({ demo }: { demo: boolean }) {
+/** A brand manager of a real workspace can cover the creator and expert roles; their name stays on everything. */
+function ActingAs() {
   const { role, setRole } = useRole();
-  const [busy, setBusy] = useState(false);
   return (
     <label className="flex items-center gap-1.5 text-[13px]">
-      <span className="hidden text-ink-soft sm:inline">{busy ? "Switching…" : demo ? "Demo role" : "Acting as"}</span>
+      <span className="hidden text-ink-soft sm:inline">Acting as</span>
       <select
         value={role}
-        disabled={busy}
-        onChange={(e) => {
-          if (demo) setBusy(true);
-          setRole(e.target.value as Role);
-        }}
-        title={demo ? "Sign in as the demo person with another role. One click, no password needed." : "As brand manager you can also cover the creator and expert roles. Your name is recorded on everything you do."}
-        aria-label={demo ? "Demo role" : "Acting as"}
+        onChange={(e) => setRole(e.target.value as Role)}
+        title="As brand manager you can also cover the creator and expert roles. Your name is recorded on everything you do."
+        aria-label="Acting as"
         className="rounded-lg border border-line-strong bg-surface px-2 py-1.5 font-semibold"
       >
         {ROLES.map((r) => (
@@ -209,7 +201,7 @@ function AccountArea() {
   const others = me.workspaces.filter((w) => w.id !== me.workspace?.id);
   return (
     <div className="flex flex-wrap items-center justify-end gap-2">
-      {(me.can_switch || me.demo_account) && <ActingAs demo={me.demo_account} />}
+      {me.can_switch && <ActingAs />}
       <AccountMenu me={me} others={others} busy={busy} setBusy={setBusy} signOut={signOut} />
     </div>
   );
@@ -272,7 +264,7 @@ function AccountMenu({ me, others, busy, setBusy, signOut }: { me: Me; others: M
             {busy ? "Signing out…" : "Sign out"}
           </Button>
         </div>
-        {me.demo_account && <p className="mt-2 text-[12px] text-ink-soft">This is a shared demo account. Use “Demo role” to switch to another demo person, or sign out and create your own workspace.</p>}
+        {me.demo_account && <p className="mt-2 text-[12px] text-ink-soft">This is a shared demo account with one role. To use another role, sign out and sign in with that role&apos;s demo account.</p>}
       </div>
     </details>
   );

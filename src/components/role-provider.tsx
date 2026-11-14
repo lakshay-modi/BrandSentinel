@@ -3,7 +3,7 @@
 import { createContext, useContext, useSyncExternalStore } from "react";
 import type { Role } from "@/lib/types";
 import { ROLE_INFO } from "@/lib/roles";
-import { switchDemoAccount, useMe } from "@/lib/client/use-me";
+import { useMe } from "@/lib/client/use-me";
 
 export { ROLE_LABEL } from "@/lib/roles";
 export const ROLE_HINT: Record<Role, string> = {
@@ -65,14 +65,12 @@ export function RoleProvider({ children }: { children: React.ReactNode }) {
   }
 
   // A signed-in person has one role in their workspace, set by their brand manager. The server enforces it.
-  // A demo account also has one role; "switching role" signs in as the demo person who holds the other role.
+  // A demo account also has one fixed role: to act as someone else, sign out and sign in with their account.
   const me = useMe();
   const own = me?.role && me.role !== "guest" ? me.role : null;
   // a brand manager of a real workspace may cover the other roles; they start as themselves
   const covering = own && me?.can_switch ? ((storedActing as Role | null) ?? own) : null;
-  const value: RoleState = own && me?.demo_account
-    ? { role: own, name: me.name || "Demo", setRole: (r) => void switchDemoAccount(r).catch(() => undefined), setName: () => {}, fixed: false }
-    : covering
+  const value: RoleState = covering
     ? { role: ROLES_ALL.includes(covering) ? covering : own!, name: me?.name || "Member", setRole: (r) => write("bs-acting", r), setName: () => {}, fixed: false }
     : own
     ? { role: own, name: me?.name || "Member", setRole: () => {}, setName: () => {}, fixed: true }
@@ -90,4 +88,9 @@ export function useRole(): RoleState {
   const ctx = useContext(RoleContext);
   if (!ctx) throw new Error("useRole must be used inside RoleProvider");
   return ctx;
+}
+
+/** For a demo account, which has one role: how to act as someone else. */
+export function signInAsHint(roleLabel: string): string {
+  return ` To act as the ${roleLabel}, sign out and sign in with the ${roleLabel} demo account.`;
 }
