@@ -29,7 +29,8 @@ const BACKUP_ENDPOINT = "https://api.asi1.ai/v1/chat/completions";
 export const BACKUP_MODEL = "asi1";
 
 function backupKey(): string | null {
-  return process.env.ASI1_API_KEY?.trim() || null;
+  // ASIAPI is accepted as another name for the same key
+  return process.env.ASI1_API_KEY?.trim() || process.env.ASIAPI?.trim() || null;
 }
 
 /**

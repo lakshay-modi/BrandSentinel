@@ -37,7 +37,7 @@ export async function GET(req: Request) {
   await connection();
   const t0 = Date.now();
   const { error } = await adminDb().from("brands").select("id").limit(1);
-  const out: Record<string, unknown> = { db: error ? "error" : "ok", db_ms: Date.now() - t0, db_access: dbAccessMode(), ai_configured: !!process.env.GEMINI_API_KEY, ai_backup_configured: !!process.env.ASI1_API_KEY };
+  const out: Record<string, unknown> = { db: error ? "error" : "ok", db_ms: Date.now() - t0, db_access: dbAccessMode(), ai_configured: !!process.env.GEMINI_API_KEY, ai_backup_configured: !!(process.env.ASI1_API_KEY || process.env.ASIAPI) };
   if (dbAccessMode() !== "secret key") out.db_key = dbKeyDiagnostics();
   // login: is the Supabase Auth service reachable?
   out.auth = await authServiceCheck();

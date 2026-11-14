@@ -91,7 +91,14 @@ describe("backup AI", () => {
 
   it("is off without its key", () => {
     vi.stubEnv("ASI1_API_KEY", "");
+    vi.stubEnv("ASIAPI", "");
     expect(backupAvailable()).toBe(false);
+  });
+
+  it("also takes its key under the name ASIAPI", () => {
+    vi.stubEnv("ASI1_API_KEY", "");
+    vi.stubEnv("ASIAPI", "asi-key");
+    expect(backupAvailable()).toBe(true);
   });
 
   it("can be tried first for testing", async () => {
