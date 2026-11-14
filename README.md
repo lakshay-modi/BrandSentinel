@@ -274,17 +274,19 @@ Other commands: `npm test` (82 tests), `npm run lint`, `npm run build`.
 
 **Database rules:** tested in SQL as three different people in two workspaces: a manager sees only their own workspace's brands, posts and team; a creator can't change brands, promote themselves, or read or delete another workspace's posts.
 
-**By hand, on the live app:**
+**By hand, on the live app (14 November):**
 
-- Sign up, sign in, sign out; a weak password and a repeated email are refused with a plain message.
-- Each demo account can do only its own role's actions; a forged role in a request is ignored.
+- Sign up, create a workspace and run a first check (the new workspace starts with 14 rules).
+- A weak password, a repeated email and a wrong password are each refused with a plain message.
+- Each demo account signs in with one click and can do only its own role's actions; a forged role in a request is ignored.
+- Invite link: create, join as a second person with the chosen role; reusing the link is refused.
 - A new workspace can't open the demo's posts (404) or reset the demo (403).
-- Invite link: create, join as a second person, cancel; a used or expired link is refused.
 - A wrong AI key is rejected by Google and not stored.
-- Main journey for each kind of post (images, carousel, video): check, fix, re-check, submit, approve, send back.
-- Extension and Docs add-on against the demo token.
-- Webhook and Slack with **Send a test**, and the delivery log.
-- Bad input, empty states, a refresh mid-way, the same button twice, and phone width (390 px) on every page.
+- Sample reel: read in 34 seconds (5 on-screen texts, 5 spoken lines), 10 problems each with its time, and clicking one moved the player to 0:10.
+- Carousel: check and submit.
+- Submit three times at once and approve twice at once: each took effect once.
+- The public check API with the demo token and with a workspace's own token; a wrong token is refused.
+- Bad input (unknown channel, empty caption, broken request, bad post address) is refused with a plain message.
 
 ## Roadmap
 
