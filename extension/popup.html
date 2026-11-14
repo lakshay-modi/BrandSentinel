@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>BrandSentinel</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header>
+      <img src="icons/48.png" width="24" height="24" alt="" />
+      <h1>BrandSentinel</h1>
+    </header>
+
+    <button id="start" class="primary" type="button">Check what I'm writing on this page</button>
+    <p id="status" role="status"></p>
+
+    <details id="setup">
+      <summary>Connection</summary>
+      <label>Brand<select id="brand"></select></label>
+      <label>Channel
+        <select id="channel">
+          <option value="instagram">Instagram</option>
+          <option value="linkedin">LinkedIn</option>
+          <option value="x">X</option>
+          <option value="website">Website</option>
+          <option value="email">Email</option>
+        </select>
+      </label>
+      <label>Your name (shown on drafts you save)<input id="author" maxlength="40" placeholder="For example: Riya" /></label>
+      <label>Token<input id="token" type="password" autocomplete="off" spellcheck="false" placeholder="bs_…" /></label>
+      <label>Server address<input id="apiBase" type="url" spellcheck="false" /></label>
+      <div class="row">
+        <button id="save" type="button">Save and test</button>
+        <span id="saved"></span>
+      </div>
+      <p class="hint">The token comes from BrandSentinel's Connect page. The demo token checks against the fictional demo brands.</p>
+    </details>
+
+    <p class="hint">Click a text box on the page first. The text you type there is sent to your BrandSentinel server to be checked, and nothing else on the page is read.</p>
+    <script src="popup.js"></script>
+  </body>
+</html>
