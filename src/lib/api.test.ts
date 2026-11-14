@@ -20,7 +20,15 @@ describe("input checks on the API", () => {
   it("allows real names and blocks markup in the display name", () => {
     expect(actorSchema.safeParse("Priya S.").success).toBe(true);
     expect(actorSchema.safeParse("Zoë O'Neil-Rao").success).toBe(true);
-    expect(actorSchema.safeParse("<img src=x onerror=alert(1)>").success).toBe(false);
+    // the demo accounts' names
+    expect(actorSchema.safeParse("Priya (demo)").success).toBe(true);
+    expect(actorSchema.safeParse("Arjun (demo)").success).toBe(true);
+    // markup is stripped, not passed through: no < > or = survive
+    const cleaned = actorSchema.parse("<img src=x onerror=alert(1)>");
+    expect(cleaned).not.toMatch(/[<>=]/);
+    expect(actorSchema.parse("Dr. Meera, MD")).toBe("Dr. Meera MD");
+    expect(actorSchema.parse("riya+test")).toBe("riya test");
+    expect(actorSchema.parse("   ")).toBe("Guest");
   });
 });
 

@@ -62,13 +62,23 @@ export const postInputSchema = z.object({
   .refine((p) => p.images.reduce((n, i) => n + i.src.length, 0) <= 3_800_000, "The images are too large together. Remove one or use smaller files.");
 
 // a display name only (no sign-in in the demo): letters, numbers, spaces and simple punctuation
-export const actorSchema = z
-  .string()
-  .trim()
-  .min(1)
-  .max(40)
-  .regex(/^[\p{L}\p{N} .'_-]+$/u, "Names can use letters, numbers, spaces, dots, dashes and apostrophes")
-  .default("Guest");
+/**
+ * A person's display name in history. Characters outside letters, numbers, spaces and . ' _ - ( ) are removed
+ * rather than refused, so a name like "Priya (demo)", "Dr. Meera, MD" or one taken from an email address never
+ * blocks an action, while markup can't get through.
+ */
+export const actorSchema = z.preprocess(
+  (v) =>
+    typeof v === "string"
+      ? v
+          .replace(/[^\p{L}\p{N} .'_()-]+/gu, " ")
+          .replace(/\s+/g, " ")
+          .trim()
+          .slice(0, 40)
+          .trim() || "Guest"
+      : v,
+  z.string().min(1).max(40).default("Guest"),
+);
 
 export function json(data: unknown, status = 200) {
   return Response.json(data, { status, headers: { "cache-control": "no-store" } });
