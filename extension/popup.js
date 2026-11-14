@@ -55,7 +55,7 @@ $("start").addEventListener("click", async () => {
     if (!tab || !tab.id) throw new Error("No page is open.");
     await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["content.js"] });
     window.close();
-  } catch (e) {
+  } catch {
     note($("status"), "This page can't be checked (browser pages and the extension store are off limits). Open the site you write on and try again.", "error");
     $("start").disabled = false;
   }

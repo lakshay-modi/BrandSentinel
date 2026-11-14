@@ -12,7 +12,11 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // third-party files shipped as they are (the in-browser text reader)
+    "public/tesseract/**",
   ]),
+  // Node scripts for the end-to-end tests use require()
+  { files: ["tests/**/*.cjs"], rules: { "@typescript-eslint/no-require-imports": "off" } },
 ]);
 
 export default eslintConfig;
