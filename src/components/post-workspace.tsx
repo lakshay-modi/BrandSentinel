@@ -12,6 +12,8 @@ const endSentence = (t: string) => (/[.!?]$/.test(t.trim()) ? t.trim() : `${t.tr
 import type { Fact, Finding, Goal, ImageAnalysis } from "@/lib/types";
 import { FindingCard } from "./finding-card";
 import { ProofText } from "./proof-text";
+import { findingTime, fmtTime, isFrame, whereLabel } from "@/lib/video";
+import { postVideoUrl, setPostVideo } from "@/lib/client/video";
 import { ScorePanel } from "./score-panel";
 import { HistoryList, WorkflowPanel } from "./workflow-panel";
 import { Button, CHANNEL_LABEL, ErrorNote, Panel, Skeleton, StatusTag } from "./ui";
@@ -86,6 +88,9 @@ export function PostWorkspace({ id }: { id: string }) {
   const [picked, setPicked] = useState<string | null>(null);
   const [active, setActive] = useState<string | null>(null); // problem pointed at by hover or keyboard
   const [filter, setFilter] = useState<Filter>("all");
+  // a video post: the file is played from this device only (it was never uploaded)
+  const playerRef = useRef<HTMLVideoElement>(null);
+  const [videoUrl, setVideoUrl] = useState<string | null>(() => postVideoUrl(id));
   const [hideDone, setHideDone] = useState(false);
   const toast = useToast();
   // j / k move between the problems shown in the list (read from the page, so filters are respected)
@@ -175,8 +180,24 @@ export function PostWorkspace({ id }: { id: string }) {
     { key: "medium", label: "Medium", n: count((f) => f.severity === "medium") },
     { key: "low", label: "Low", n: count((f) => f.severity === "low") },
     { key: "caption", label: "Caption", n: count((f) => f.location === "caption") },
-    { key: "images", label: "Images", n: count((f) => f.location !== "caption") },
+    { key: "images", label: post.video ? "Video" : post.images.length > 1 ? "Slides" : "Images", n: count((f) => f.location !== "caption") },
   ];
+  const shape = { images: post.images, video: post.video ?? undefined };
+
+  /** Show the moment a problem happens: move the player there (if the file is loaded) and show its frame. */
+  const jump = (f: Finding) => {
+    const t = findingTime(f, shape);
+    if (t === null) return;
+    const player = playerRef.current;
+    if (player) {
+      player.currentTime = Math.max(0, t - 0.3);
+      player.pause();
+    }
+    const target = f.location === "speech" ? document.getElementById(`said-${Math.round(t * 10)}`) : document.getElementById(`frame-${imageIndex(f)}`);
+    (target ?? player)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    setActive(f.id);
+    setTimeout(() => setActive((a) => (a === f.id ? null : a)), 2500);
+  };
 
   const pick = (fid: string) => {
     setPicked(fid);
@@ -326,6 +347,7 @@ export function PostWorkspace({ id }: { id: string }) {
           product: post.product,
           partner: post.partner,
           caption,
+          ...(post.video ? { video: post.video } : {}),
           images: post.images.map((img, i) => {
             const e = imgEdits[i];
             const analysis = e?.analysis ?? img.analysis;
@@ -425,14 +447,84 @@ export function PostWorkspace({ id }: { id: string }) {
             ) : (
               <p className="font-serif text-[22px] leading-[1.6]">{post.caption}</p>
             )}
+            {post.video && (
+              <div className="mt-6 border-t border-line pt-6">
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <p className="text-[13px] font-medium text-ink-soft">
+                    Video: <span className="font-semibold text-ink">{post.video.name}</span> · {fmtTime(post.video.duration)}
+                  </p>
+                  {!videoUrl && (
+                    <label className="cursor-pointer text-[13px] font-semibold text-ink underline underline-offset-2">
+                      Load the video file to play it here
+                      <input
+                        type="file"
+                        accept="video/*"
+                        hidden
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          setPostVideo(post.id, file);
+                          setVideoUrl(postVideoUrl(post.id));
+                        }}
+                      />
+                    </label>
+                  )}
+                </div>
+                {videoUrl ? (
+                  <video ref={playerRef} src={videoUrl} controls playsInline preload="metadata" className="mt-2 max-h-[420px] w-full rounded-lg border border-line bg-ink" />
+                ) : (
+                  <p className="mt-1 text-[13px] text-ink-faint">
+                    The video file was never uploaded: only the frames below and the transcript were saved. Each problem shows the moment it happens; load the same file to play from there.
+                  </p>
+                )}
+                <p className="mb-2 mt-5 text-[13px] font-medium text-ink-soft">What is said{post.video.transcript_source === "ai" ? " (written down by the AI from the sound)" : post.video.transcript_source === "typed" ? " (typed by the creator)" : ""}</p>
+                {post.video.transcript.length ? (
+                  <ul className="space-y-1.5">
+                    {post.video.transcript.map((s, i) => (
+                      <li key={i} id={`said-${Math.round(s.t * 10)}`} className="flex items-start gap-3">
+                        <button
+                          type="button"
+                          className="mt-1 w-10 shrink-0 text-left font-mono text-[12px] font-semibold text-ink-soft hover:text-ink"
+                          title="Play from here"
+                          onClick={() => {
+                            if (playerRef.current) {
+                              playerRef.current.currentTime = s.t;
+                              void playerRef.current.play().catch(() => undefined);
+                            }
+                          }}
+                        >
+                          {fmtTime(s.t)}
+                        </button>
+                        {review ? (
+                          <ProofText
+                            text={s.text}
+                            findings={numbered.filter((x) => x.f.location === "speech" && x.f.quotes.some((q) => s.text.toLowerCase().includes(q.toLowerCase())))}
+                            onPick={pick}
+                            activeId={active}
+                            onHover={setActive}
+                            className="!text-[16px] !leading-[1.55]"
+                          />
+                        ) : (
+                          <p className="text-[16px] leading-[1.55]">{s.text}</p>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-[14px] text-ink-faint">Nobody speaks in this video, or no script was given.</p>
+                )}
+                {post.images.length > 0 && <p className="mt-5 text-[13px] font-medium text-ink-soft">On screen ({post.images.length} frame{post.images.length === 1 ? "" : "s"} with new text, from one look every 2.5 seconds)</p>}
+              </div>
+            )}
             {post.images.length > 0 && (
-              <ul className="mt-6 grid grid-cols-2 gap-4 border-t border-line pt-6">
+              <ul className={post.video ? "mt-2 grid grid-cols-2 gap-4 sm:grid-cols-3" : "mt-6 grid grid-cols-2 gap-4 border-t border-line pt-6"}>
                 {post.images.map((img, i) => {
                   const refs = numbered.filter((x) => x.f.location === `image ${i + 1}`);
+                  const frame = isFrame(img);
                   return (
-                    <li key={i} className="relative">
+                    <li key={i} id={`frame-${i}`} className="relative">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={imgEdits[i]?.src ?? img.src} alt={alts[i] || ""} className={`aspect-square w-full rounded-lg border object-cover ${imgEdits[i] ? "border-low ring-2 ring-low/30" : "border-line"} ${imgBusy === i ? "animate-pulse" : ""}`} />
+                      <img src={imgEdits[i]?.src ?? img.src} alt={alts[i] || ""} className={`${frame ? "aspect-video" : "aspect-square"} w-full rounded-lg border object-cover ${imgEdits[i] ? "border-low ring-2 ring-low/30" : "border-line"} ${imgBusy === i ? "animate-pulse" : ""}`} />
                       {imgBusy === i && (
                         <span className="absolute inset-x-2 bottom-14 rounded-md bg-ink/85 px-2 py-1 text-center text-[12px] font-medium text-white" role="status">
                           Rewriting the text in this image…
@@ -464,9 +556,29 @@ export function PostWorkspace({ id }: { id: string }) {
                           ))}
                         </div>
                       )}
-                      <p className="mt-2 text-[13px] text-ink-soft">
-                        <span className="font-semibold text-ink">Image {i + 1}.</span> {alts[i] ? `Alt text: ${alts[i]}` : "No alt text yet."}
-                      </p>
+                      {frame ? (
+                        <p className="mt-2 text-[13px] text-ink-soft">
+                          <button
+                            type="button"
+                            className="font-mono font-semibold text-ink hover:underline"
+                            title="Play from here"
+                            onClick={() => {
+                              if (playerRef.current) {
+                                playerRef.current.currentTime = img.t ?? 0;
+                                playerRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+                              }
+                            }}
+                          >
+                            {fmtTime(img.t ?? 0)}
+                            {img.t_end !== undefined && img.t_end - (img.t ?? 0) > 3 ? `–${fmtTime(img.t_end)}` : ""}
+                          </button>{" "}
+                          on screen
+                        </p>
+                      ) : (
+                        <p className="mt-2 text-[13px] text-ink-soft">
+                          <span className="font-semibold text-ink">{post.images.length > 1 ? `Slide ${i + 1} of ${post.images.length}` : "Image 1"}.</span> {alts[i] ? `Alt text: ${alts[i]}` : "No alt text yet."}
+                        </p>
+                      )}
                       {ocrEdit === i ? (
                         <label className="mt-1 block text-xs text-ink-soft">
                           Text in the image (fix any reading mistakes, then re-check)
@@ -482,7 +594,7 @@ export function PostWorkspace({ id }: { id: string }) {
                       ) : (
                         (ocr[i] || img.analysis) && (
                           <p className="mt-0.5 text-[13px] text-ink-faint">
-                            {ocr[i] ? <>Text found in image: “{ocr[i].replace(/\n/g, " / ")}”</> : "No text found in this image."}
+                            {ocr[i] ? <>{frame ? "Text on screen" : "Text found in image"}: “{ocr[i].replace(/\n/g, " / ")}”</> : frame ? "No text on screen here." : "No text found in this image."}
                             {canAct && img.analysis && (
                               <button type="button" onClick={() => setOcrEdit(i)} className="ml-1 underline hover:text-ink">
                                 Correct
@@ -651,7 +763,11 @@ export function PostWorkspace({ id }: { id: string }) {
                         highlighted={picked === f.id}
                         onAccept={() => accept(f)}
                         onEdit={(t, where) => edit(f, t, where)}
-                        onImageFix={(t, how) => imageFix(f, t, how)}
+                        // text in a video frame or in speech can't be rewritten here: the video has to be changed
+                        onImageFix={f.location === "speech" || (imageIndex(f) >= 0 && isFrame(post.images[imageIndex(f)] ?? { src: "", alt_text: "" })) ? undefined : (t, how) => imageFix(f, t, how)}
+                        where={whereLabel(f, shape)}
+                        onJump={post.video && findingTime(f, shape) !== null ? () => jump(f) : undefined}
+                        fixNote={post.video && f.location !== "caption" ? "This is in the video itself, so change the video and add it again." : undefined}
                         onDisagree={async (r) => {
                           void decide(f, "disagree", r);
                           toast("Rejection saved. The reviewer will see your reason.", "info");

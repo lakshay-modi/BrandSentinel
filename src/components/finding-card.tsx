@@ -22,6 +22,9 @@ export function FindingCard({
   onEdit,
   onDisagree,
   onImageFix,
+  where,
+  onJump,
+  fixNote,
   highlighted,
   stale,
   active,
@@ -38,6 +41,12 @@ export function FindingCard({
   onDisagree: (reason: string) => Promise<void>;
   /** rewrite the quoted text inside the image (Accept uses the suggested wording, Edit the creator's) */
   onImageFix?: (text: string, how: "accept" | "edit" | "recolour") => Promise<void>;
+  /** where the problem is, in words: "on slide 3", "on screen at 0:12", "said at 0:31" */
+  where?: string;
+  /** for a problem in a video: jump to the moment it happens */
+  onJump?: () => void;
+  /** shown when the problem can't be fixed here (it is in a video, which has to be changed and added again) */
+  fixNote?: string;
   highlighted?: boolean;
   /** the text this fix changes is already gone (another fix or an edit changed it) */
   stale?: boolean;
@@ -93,7 +102,13 @@ export function FindingCard({
           <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[13px]">
             <SeverityTag severity={f.severity} />
             <IdLink kind="rule" id={f.rule_id} />
-            <span className="text-ink-faint">{f.location === "caption" ? "in the caption" : `in ${f.location}`}</span>
+            {onJump ? (
+              <button type="button" onClick={onJump} className="rounded-md bg-paper px-1.5 py-0.5 font-medium text-ink underline-offset-2 hover:underline" title="Show this moment of the video">
+                ▶ {where}
+              </button>
+            ) : (
+              <span className="text-ink-faint">{where ?? (f.location === "caption" ? "in the caption" : `in ${f.location}`)}</span>
+            )}
           </div>
           <p className="text-[15px] leading-relaxed">{f.message}</p>
           <div className="space-y-1 border-l-2 border-line-strong pl-3 text-[13px] leading-relaxed text-ink-soft">
@@ -113,7 +128,7 @@ export function FindingCard({
           <p className="text-[14px] leading-relaxed">
             <span className="font-semibold">{acceptable ? "Suggested fix: " : "How to fix: "}</span>
             <span className="text-ink-soft">{describeFix(f.fix)}</span>
-            {!inCaption && !isAlt && !inImage && <span className="block text-[13px] text-ink-faint">This is inside the image, so change the image and check again.</span>}
+            {!inCaption && !isAlt && !inImage && <span className="block text-[13px] text-ink-faint">{fixNote ?? "This is inside the image, so change the image and check again."}</span>}
             {stale && <span className="block text-[13px] text-ink-faint">This text has already changed in your edits. Re-check to confirm it&apos;s fixed.</span>}
           </p>
 

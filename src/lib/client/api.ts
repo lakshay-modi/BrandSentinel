@@ -20,6 +20,8 @@ export interface PostRow {
   partner: boolean;
   caption: string;
   images: PostInput["images"];
+  /** a video post: its length and speech transcript (its frames are in `images`) */
+  video?: PostInput["video"] | null;
   goal: Goal | Record<string, never>;
   goal_confirmed: boolean;
   status: "draft" | "in_review" | "changes_requested" | "approved";
