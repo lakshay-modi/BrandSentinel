@@ -123,6 +123,10 @@ export interface PostVideo {
   transcript: SpeechSegment[];
   /** who wrote the transcript: the AI from the audio, the creator by hand, or nobody (no speech) */
   transcript_source: "ai" | "typed" | "none";
+  /** a public sample file anyone can play (the demo's sample reel) */
+  src?: string;
+  /** the file is kept in private storage, so reviewers on any device can play it */
+  stored?: boolean;
 }
 
 export interface PostInput {

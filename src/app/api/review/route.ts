@@ -44,11 +44,13 @@ export const POST = withSession(async (req, _ctx, me) => {
 
     let postId = post_id;
     if (postId) {
-      const { data: existing } = await db().from("posts").select("id, status, brand_id").eq("id", postId).maybeSingle();
+      const { data: existing } = await db().from("posts").select("id, status, brand_id, video").eq("id", postId).maybeSingle();
       if (!existing) return fail("Post not found", 404);
       ctx = await getBrandContextForBrandId(existing.brand_id);
       if (existing.status === "in_review" || existing.status === "approved")
         return fail(existing.status === "approved" ? "This post is already approved." : "This post is waiting for review, so it can't be changed right now.", 409);
+      // a stored video stays stored across re-checks (only the server sets that flag)
+      if (fields.video && (existing.video as { stored?: boolean } | null)?.stored) fields.video = { ...fields.video, stored: true };
       const { error } = await db().from("posts").update(fields).eq("id", postId);
       if (error) throw new Error(error.message);
     } else {

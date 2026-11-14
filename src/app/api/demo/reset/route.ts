@@ -1,7 +1,8 @@
 import { withSession } from "@/lib/session";
 import { z } from "zod";
 import { actorSchema, fail, json, readJson, roleSchema, serverError } from "@/lib/api";
-import { adminDb } from "@/lib/db";
+import { adminDb, DEMO_WORKSPACE } from "@/lib/db";
+import { removeOrphanVideos } from "@/lib/video-store";
 
 const bodySchema = z.object({ role: roleSchema, actor: actorSchema });
 
@@ -24,6 +25,9 @@ export const POST = withSession(async (req, _ctx, me) => {
     const { data, error } = await adminDb().rpc("reset_demo");
     if (error) throw new Error(error.message);
     console.info(`[demo/reset] by ${body.data.actor} (${body.data.role})`, data);
+    // stored videos of posts that no longer exist are removed too
+    const { data: live } = await adminDb().from("posts").select("id, brands!inner(workspace_id)").eq("brands.workspace_id", DEMO_WORKSPACE);
+    await removeOrphanVideos(DEMO_WORKSPACE, new Set((live ?? []).map((p) => p.id as string))).catch((e) => console.error("[demo/reset] video cleanup", e));
     return json({ ok: true, ...(data as { brands: number; posts: number }) });
   } catch (e) {
     lastReset = 0;

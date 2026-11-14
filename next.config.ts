@@ -1,6 +1,14 @@
 import type { NextConfig } from "next";
 
 const isDev = process.env.NODE_ENV !== "production";
+// the database's file storage: a checked video is uploaded there with a one-time link and played with a signed link
+const storage = (() => {
+  try {
+    return new URL(process.env.SUPABASE_URL ?? "").origin;
+  } catch {
+    return "";
+  }
+})();
 
 // Content Security Policy: only this site's own scripts, styles, fonts, images, workers and API.
 // 'wasm-unsafe-eval' lets the in-browser OCR (tesseract, WebAssembly) run; 'unsafe-eval' only in development.
@@ -11,9 +19,9 @@ const csp = [
   "style-src 'self' 'unsafe-inline'",
   "font-src 'self'",
   "img-src 'self' data: blob:",
-  // a video is played from the visitor's own file (a blob: address); nothing is loaded from another site
-  "media-src 'self' blob:",
-  "connect-src 'self' blob: data:",
+  // a video plays from the visitor's own file (blob:) or from the private video storage (a signed link)
+  `media-src 'self' blob:${storage ? ` ${storage}` : ""}`,
+  `connect-src 'self' blob: data:${storage ? ` ${storage}` : ""}`,
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",

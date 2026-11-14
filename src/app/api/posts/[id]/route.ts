@@ -1,4 +1,5 @@
 import { withSession } from "@/lib/session";
+import { removeVideo } from "@/lib/video-store";
 import { db, getBrandContextForBrandId } from "@/lib/db";
 import { z } from "zod";
 import { actorSchema, fail, json, readJson, roleSchema, serverError } from "@/lib/api";
@@ -46,12 +47,14 @@ export const DELETE = withSession<RouteContext<"/api/posts/[id]">>(async (req, c
   body.data.actor = me.actor(body.data.actor);
   if (!can(body.data.role, "check_posts")) return fail("Only the creator can delete drafts.", 403);
   try {
-    const { data: post } = await db().from("posts").select("status").eq("id", id).maybeSingle();
+    const { data: post } = await db().from("posts").select("status, video").eq("id", id).maybeSingle();
     if (!post) return fail("Post not found", 404);
     if (post.status !== "draft" && post.status !== "changes_requested")
       return fail("Only drafts and posts sent back can be deleted. Posts in review or approved are kept for the record.", 409);
     const { error } = await db().from("posts").delete().eq("id", id).in("status", ["draft", "changes_requested"]);
     if (error) throw new Error(error.message);
+    // its stored video goes too (best effort: a leftover file is cleaned up by the next Reset demo or upload)
+    if ((post.video as { stored?: boolean } | null)?.stored) await removeVideo(me.workspace.id, id).catch(() => undefined);
     return json({ ok: true });
   } catch (e) {
     return serverError(e, "posts/[id]");

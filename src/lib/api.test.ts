@@ -23,3 +23,25 @@ describe("input checks on the API", () => {
     expect(actorSchema.safeParse("<img src=x onerror=alert(1)>").success).toBe(false);
   });
 });
+
+describe("video posts: which video file a post may point to", () => {
+  const base = { channel: "instagram", post_type: "launch", product: "", partner: false, caption: "Meet the new bar.", images: [{ src: "/demo/x.png", alt_text: "", t: 0.3 }] };
+  const video = (extra: Record<string, unknown>) => ({ ...base, video: { name: "reel.mp4", duration: 25, transcript: [], transcript_source: "none", ...extra } });
+
+  it("accepts the app's own sample reel as a public file", async () => {
+    const { postInputSchema } = await import("./api");
+    const parsed = postInputSchema.safeParse(video({ src: "/demo/video/oatvia-probar-reel.mp4" }));
+    expect(parsed.success).toBe(true);
+  });
+
+  it("refuses any other address, so a post can't point players at an outside file", async () => {
+    const { postInputSchema } = await import("./api");
+    for (const src of ["https://evil.example/a.mp4", "/demo/video/../secret.mp4", "javascript:alert(1)"]) expect(postInputSchema.safeParse(video({ src })).success).toBe(false);
+  });
+
+  it("drops a stored flag sent by the browser: only the server marks a video as stored", async () => {
+    const { postInputSchema } = await import("./api");
+    const parsed = postInputSchema.safeParse(video({ stored: true }));
+    expect(parsed.success && "stored" in (parsed.data.video ?? {})).toBe(false);
+  });
+});

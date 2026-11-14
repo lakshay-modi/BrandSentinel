@@ -51,6 +51,8 @@ export const postInputSchema = z.object({
       duration: z.number().positive().max(61, "Videos can be up to 60 seconds long"),
       transcript: z.array(z.object({ t: z.number().min(0).max(120), end: z.number().min(0).max(120), text: z.string().max(600) })).max(120).default([]),
       transcript_source: z.enum(["ai", "typed", "none"]).default("none"),
+      // only the app's own sample files; an uploaded video is marked as stored by the server, never by the browser
+      src: z.string().regex(/^\/demo\/video\/[a-z0-9-]+\.mp4$/, "Unknown sample video").optional(),
     })
     .optional(),
 })
