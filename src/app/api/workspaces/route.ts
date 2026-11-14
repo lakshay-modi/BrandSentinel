@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { allow, clientId, fail, json, readJson, serverError } from "@/lib/api";
 import { userDb } from "@/lib/db";
-import { forgetMemberships, getSession, NoWorkspaceError, setWorkspaceCookie } from "@/lib/session";
+import { forgetMemberships, getSession, NoWorkspaceError, NotSignedInError, setWorkspaceCookie } from "@/lib/session";
 import { acceptInvite, createWorkspace, INVITE_TOKEN, plainDbMessage } from "@/lib/workspaces";
 
 const bodySchema = z
@@ -19,6 +19,7 @@ export async function POST(req: Request) {
     if (!me.signedIn) return fail("Sign in first.", 401);
     who = { userId: me.userId, email: me.email, name: me.name, client: me.db, demo: me.demoAccount };
   } catch (e) {
+    if (e instanceof NotSignedInError) return fail("Sign in first.", 401);
     if (!(e instanceof NoWorkspaceError)) return serverError(e, "workspaces (session)");
     who = { userId: e.userId, email: e.email, name: body.data.member_name || e.email.split("@")[0], client: userDb(e.token), demo: false };
   }

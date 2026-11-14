@@ -2,7 +2,6 @@
 // server reads. Every route runs inside withSession, which gives it a database client that acts AS that person,
 // so the database's row rules decide what they can see and change.
 import "server-only";
-import { createHmac } from "node:crypto";
 import { cookies } from "next/headers";
 import { connection } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -121,9 +120,8 @@ export async function setWorkspaceCookie(id: string) {
 }
 
 // ── Demo accounts ───────────────────────────────────────────────────────────────────────────────────
-// The public visitor ("guest") and the three "Try as…" accounts are real accounts that belong only to the
-// demo workspace. The guest's password is derived from the server's secret and never shown; the three demo
-// passwords are public on purpose (they open nothing but the fictional demo brands).
+// The three "Try as…" demo accounts are real accounts that belong only to the demo workspace. Their
+// password is public on purpose: it opens nothing but the fictional demo brands.
 
 export const DEMO_DOMAIN = "brandsentinel.demo";
 export const DEMO_PASSWORD = "brandsentinel-demo";
@@ -132,12 +130,6 @@ export const DEMO_ACCOUNTS: Record<Role, { email: string; name: string }> = {
   expert: { email: `expert@${DEMO_DOMAIN}`, name: "Meera (demo)" },
   brand_manager: { email: `manager@${DEMO_DOMAIN}`, name: "Arjun (demo)" },
 };
-const GUEST_EMAIL = `guest@${DEMO_DOMAIN}`;
-
-function guestPassword(): string {
-  const secret = process.env.BRANDSENTINEL_DB_KEY?.trim() || process.env.SUPABASE_PUBLISHABLE_KEY?.trim() || "";
-  return createHmac("sha256", secret).update("brandsentinel-guest-v1").digest("hex").slice(0, 40);
-}
 
 /** Sign in to a demo account, creating it (and its place in the demo workspace) the first time. */
 async function demoSignIn(email: string, password: string, role: MemberRole, name: string): Promise<Tokens> {
@@ -169,24 +161,6 @@ export function signInDemoAccount(role: Role): Promise<Tokens> {
   return demoSignIn(a.email, DEMO_PASSWORD, role, a.name);
 }
 
-// the guest's session is shared by all visitors of this server instance and renewed before it runs out
-let guest: { token: string; exp: number; userId: string } | null = null;
-let guestInflight: Promise<{ token: string; exp: number; userId: string }> | null = null;
-
-async function guestSession() {
-  const now = Date.now() / 1000;
-  if (guest && guest.exp - now > 120) return guest;
-  guestInflight ??= demoSignIn(GUEST_EMAIL, guestPassword(), "guest", "Guest")
-    .then((t) => {
-      const c = claims(t.access_token);
-      guest = { token: t.access_token, exp: c.exp ?? now + t.expires_in, userId: c.sub ?? t.user?.id ?? "" };
-      return guest;
-    })
-    .finally(() => {
-      guestInflight = null;
-    });
-  return guestInflight;
-}
 
 // ── Who belongs where: asked once per person every few seconds, not on every request ──────────────────
 const CONTEXT_TTL = 15_000;
@@ -240,34 +214,26 @@ export class NoWorkspaceError extends Error {
   }
 }
 
-/** For the health check: can the public visitor's session be opened? Returns "ok" or a short reason. */
-export async function guestSessionCheck(): Promise<string> {
+/** For the health check: is the login service reachable? Returns "ok" or a short reason. */
+export async function authServiceCheck(): Promise<string> {
   try {
-    const g = await guestSession();
-    const memberships = await membershipsOf(g.userId, userDb(g.token));
-    return memberships.some((m) => m.workspace_id === DEMO_WORKSPACE) ? "ok" : "guest account is not in the demo workspace";
+    const { url, key } = authEnv();
+    const res = await fetch(`${url}/auth/v1/health`, { headers: { apikey: key }, signal: AbortSignal.timeout(5000) });
+    return res.ok ? "ok" : `error: the login service answered ${res.status}`;
   } catch (e) {
     return `error: ${(e instanceof Error ? e.message : String(e)).slice(0, 140)}`;
   }
 }
 
-async function guestAsSession(): Promise<Session> {
-  try {
-    const g = await guestSession();
-    const memberships = await membershipsOf(g.userId, userDb(g.token));
-    const m = memberships.find((x) => x.workspace_id === DEMO_WORKSPACE);
-    if (!m) throw new Error("The demo workspace is not set up (the guest account has no membership)");
-    return build(g.userId, g.token, "", false, false, [m], m);
-  } catch (e) {
-    // If the login service can't be reached, the open demo keeps working with the server's own client,
-    // limited to the demo workspace. /api/health reports this under "auth".
-    console.error("[session] guest session failed; serving the demo with the server client", e);
-    const m: Membership = { workspace_id: DEMO_WORKSPACE, workspace: "BrandSentinel demo", is_demo: true, role: "guest", name: "Guest", email: "" };
-    return { ...build("guest", "", "", false, false, [m], m), db: adminDb() };
+/** Nobody is signed in (or the session ran out and can't be renewed): the visitor is sent to the sign-in page. */
+export class NotSignedInError extends Error {
+  constructor() {
+    super("Sign in to continue. On the sign-in page, the demo accounts open with one click.");
+    this.name = "NotSignedInError";
   }
 }
 
-/** Works out who is asking. Not signed in (or a session that can't be renewed) means the demo's guest. */
+/** Works out who is asking. Throws NotSignedInError when nobody is signed in. */
 export async function getSession(): Promise<Session> {
   const jar = await cookies();
   let access = jar.get(ACCESS_COOKIE)?.value;
@@ -289,17 +255,17 @@ export async function getSession(): Promise<Session> {
       }
     }
   }
-  if (!access || (claims(access).exp ?? 0) <= now) return guestAsSession();
+  if (!access || (claims(access).exp ?? 0) <= now) throw new NotSignedInError();
 
   const c = claims(access);
-  if (!c.sub) return guestAsSession();
+  if (!c.sub) throw new NotSignedInError();
   let memberships: Membership[];
   try {
     memberships = await membershipsOf(c.sub, userDb(access));
   } catch (e) {
     if (e instanceof AuthError) {
       await clearSessionCookies().catch(() => undefined);
-      return guestAsSession();
+      throw new NotSignedInError();
     }
     throw e;
   }
@@ -329,6 +295,7 @@ export function withSession<C = unknown>(handler: Handler<C>, where = "api"): (r
     try {
       me = await getSession();
     } catch (e) {
+      if (e instanceof NotSignedInError) return fail(e.message, 401);
       if (e instanceof NoWorkspaceError) return fail(e.message, 409);
       return serverError(e, `${where} (session)`);
     }

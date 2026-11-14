@@ -17,7 +17,7 @@ export const GET = withSession(async (req, _ctx, me) => {
     workspace: me.workspace,
     can_manage: manager,
     api_base: new URL(req.url).origin,
-    // the open demo has one published token, so the extension and the add-on can be tried without an account
+    // the demo workspace has one published token, so the extension and the add-on can be tried without an account
     demo_token: me.workspace.isDemo ? DEMO_TOKEN : null,
     brands: brands.data ?? [],
     tokens: tokens.data ?? [],
