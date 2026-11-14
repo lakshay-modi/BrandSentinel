@@ -103,6 +103,26 @@ export interface PostImage {
   src: string; // URL or downscaled data URL
   alt_text: string;
   analysis?: ImageAnalysis;
+  /** a video frame: seconds from the start when this picture appears … */
+  t?: number;
+  /** … and until when the same picture and text stay on screen */
+  t_end?: number;
+}
+
+/** A stretch of speech in a video: when it starts and ends (seconds) and what is said. */
+export interface SpeechSegment {
+  t: number;
+  end: number;
+  text: string;
+}
+
+/** A video post. The file itself is never uploaded: only its checked frames (in `images`) and this. */
+export interface PostVideo {
+  name: string;
+  duration: number;
+  transcript: SpeechSegment[];
+  /** who wrote the transcript: the AI from the audio, the creator by hand, or nobody (no speech) */
+  transcript_source: "ai" | "typed" | "none";
 }
 
 export interface PostInput {
@@ -112,10 +132,13 @@ export interface PostInput {
   product: string;
   partner: boolean;
   caption: string;
+  /** images of the post; a carousel's slides in order; or, for a video, its frames in time order */
   images: PostImage[];
+  video?: PostVideo;
 }
 
-export type Location = "caption" | `image ${number}`;
+/** Where a problem is: the caption, one image (or carousel slide, or video frame), or what is said in a video. */
+export type Location = "caption" | `image ${number}` | "speech";
 
 export interface Finding {
   id: string; // stable within a review, e.g. "WORD-03:caption"

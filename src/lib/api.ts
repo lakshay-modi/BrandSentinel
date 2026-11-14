@@ -39,11 +39,25 @@ export const postInputSchema = z.object({
         src: imageSrc,
         alt_text: z.string().max(500).default(""),
         analysis: analysisSchema.optional(),
+        t: z.number().min(0).max(120).optional(),
+        t_end: z.number().min(0).max(120).optional(),
       }),
     )
-    .max(5)
+    .max(24)
     .default([]),
-});
+  video: z
+    .object({
+      name: z.string().trim().max(160).default("video"),
+      duration: z.number().positive().max(61, "Videos can be up to 60 seconds long"),
+      transcript: z.array(z.object({ t: z.number().min(0).max(120), end: z.number().min(0).max(120), text: z.string().max(600) })).max(120).default([]),
+      transcript_source: z.enum(["ai", "typed", "none"]).default("none"),
+    })
+    .optional(),
+})
+  // a post is a caption with up to 10 images (a carousel), or with one video's frames
+  .refine((p) => (p.video ? p.images.every((i) => i.t !== undefined) : p.images.every((i) => i.t === undefined)), "Video frames need a time, and only video posts have frames")
+  .refine((p) => !!p.video || p.images.length <= 10, "A post can have up to 10 images")
+  .refine((p) => p.images.reduce((n, i) => n + i.src.length, 0) <= 3_800_000, "The images are too large together. Remove one or use smaller files.");
 
 // a display name only (no sign-in in the demo): letters, numbers, spaces and simple punctuation
 export const actorSchema = z
