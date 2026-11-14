@@ -5,7 +5,9 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/client/api";
 import { analyzeImage, shrinkImage } from "@/lib/client/analyze-image";
 import { SAMPLE_HINT, SAMPLE_LABEL, samplePosts, type SamplePost } from "@/lib/demo/samples";
-import type { Channel, PostImage, PostInput } from "@/lib/types";
+import type { Channel, PostImage, PostInput, SpeechSegment } from "@/lib/types";
+import { attachVideo, holdVideo, readVideo, VideoError, type VideoReading } from "@/lib/client/video";
+import { fmtTime, MAX_SLIDES, MAX_VIDEO_SECONDS } from "@/lib/video";
 import { Button, ErrorNote } from "./ui";
 import { useToast } from "./toast";
 import { send, toBase64 } from "@/lib/client/send";
@@ -28,9 +30,77 @@ interface DraftImage extends PostImage {
   preview: string; // what we show and analyse (full quality)
 }
 
+/** `manual`: no speech was written down by the AI, so the creator may type the script as one block */
+type DraftVideo = { reading: VideoReading; transcript: SpeechSegment[]; source: "ai" | "typed" | "none"; note: string | null; manual: boolean };
+
+/** What was read from the video: the frames with on-screen text, and the speech, which the creator can correct. */
+function VideoPanel({ video, onChange, onRemove }: { video: DraftVideo; onChange: (v: DraftVideo) => void; onRemove: () => void }) {
+  const { reading, transcript } = video;
+  const withText = reading.frames.filter((f) => f.analysis.ocr_text.trim());
+  const setLine = (i: number, text: string) => onChange({ ...video, source: "typed", transcript: transcript.map((s, j) => (j === i ? { ...s, text } : s)) });
+  return (
+    <div className="row-in mt-2 rounded-xl border border-line p-3.5">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="min-w-0 text-[14px]">
+          <span className="font-semibold">{reading.name}</span> <span className="text-ink-soft">· {fmtTime(reading.duration)} · looked at {reading.sampled} moments (one every 2.5 s)</span>
+        </p>
+        <button type="button" onClick={onRemove} className="text-[12px] text-ink-soft underline">
+          Remove video
+        </button>
+      </div>
+
+      <p className="mt-3 text-[12px] font-bold uppercase tracking-wide text-ink-faint">On screen ({withText.length} text{withText.length === 1 ? "" : "s"} found)</p>
+      <ul className="thin-scroll mt-1.5 flex gap-2.5 overflow-x-auto pb-1.5">
+        {reading.frames.map((f) => (
+          <li key={f.t} className="w-36 shrink-0">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={f.src} alt={`Frame at ${fmtTime(f.t)}`} className="aspect-video w-full rounded-md border border-line object-cover" />
+            <p className="mt-1 text-[12px]">
+              <span className="font-mono font-semibold">{fmtTime(f.t)}</span>{" "}
+              <span className="text-ink-soft">{f.analysis.ocr_text.trim() ? `“${f.analysis.ocr_text.replace(/\n/g, " / ").slice(0, 60)}”` : "no text"}</span>
+            </p>
+          </li>
+        ))}
+      </ul>
+
+      <p className="mt-3 text-[12px] font-bold uppercase tracking-wide text-ink-faint">What is said {video.source === "ai" ? "(written down by the AI: correct any mistakes)" : ""}</p>
+      {video.note && <p className="mt-1 rounded-md bg-med-bg px-2.5 py-1.5 text-[13px] text-med">{video.note}</p>}
+      {!video.manual ? (
+        <ul className="mt-1.5 space-y-1.5">
+          {transcript.map((s, i) => (
+            <li key={i} className="flex items-start gap-2">
+              <span className="mt-1.5 w-10 shrink-0 font-mono text-[12px] font-semibold text-ink-soft">{fmtTime(s.t)}</span>
+              <input
+                value={s.text}
+                maxLength={600}
+                aria-label={`What is said at ${fmtTime(s.t)}`}
+                onChange={(e) => setLine(i, e.target.value)}
+                className="w-full rounded-md border border-line-strong px-2 py-1 text-[14px]"
+              />
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <textarea
+          rows={2}
+          maxLength={600}
+          placeholder="Type what is said in the video (leave empty if nobody speaks)"
+          aria-label="What is said in the video"
+          value={transcript[0]?.text ?? ""}
+          onChange={(e) => onChange({ ...video, source: "typed", transcript: e.target.value ? [{ t: 0, end: reading.duration, text: e.target.value }] : [] })}
+          className="mt-1.5 w-full rounded-md border border-line-strong px-2 py-1.5 text-[14px]"
+        />
+      )}
+      <p className="mt-2 text-[12px] text-ink-faint">
+        The video itself is not uploaded. Only these frames, and the sound for the speech-to-text step, leave your device.
+      </p>
+    </div>
+  );
+}
+
 export function ComposeForm() {
   const router = useRouter();
-  const { role, name, setRole } = useRole();
+  const { role, name, setRole, fixed } = useRole();
   const writer = can(role, "check_posts");
   const [input, setInput] = useState<PostInput>(EMPTY);
   const [images, setImages] = useState<DraftImage[]>([]);
@@ -42,6 +112,9 @@ export function ComposeForm() {
   const [reading, setReading] = useState<string | null>(null);
   const [fileNote, setFileNote] = useState<string | null>(null);
   const dragDepth = useRef(0);
+  // a video post: its frames and speech, read in the browser (the file itself is never uploaded)
+  const [video, setVideo] = useState<DraftVideo | null>(null);
+  const [videoBusy, setVideoBusy] = useState<string | null>(null);
   const toast = useToast();
   const brandData = useBrand();
   const settings = brandData?.brand.settings;
@@ -72,12 +145,62 @@ export function ComposeForm() {
   function loadSample(s: Sample) {
     setInput({ title: s.title, channel: s.channel, post_type: s.post_type, product: s.product, partner: s.partner, caption: s.caption, images: [] });
     setImages(s.images.map((i) => ({ ...i, preview: i.src })));
+    setVideo(null);
     setSampleId(s.id);
     setError(null);
   }
 
+  /** The demo brand's sample reel: 25 seconds with planted mistakes on screen and in the speech. */
+  async function loadSampleVideo() {
+    if (videoBusy) return;
+    setVideoBusy("Getting the sample video…");
+    try {
+      const res = await fetch("/demo/video/oatvia-probar-reel.mp4");
+      if (!res.ok) throw new Error("The sample video couldn't be loaded.");
+      const file = new File([await res.blob()], "oatvia-probar-reel.mp4", { type: "video/mp4" });
+      setInput((p) => ({ ...p, title: "ProBar launch reel (sample video)", post_type: "launch", product: "Oatvia ProBar", caption: p.caption.trim() ? p.caption : "Meet the new ProBar Choco Almond. 20 g of protein in every bar. #OatviaEveryday" }));
+      await addVideo(file);
+    } catch (e) {
+      setFileNote(e instanceof Error ? e.message : String(e));
+      setVideoBusy(null);
+    }
+  }
+
   const IMAGE_TYPE = /^image\/(png|jpeg|webp|gif|bmp|avif)$/;
   const DOC_NAME = /\.(pdf|docx|txt|md)$/i;
+  const isVideo = (f: File) => f.type.startsWith("video/") || /\.(mp4|webm|mov|m4v)$/i.test(f.name);
+
+  /** Read a video in the browser: frames every 2.5 s, the text in them, and the speech. */
+  async function addVideo(file: File) {
+    setVideoBusy("Opening the video…");
+    setError(null);
+    try {
+      const reading = await readVideo(file, setVideoBusy);
+      holdVideo(file);
+      setImages([]);
+      setSampleId(null);
+      let transcript: SpeechSegment[] = [];
+      let source: "ai" | "typed" | "none" = "none";
+      let note: string | null = null;
+      if (reading.audio) {
+        setVideoBusy("Turning the speech into text…");
+        try {
+          const res = await send<{ segments: SpeechSegment[] }>("/api/transcribe", "POST", { audio: reading.audio, duration: reading.duration });
+          transcript = res.segments;
+          source = transcript.length ? "ai" : "none";
+          if (!transcript.length) note = "No speech was found in the sound. If someone does speak, type what they say below.";
+        } catch (e) {
+          note = `${e instanceof Error ? e.message : String(e)}`;
+        }
+      } else note = "This video has no sound that could be read. If someone speaks in it, type what they say below.";
+      setVideo({ reading, transcript, source, note, manual: transcript.length === 0 });
+      toast(`Video read: ${reading.frames.filter((f) => f.analysis.ocr_text.trim()).length} on-screen text${reading.frames.length === 1 ? "" : "s"}, ${transcript.length} spoken line${transcript.length === 1 ? "" : "s"}.`);
+    } catch (e) {
+      setFileNote(e instanceof VideoError ? e.message : `Couldn't read that video. ${e instanceof Error ? e.message : ""}`.trim());
+    } finally {
+      setVideoBusy(null);
+    }
+  }
 
   /** Images become post images; a document (PDF, Word, text) fills the caption. Used by the file picker, drag and drop, and paste. */
   async function addFiles(list: FileList | File[] | null) {
@@ -85,17 +208,31 @@ export function ComposeForm() {
     if (fileRef.current) fileRef.current.value = "";
     if (!files.length) return;
     setFileNote(null);
+    const vids = files.filter(isVideo);
     const imgs = files.filter((f) => IMAGE_TYPE.test(f.type));
-    const docs = files.filter((f) => !IMAGE_TYPE.test(f.type) && (DOC_NAME.test(f.name) || f.type === "application/pdf" || f.type.startsWith("text/")));
-    const skipped = files.length - imgs.length - docs.length;
+    const docs = files.filter((f) => !IMAGE_TYPE.test(f.type) && !isVideo(f) && (DOC_NAME.test(f.name) || f.type === "application/pdf" || f.type.startsWith("text/")));
+    const skipped = files.length - imgs.length - docs.length - vids.length;
     const notes: string[] = [];
 
+    if (vids.length) {
+      if (videoBusy) return;
+      if (vids.length > 1) notes.push("A post has one video, so only the first was used.");
+      if (imgs.length) notes.push("A post is either images or one video, so the images were left out.");
+      await addVideo(vids[0]);
+      if (notes.length) setFileNote((n) => [n, ...notes].filter(Boolean).join(" "));
+      return;
+    }
+    if (imgs.length && video) {
+      setFileNote("A post is either images or one video. Remove the video to add images.");
+      return;
+    }
+
     if (imgs.length) {
-      const room = 5 - images.length;
+      const room = MAX_SLIDES - images.length;
       const tooBig = imgs.filter((f) => f.size > 10 * 1024 * 1024);
       const picked = imgs.filter((f) => f.size <= 10 * 1024 * 1024).slice(0, Math.max(0, room));
-      if (room <= 0) notes.push("A post can have up to 5 images; remove one to add another.");
-      else if (imgs.length - tooBig.length > room) notes.push(`Only ${room} more image${room === 1 ? " fits" : "s fit"} (5 per post), so the rest were left out.`);
+      if (room <= 0) notes.push(`A post can have up to ${MAX_SLIDES} images; remove one to add another.`);
+      else if (imgs.length - tooBig.length > room) notes.push(`Only ${room} more image${room === 1 ? " fits" : "s fit"} (${MAX_SLIDES} per post), so the rest were left out.`);
       if (tooBig.length) notes.push("Images over 10 MB were left out.");
       const added = await Promise.all(
         picked.map(
@@ -108,7 +245,7 @@ export function ComposeForm() {
         ),
       );
       if (added.length) {
-        setImages((prev) => [...prev, ...added].slice(0, 5));
+        setImages((prev) => [...prev, ...added].slice(0, MAX_SLIDES));
         setSampleId(null);
         toast(`${added.length} image${added.length === 1 ? "" : "s"} added. Describe ${added.length === 1 ? "it" : "each one"} in the alt text.`);
       }
@@ -144,7 +281,7 @@ export function ComposeForm() {
       }
     }
 
-    if (skipped) notes.push("Some files were skipped: use PNG, JPEG, WebP or GIF images, or a PDF, Word, .txt or .md document.");
+    if (skipped) notes.push("Some files were skipped: use PNG, JPEG, WebP or GIF images, an MP4 or WebM video, or a PDF, Word, .txt or .md document.");
     setFileNote(notes.length ? notes.join(" ") : null);
   }
 
@@ -156,7 +293,7 @@ export function ComposeForm() {
   });
   useEffect(() => {
     const onPaste = (e: ClipboardEvent) => {
-      const files = Array.from(e.clipboardData?.files ?? []).filter((f) => IMAGE_TYPE.test(f.type) || DOC_NAME.test(f.name));
+      const files = Array.from(e.clipboardData?.files ?? []).filter((f) => IMAGE_TYPE.test(f.type) || DOC_NAME.test(f.name) || isVideo(f));
       if (!files.length) return;
       const inField = (e.target as HTMLElement | null)?.closest("input, textarea, [contenteditable]");
       const hasText = !!e.clipboardData?.getData("text/plain");
@@ -177,14 +314,22 @@ export function ComposeForm() {
     }
     try {
       const prepared: PostImage[] = [];
+      const many = images.length > 1;
       for (const [i, img] of images.entries()) {
-        setBusy(`Reading image ${i + 1} of ${images.length}…`);
-        const analysis = img.analysis ?? (await analyzeImage(img.preview, (s) => setBusy(`Image ${i + 1}: ${s}`)));
-        const src = img.src || (await shrinkImage(img.preview));
+        setBusy(`Reading ${many ? "slide" : "image"} ${i + 1} of ${images.length}…`);
+        const analysis = img.analysis ?? (await analyzeImage(img.preview, (s) => setBusy(`${many ? "Slide" : "Image"} ${i + 1}: ${s}`)));
+        // a long carousel is saved a little smaller, so all slides fit in one request
+        const src = img.src || (await shrinkImage(img.preview, images.length > 5 ? 640 : 800));
         prepared.push({ src, alt_text: img.alt_text, analysis });
       }
+      // a video: its frames go in as images with their times, and the speech as a transcript
+      const videoInput = video
+        ? { name: video.reading.name, duration: video.reading.duration, transcript: video.transcript.filter((t) => t.text.trim()), transcript_source: video.transcript.some((t) => t.text.trim()) ? video.source : ("none" as const) }
+        : undefined;
+      if (video) prepared.push(...video.reading.frames.map((f) => ({ src: f.src, alt_text: "", analysis: f.analysis, t: f.t, t_end: f.t_end })));
       setBusy("Checking against the rules and the Fact Bank…");
-      const res = await api.review({ sample_id: sampleId ?? undefined, role, actor: name, input: { ...input, product, images: prepared } });
+      const res = await api.review({ sample_id: sampleId ?? undefined, role, actor: name, input: { ...input, product, images: prepared, ...(videoInput ? { video: videoInput } : {}) } });
+      if (video) attachVideo(res.post_id);
       void refreshPosts();
       router.push(`/posts/${res.post_id}`);
     } catch (e) {
@@ -204,7 +349,7 @@ export function ComposeForm() {
           Check a post before it goes live
         </h1>
         <p className="mt-2 max-w-2xl text-[16px] leading-relaxed text-ink-soft">
-          Paste a caption and add images. Every problem comes with the rule or approved fact that proves it, and a fix that keeps your message.
+          Paste a caption and add images, a carousel or a short video. Every problem comes with the rule or approved fact that proves it, and a fix that keeps your message.
           {brandData && <> Checking against <strong className="font-semibold text-ink">{brandData.brand.name}</strong>&apos;s Rulebook.</>}
         </p>
 
@@ -290,12 +435,12 @@ export function ComposeForm() {
 
           <div className="px-5 pt-5">
             <div className="flex items-center justify-between gap-3">
-              <span className="text-[13px] font-medium text-ink-soft">Images ({images.length} of 5)</span>
+              <span className="text-[13px] font-medium text-ink-soft">{video ? "Video" : images.length > 1 ? `Carousel (${images.length} of ${MAX_SLIDES} slides)` : `Images (${images.length} of ${MAX_SLIDES})`}</span>
               <span className="hidden text-[12px] text-ink-faint sm:inline">Tip: paste a screenshot with Ctrl+V (⌘V on Mac)</span>
               <input
                 ref={fileRef}
                 type="file"
-                accept="image/png,image/jpeg,image/webp,image/gif,image/bmp,image/avif,.pdf,.docx,.txt,.md,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown"
+                accept="image/png,image/jpeg,image/webp,image/gif,image/bmp,image/avif,video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov,.m4v,.pdf,.docx,.txt,.md,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown"
                 multiple
                 hidden
                 onChange={(e) => addFiles(e.target.files)}
@@ -309,7 +454,7 @@ export function ComposeForm() {
                     <img src={img.preview} alt={img.alt_text || `Image ${i + 1} preview`} className="size-20 shrink-0 rounded-md object-cover" />
                     <div className="min-w-0 flex-1 text-sm">
                       <label className="block">
-                        <span className="text-[12px] text-ink-soft">Alt text (what the image shows)</span>
+                        <span className="text-[12px] text-ink-soft">{images.length > 1 ? `Slide ${i + 1}: alt text (what it shows)` : "Alt text (what the image shows)"}</span>
                         <input
                           value={img.alt_text}
                           onChange={(e) => setImages((prev) => prev.map((p, j) => (j === i ? { ...p, alt_text: e.target.value } : p)))}
@@ -325,7 +470,15 @@ export function ComposeForm() {
                 ))}
               </ul>
             )}
-            {images.length < 5 && (
+            {video && <VideoPanel video={video} onChange={setVideo} onRemove={() => setVideo(null)} />}
+            {videoBusy && (
+              <p role="status" className="mt-2 flex items-center gap-2 rounded-xl border border-line bg-paper/60 px-4 py-3 text-[14px] font-semibold">
+                <span aria-hidden="true" className="inline-block size-4 animate-spin rounded-full border-2 border-line-strong border-t-ink motion-reduce:animate-none" />
+                {videoBusy}
+                <span className="font-normal text-ink-soft">The video stays on your device.</span>
+              </p>
+            )}
+            {images.length < MAX_SLIDES && !video && !videoBusy && (
               <button
                 type="button"
                 onClick={() => fileRef.current?.click()}
@@ -343,16 +496,26 @@ export function ComposeForm() {
                       <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
                         <path d="M12 16V4m0 0-4 4m4-4 4 4M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
-                      {images.length ? "Add more: drop, paste or click" : "Drop images or a document here, paste, or click to choose"}
+                      {images.length ? "Add more slides: drop, paste or click" : "Drop images, a video or a document here, paste, or click to choose"}
                     </span>
                     {!images.length && (
                       <span className="text-[12px] text-ink-faint">
-                        Up to 5 images (PNG, JPEG, WebP, GIF); text inside them is read and checked too. A PDF, Word, .txt or .md document fills the caption.
+                        Up to {MAX_SLIDES} images (several make a carousel, checked slide by slide), or one video up to {MAX_VIDEO_SECONDS} seconds (MP4 or WebM): its on-screen text and speech
+                        are checked too. A PDF, Word, .txt or .md document fills the caption.
                       </span>
                     )}
                   </>
                 )}
               </button>
+            )}
+            {!video && !videoBusy && images.length === 0 && brandData?.brand.slug === "oatvia" && writer && (
+              <p className="mt-2 text-[13px] text-ink-soft">
+                No video at hand?{" "}
+                <button type="button" onClick={loadSampleVideo} className="font-semibold text-ink underline underline-offset-2">
+                  Try the sample reel
+                </button>{" "}
+                (25 seconds, with mistakes on screen and in the speech).
+              </p>
             )}
             {fileNote && (
               <p role="status" className="mt-2 rounded-lg bg-med-bg px-3 py-2 text-[13px] text-med">
@@ -373,7 +536,7 @@ export function ComposeForm() {
           <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-line px-5 py-4">
             {writer ? (
               <>
-                <Button variant="primary" onClick={check} disabled={!!busy}>
+                <Button variant="primary" onClick={check} disabled={!!busy || !!videoBusy}>
                   {busy ? "Checking…" : "Check post"}
                 </Button>
                 {busy ? (
@@ -386,9 +549,11 @@ export function ComposeForm() {
               </>
             ) : (
               <>
-                <Button variant="primary" onClick={() => setRole("creator")}>
-                  Switch to Creator to check
-                </Button>
+                {!fixed && (
+                  <Button variant="primary" onClick={() => setRole("creator")}>
+                    Switch to Creator to check
+                  </Button>
+                )}
                 <span className="text-[13px] text-ink-soft">
                   Creators write and check posts. As {ROLE_INFO[role].label.toLowerCase()}, you review them in the{" "}
                   <Link href="/queue" className="font-semibold text-ink underline underline-offset-2">
