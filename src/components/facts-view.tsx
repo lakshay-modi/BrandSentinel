@@ -6,7 +6,7 @@ import { optimistic, patchBrand, useBrandState } from "@/lib/client/use-brand";
 import { send } from "@/lib/client/send";
 import { can } from "@/lib/roles";
 import type { Fact } from "@/lib/types";
-import { Button, ConfirmDialog, Dialog, EmptyState, ErrorNote, PageSkeleton } from "./ui";
+import { Button, ConfirmDialog, Dialog, EmptyState, ErrorNote, PageSkeleton, possessive } from "./ui";
 import { useRole } from "./role-provider";
 import { RoleNote } from "./role-note";
 import { useToast } from "./toast";
@@ -130,7 +130,7 @@ export function FactsView() {
         <div>
           <h1 className="text-[28px] font-bold leading-tight tracking-tight">Fact Bank</h1>
           <p className="mt-1.5 max-w-2xl text-[15px] leading-relaxed text-ink-soft">
-            The only facts {data?.brand.name ?? "the brand"}&apos;s posts may use. Every claim is compared with this list. Each fact has a source and an end date; after that date it no longer counts as proof.
+            The only facts {data ? possessive(data.brand.name) : "the brand’s"} posts may use. Every claim is compared with this list. Each fact has a source and an end date; after that date it no longer counts as proof.
           </p>
         </div>
         {manage && data && (

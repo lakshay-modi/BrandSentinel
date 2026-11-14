@@ -14,6 +14,11 @@ const VARIANT: Record<Variant, string> = {
   success: "bg-pass text-white shadow-sm hover:bg-[#156540] disabled:opacity-50",
 };
 
+/** "Oatvia Foods" → "Oatvia Foods’", "Voltaro" → "Voltaro’s" */
+export function possessive(name: string): string {
+  return /s$/i.test(name.trim()) ? `${name}’` : `${name}’s`;
+}
+
 export function Button({ variant = "secondary", size = "md", className = "", ...props }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant; size?: "sm" | "md" }) {
   const sz = size === "sm" ? "h-8 px-3 text-[13px]" : "h-10 px-4 text-[14px]";
   return <button {...props} className={`inline-flex items-center justify-center gap-1.5 rounded-lg font-semibold transition-colors disabled:cursor-not-allowed ${sz} ${VARIANT[variant]} ${className}`} />;

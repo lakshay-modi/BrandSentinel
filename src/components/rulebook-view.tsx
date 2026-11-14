@@ -7,7 +7,7 @@ import { optimistic, patchBrand, reloadBrand, useBrandState } from "@/lib/client
 import { send } from "@/lib/client/send";
 import { can } from "@/lib/roles";
 import type { Category, GuidelineDoc, Rule, Severity } from "@/lib/types";
-import { Button, ConfirmDialog, Dialog, EmptyState, ErrorNote, PageSkeleton, SEVERITY_STYLE, SeverityTag, timeAgo } from "./ui";
+import { Button, ConfirmDialog, Dialog, EmptyState, ErrorNote, PageSkeleton, possessive, SEVERITY_STYLE, SeverityTag, timeAgo } from "./ui";
 import { useRole } from "./role-provider";
 import { RoleNote } from "./role-note";
 import { RuleImport } from "./rule-import";
@@ -325,7 +325,7 @@ export function RulebookView() {
         <div>
           <h1 className="text-[28px] font-bold leading-tight tracking-tight">Rulebook</h1>
           <p className="mt-1.5 max-w-2xl text-[15px] leading-relaxed text-ink-soft">
-            {data?.brand.name ?? "The brand"}&apos;s rules, grouped by the guidelines they came from. Every problem a check finds cites one of these IDs.
+            {data ? possessive(data.brand.name) : "The brand’s"} rules, grouped by the guidelines they came from. Every problem a check finds cites one of these IDs.
             {data && (
               <span className="text-ink-faint">
                 {" "}
