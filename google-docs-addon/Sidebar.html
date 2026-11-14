@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <base target="_blank" />
+    <meta charset="utf-8" />
+    <style>
+      * { box-sizing: border-box; }
+      body { margin: 0; padding: 12px; font: 13px/1.45 Arial, sans-serif; color: #121a2e; }
+      h1 { margin: 0 0 2px; font-size: 15px; }
+      .sub { margin: 0 0 10px; color: #57607a; font-size: 12px; }
+      button { font: inherit; font-weight: bold; cursor: pointer; border-radius: 8px; border: 1px solid #d9dee8; background: #fff; color: #121a2e; padding: 6px 10px; }
+      button:hover { border-color: #9aa3b8; }
+      button:disabled { opacity: 0.6; cursor: wait; }
+      button.primary { background: #121a2e; color: #fff; border-color: #121a2e; }
+      .score { display: flex; align-items: baseline; gap: 8px; }
+      .n { font-size: 30px; font-weight: bold; }
+      .of { color: #8a92a6; font-size: 12px; }
+      .band { margin-left: auto; font-weight: bold; font-size: 12px; padding: 2px 8px; border-radius: 999px; color: #fff; }
+      #msg { min-height: 18px; margin: 4px 0 8px; color: #57607a; font-size: 12px; }
+      #msg.error { color: #c0392b; }
+      ul { list-style: none; margin: 0; padding: 0; border-top: 1px solid #e6e9f0; }
+      li { padding: 9px 0; border-bottom: 1px solid #eef0f5; }
+      .top { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #57607a; }
+      .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+      .rule { font-family: monospace; font-weight: bold; color: #121a2e; }
+      .what { margin: 3px 0 0; }
+      .fix { margin: 3px 0 0; color: #57607a; font-size: 12px; }
+      .apply { margin-top: 5px; padding: 3px 9px; font-size: 12px; }
+      .empty { padding: 14px 0; color: #1f7a4d; font-weight: bold; text-align: center; }
+      .actions { display: flex; gap: 6px; margin: 10px 0; }
+      .actions button { flex: 1; font-size: 12px; }
+      details { margin-top: 12px; border: 1px solid #d9dee8; border-radius: 10px; padding: 8px 10px; }
+      summary { cursor: pointer; font-weight: bold; }
+      label { display: block; margin-top: 9px; font-size: 12px; color: #57607a; }
+      input, select { display: block; width: 100%; margin-top: 3px; padding: 6px 8px; font: inherit; color: #121a2e; border: 1px solid #d9dee8; border-radius: 7px; background: #fff; }
+      #saved { margin-top: 6px; font-size: 12px; color: #57607a; }
+      #saved.error { color: #c0392b; }
+      #saved.ok { color: #1f7a4d; }
+      .hint { margin: 10px 0 0; color: #57607a; font-size: 12px; }
+      a { color: #121a2e; font-weight: bold; }
+    </style>
+  </head>
+  <body>
+    <h1>BrandSentinel</h1>
+    <p class="sub" id="brandline">Checks this document as you write.</p>
+
+    <div class="score"><span class="n" id="num">–</span><span class="of">/ 100</span><span class="band" id="band"></span></div>
+    <div id="msg" role="status">Starting…</div>
+    <div class="actions">
+      <button id="full" type="button">Full check with AI</button>
+      <button id="save" type="button" class="primary">Save as draft</button>
+    </div>
+    <ul id="list"></ul>
+
+    <details id="setup">
+      <summary>Connection</summary>
+      <label>Brand<select id="brand"></select></label>
+      <label>Channel
+        <select id="channel">
+          <option value="instagram">Instagram</option>
+          <option value="linkedin">LinkedIn</option>
+          <option value="x">X</option>
+          <option value="website">Website</option>
+          <option value="email">Email</option>
+        </select>
+      </label>
+      <label>Your name (shown on drafts you save)<input id="author" maxlength="40" /></label>
+      <label>Token<input id="token" type="password" autocomplete="off" spellcheck="false" placeholder="bs_…" /></label>
+      <label>Server address<input id="apiBase" spellcheck="false" /></label>
+      <p><button id="saveSettings" type="button">Save and test</button></p>
+      <div id="saved"></div>
+    </details>
+    <p class="hint">Select part of the document to check only that part. The text is sent to your BrandSentinel server to be checked; nothing else is read.</p>
+
+    <script>
+      var SEVERITY = { high: '#c0392b', medium: '#b9770e', low: '#2f6fed' };
+      var BAND = { green: ['#1f7a4d', 'Ready for review'], amber: ['#b9770e', 'Needs work'], red: ['#c0392b', 'High risk'] };
+      var FIELDS = ['apiBase', 'token', 'brand', 'channel', 'author'];
+      var $ = function (id) { return document.getElementById(id); };
+      var lastText = null;
+      var busy = false;
+
+      function el(tag, cls, text) {
+        var n = document.createElement(tag);
+        if (cls) n.className = cls;
+        if (text !== undefined) n.textContent = text;
+        return n;
+      }
+      function say(text, error) {
+        $('msg').textContent = text;
+        $('msg').className = error ? 'error' : '';
+      }
+      /** Call a function in Code.gs and get its answer (or a plain error) back. */
+      function server(name, args, done) {
+        var runner = google.script.run
+          .withSuccessHandler(done)
+          .withFailureHandler(function (e) { done({ ok: false, error: (e && e.message) || 'Something went wrong. Try again.' }); });
+        runner[name].apply(runner, args || []);
+      }
+
+      function render(data) {
+        $('brandline').textContent = data.brand ? 'Checking against the rules of ' + data.brand.name + '.' : 'Checks this document as you write.';
+        $('num').textContent = String(data.score);
+        var b = BAND[data.band] || BAND.amber;
+        $('band').textContent = b[1];
+        $('band').style.background = b[0];
+        var list = $('list');
+        list.textContent = '';
+        if (!data.problems.length) list.appendChild(el('li', 'empty', 'No problems found in this text.'));
+        data.problems.forEach(function (p) {
+          var li = el('li');
+          var top = el('div', 'top');
+          var dot = el('span', 'dot');
+          dot.style.background = SEVERITY[p.severity] || SEVERITY.low;
+          top.appendChild(dot);
+          top.appendChild(el('span', 'rule', p.rule_id));
+          top.appendChild(el('span', '', p.severity + ' · ' + p.where));
+          li.appendChild(top);
+          li.appendChild(el('p', 'what', p.message));
+          if (p.fix) li.appendChild(el('p', 'fix', 'Fix: ' + p.fix));
+          var pair = (p.replace || [])[0];
+          if (pair) {
+            var apply = el('button', 'apply', pair.to ? 'Apply fix' : 'Remove it');
+            apply.addEventListener('click', function () {
+              apply.disabled = true;
+              server('applyFix', [pair.from, pair.to], function (ok) {
+                if (ok === true) { lastText = null; check(); }
+                else { apply.disabled = false; say('That text has changed already. The check will refresh.', true); lastText = null; }
+              });
+            });
+            li.appendChild(apply);
+          }
+          list.appendChild(li);
+        });
+      }
+
+      function check(options) {
+        if (busy) return;
+        busy = true;
+        $('full').disabled = $('save').disabled = true;
+        if (options) say(options.save ? 'Saving the draft…' : 'Full check with AI (up to 20 seconds)…');
+        server('checkDocument', [options || null], function (res) {
+          busy = false;
+          $('full').disabled = $('save').disabled = false;
+          if (!res || res.ok === false) return say((res && res.error) || 'The check failed. Try again.', true);
+          lastText = res.doc ? res.doc.text : null;
+          if (res.empty) {
+            $('num').textContent = '–';
+            $('band').textContent = '';
+            $('band').style.background = 'transparent';
+            $('list').textContent = '';
+            return say('Start writing. The check runs as you write.');
+          }
+          render(res.data);
+          var n = res.data.problems.length;
+          var what = res.doc.selected ? 'the selected text' : res.doc.truncated ? 'the first 3,000 characters' : 'the whole document';
+          say(res.data.note || n + ' problem' + (n === 1 ? '' : 's') + ' in ' + what + ' · ' + (res.data.ai === 'ok' ? 'fast checks and AI' : 'fast checks'));
+          if (res.data.saved) {
+            $('msg').textContent = 'Saved as a draft. ';
+            var link = el('a', '', 'Open it in BrandSentinel');
+            link.href = res.data.saved.url;
+            $('msg').appendChild(link);
+          }
+        });
+      }
+
+      /** While you write: look at the document every few seconds and re-check when the text has changed. */
+      function watch() {
+        if (busy || document.hidden) return;
+        server('getText', [], function (doc) {
+          if (doc && typeof doc.text === 'string' && doc.text !== lastText && !busy) check();
+        });
+      }
+
+      function loadBrands(selected, done) {
+        server('listBrands', [], function (res) {
+          var menu = $('brand');
+          menu.textContent = '';
+          if (!res || !res.ok) {
+            menu.appendChild(new Option('(connect first)', ''));
+            return done(res || { ok: false, error: 'Could not connect.' });
+          }
+          res.data.brands.forEach(function (b) { menu.appendChild(new Option(b.name, b.slug)); });
+          if (selected) menu.value = selected;
+          done(res);
+        });
+      }
+
+      $('full').addEventListener('click', function () { check({ ai: true }); });
+      $('save').addEventListener('click', function () { check({ save: true }); });
+      $('saveSettings').addEventListener('click', function () {
+        var values = {};
+        FIELDS.forEach(function (f) { values[f] = $(f).value; });
+        $('saved').textContent = 'Testing…';
+        $('saved').className = '';
+        server('saveSettings', [values], function (s) {
+          if (s && s.ok === false) { $('saved').textContent = s.error; $('saved').className = 'error'; return; }
+          loadBrands(values.brand, function (res) {
+            if (res.ok) {
+              $('saved').textContent = 'Connected to ' + res.data.workspace + '.';
+              $('saved').className = 'ok';
+              values.brand = $('brand').value;
+              server('saveSettings', [values], function () { lastText = null; check(); });
+            } else {
+              $('saved').textContent = res.error;
+              $('saved').className = 'error';
+            }
+          });
+        });
+      });
+      ['brand', 'channel'].forEach(function (f) {
+        $(f).addEventListener('change', function () {
+          var values = {};
+          FIELDS.forEach(function (k) { values[k] = $(k).value; });
+          server('saveSettings', [values], function () { lastText = null; check(); });
+        });
+      });
+
+      server('getSettings', [], function (s) {
+        FIELDS.forEach(function (f) { if (f !== 'brand') $(f).value = (s && s[f]) || ''; });
+        loadBrands(s && s.brand, function (res) {
+          if (!res.ok) {
+            say(res.error, true);
+            $('setup').open = true;
+          } else check();
+          setInterval(watch, 4000);
+        });
+      });
+    </script>
+  </body>
+</html>
