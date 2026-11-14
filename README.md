@@ -51,6 +51,7 @@ These are the three improvements named at Round 2. All three are live.
 - **Your own AI key.** A workspace can connect its own Gemini API key, so its posts are processed under the company's own Google account and data terms. The key is checked with Google, encrypted (AES-256-GCM) before it is stored, and never shown again.
 - **Judges keep full access.** The sign-in page lists the three demo accounts with their password, and one click signs into each. No sign-up is needed.
 - A brand manager of a real workspace can also act as creator or expert, so a one-person team isn't stuck. History records their own name on everything.
+- **Passwords:** a brand manager makes a one-time reset link for a member (Team → Reset password, valid for 24 hours), and anyone can change their own password from the account menu. No email is needed.
 
 ### 2. Check content where it is made and published
 
@@ -76,19 +77,19 @@ These are the three improvements named at Round 2. All three are live.
 - **Videos up to 60 seconds:** the browser takes a frame every 2.5 seconds and runs the image checks on it (text reading and contrast). Frames that show the same picture or the same words are merged, so one mistake is reported once, with how long it stays on screen.
 - **Speech:** the browser pulls out the sound and the AI writes down what is said, with times. The creator can correct the text, or type the script by hand. What is said is checked like a caption.
 - **Timestamps:** every problem in a video shows when it happens. Clicking it jumps the player to that second.
-- The video file is never uploaded. Only the frames with text, and the sound for the speech-to-text step, leave the device.
+- **Reviewers can play the video on any device.** After the check, the video (up to 40 MB) is saved privately and played through a signed link that lasts an hour, so a reviewer clicks a problem and the player jumps to that second. Reading the frames happens on the creator's device; only the sound is sent for speech-to-text.
 
 ## Known limits
 
 - **AI can be slow or busy.** On the Gemini free tier a check can take up to about 15 seconds, or return the fast-check results with a note that the AI was unavailable. **Re-check** usually fixes it. Speech-to-text has the same limit; the script can be typed by hand instead.
-- **The video is not stored.** A reviewer on another device sees the frames and the transcript with times. To play the video itself, they load the same file on the post page.
+- **Videos over 40 MB are not saved.** They are still checked, and a reviewer sees the frames and the transcript with times; to play one, they load the same file on the post page. The free storage plan allows about 40 saved videos per workspace (the shared demo keeps its newest 20).
 - **Speech rules.** Rules about how text is written (capitals, spelling, units, prices) are not applied to speech, because a transcript's spelling is the transcriber's.
 - **Extension fixes** are applied in plain text boxes. In rich editors (for example LinkedIn's) the problems are listed and the fix is copied by hand.
 - **Google Docs add-on** is installed by pasting three files into Apps Script (about 2 minutes). It is not in the Workspace Marketplace.
 - **The demo workspace is shared.** Everyone using the demo accounts sees each other's changes. **Reset demo** (for testing only) restores the demo brands. Your own workspace is never reset.
 - **Fixing text inside images** is for small wording changes only. It uses a standard font and refuses on photos, strong gradients and styled lettering.
 - **New brands** get the starter rules as fast checks; rules imported from a PDF are checked by AI, so they need the AI to be available.
-- **No password reset by email** yet (the free plan has no mail budget). A brand manager can remove a member and send a new invite.
+- **No password reset by email** (the free plan has no mail budget). Instead a brand manager makes a one-time reset link on the Team page and passes it on, and anyone can change their own password from the account menu.
 
 ## Brands, rulebooks and roles
 
@@ -159,7 +160,7 @@ npm test
 - The fast checks alone catch **all 41 planted mistakes with zero false flags** on these posts. (The same rules and posts were written by the same team, so this proves the checks work, not that they catch everything. The AI layer exists for reworded and new cases.)
 - The proof check is tested to drop hallucinated quotes, unknown rules and fake fact IDs, and to merge duplicates.
 - Fix application and insights (unclear-rule detection, expiring facts) have their own tests.
-- 82 automated tests in total (`npm test`), plus a live run of all 10 posts with the AI on: every score matches the answer key.
+- 85 automated tests in total (`npm test`), plus a live run of all 10 posts with the AI on: every score matches the answer key.
 - The PDF import's quote check is tested against the sample PDF.
 
 ## Works for any brand: tested with a second brand
@@ -195,7 +196,7 @@ A second fictional brand, **Solvira Skincare**, was set up only through the prod
 | Colour and contrast | Canvas pixel maths in the browser, WCAG contrast formula |
 | Extension | Chrome Manifest V3, plain JavaScript (`/extension`) |
 | Docs add-on | Google Apps Script (`/public/downloads/google-docs-addon`) |
-| Tests | Vitest (82 tests) |
+| Tests | Vitest (85 tests) |
 | Hosting | Vercel, Mumbai region, next to the database |
 
 Everything runs on free tiers.
@@ -244,7 +245,7 @@ npm install
 
 **2. Set up the database.** In your Supabase project, open **SQL Editor** and run these files in order (paste each one and click Run):
 
-1. Every file in `supabase/migrations/`, from `0001` to `0012`.
+1. Every file in `supabase/migrations/`, from `0001` to `0014`.
 2. `supabase/seed.sql` (the Oatvia Foods demo brand: 26 rules, 16 facts).
 3. Optional: `supabase/seed_solvira.sql` (a second demo brand).
 4. Optional: `select public.take_demo_snapshot();` so **Reset demo** has something to restore.
@@ -273,7 +274,7 @@ npm run dev
 
 Open http://localhost:3000. You land on the sign-in page. The three demo accounts are created by the server the first time someone signs in with them. `http://localhost:3000/api/health` should show `"db":"ok"` and `"auth":"ok"`.
 
-Other commands: `npm test` (82 tests), `npm run lint`, `npm run build`.
+Other commands: `npm test` (85 tests), `npm run lint`, `npm run build`.
 
 **Extension:** open `chrome://extensions`, turn on Developer mode, click **Load unpacked** and choose the `extension` folder. In its Connection settings, set the address to `http://localhost:3000` and paste a token from the Connect page.
 
@@ -281,7 +282,7 @@ Other commands: `npm test` (82 tests), `npm run lint`, `npm run build`.
 
 ## Testing
 
-**Automated (`npm test`, 82 tests in 13 files):**
+**Automated (`npm test`, 85 tests in 13 files):**
 
 - The fast checks against the answer key for the 10 sample posts: 41 planted mistakes, all caught, with no extra findings on the clean post.
 - The proof check: unknown rules, quotes that aren't in the post, made-up facts and out-of-scope rules are dropped.
@@ -312,6 +313,9 @@ Other commands: `npm test` (82 tests), `npm run lint`, `npm run build`.
 - Submit three times at once and approve twice at once: each took effect once.
 - The public check API with the demo token and with a workspace's own token; a wrong token is refused.
 - Bad input (unknown channel, empty caption, broken request, bad post address) is refused with a plain message.
+- Saved video: a creator added a video and checked it, and it uploaded to private storage. Signed in as the expert, the post page played it from a signed link, and clicking a problem jumped the player to 0:10. Deleting the draft removed the file.
+- The full approval journey as the three demo accounts (check, send back, re-check, disagree, resubmit, expert approval, final approval).
+- Passwords: a wrong current password is refused; after a change the old password fails and the new one works. A reset link shows whose account it is for, refuses a short password, signs the person in and can't be used twice. A creator can't make reset links, and the demo password can't be changed.
 - Webhook **Send a test** to a public request inbox: delivered and signed; the signature was checked against the secret, and a changed body fails. Approving a post sent `post.approved` with the post and its link. A private or `http://` address and a non-Slack address are refused.
 - Slack messages are sent and logged for submitted, expert approved and approved (tested against an invalid Slack address, so the log shows Slack's 404).
 
@@ -319,7 +323,7 @@ Other commands: `npm test` (82 tests), `npm run lint`, `npm run build`.
 
 **Next (1 to 2 months)**
 
-- Password reset and sign-in with Google, once there is a mail sender.
+- Password reset by email and sign-in with Google, once there is a mail sender.
 - Store videos (compressed) so reviewers can play them on any device.
 - Publish the extension in the Chrome Web Store and the add-on in the Workspace Marketplace.
 - Turn more imported rules into fast checks automatically, so new brands depend less on the AI.

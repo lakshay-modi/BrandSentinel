@@ -1,6 +1,6 @@
 # Database
 
-Run the files in `migrations/` in order (`0001` to `0012`) in the Supabase SQL Editor, then the seeds.
+Run the files in `migrations/` in order (`0001` to `0014`) in the Supabase SQL Editor, then the seeds.
 
 | File | What it adds |
 | --- | --- |
@@ -11,6 +11,8 @@ Run the files in `migrations/` in order (`0001` to `0012`) in the Supabase SQL E
 | `0010_workspaces.sql` | Workspaces, members, invites and the row rules that keep companies apart |
 | `0011_post_video.sql` | Video posts (length and transcript; the file itself is never stored) |
 | `0012_connections.sql` | API tokens, webhook and Slack settings, delivery log |
+| `0013_post_video_storage.sql` | Private storage for checked videos (played through signed links) |
+| `0014_password_resets.sql` | One-time password reset links made by a brand manager |
 
 Seeds:
 
