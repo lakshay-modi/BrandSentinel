@@ -62,7 +62,12 @@ export function backupConfigured(): boolean {
   return !!backupKey();
 }
 
-/** One tiny question to the backup AI, to check it is set up (Team page test). */
+/** The backup AI alone (used to test it with a real check). */
+export function callBackupOnly(system: string, parts: AiPart[], budgetMs: number): Promise<AiCallResult> {
+  return callBackup(system, parts, budgetMs);
+}
+
+/** One tiny question to the backup AI, to check it is set up. */
 export function probeBackup(): Promise<AiCallResult> {
   return callBackup('You check that a service works. Reply with JSON only.', [{ text: 'Reply with exactly {"ok":true}' }], 30000);
 }

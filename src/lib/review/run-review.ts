@@ -5,7 +5,7 @@ import type { Finding, PostInput, ReviewResult } from "../types";
 import { runCodeChecks } from "../checks/code-checks";
 import { runVisualChecks } from "../checks/visual-checks";
 import { todayIST } from "../checks/text-utils";
-import { aiConfigured, callGemini, parseJson, type AiPart } from "../ai/gemini";
+import { aiConfigured, callBackupOnly, callGemini, parseJson, type AiPart } from "../ai/gemini";
 import { aiResponseSchema, buildUserPrompt, SYSTEM_PROMPT, type AiResponse } from "../ai/prompt";
 import { proofCheck } from "../ai/proof";
 import { createRedactor, restore } from "../ai/redact";
@@ -45,7 +45,7 @@ function spokenFix(f: Finding): Finding {
   return { ...f, fix: { kind: "manual", advice: to ? `This is said in the video, so re-record or cut that line. Say instead: “${to}”.` : "This is said in the video, so re-record or cut that line." } };
 }
 
-export async function runReview(input: PostInput, ctx: BrandContext, opts: { origin: string; clientId: string; /** fast checks only, for checks while typing in other tools */ codeOnly?: boolean }): Promise<ReviewOutput> {
+export async function runReview(input: PostInput, ctx: BrandContext, opts: { origin: string; clientId: string; /** fast checks only, for checks while typing in other tools */ codeOnly?: boolean; /** send the AI part to the backup AI only, without cache (backup test) */ backupOnly?: boolean }): Promise<ReviewOutput> {
   const rules = new Map(ctx.rules.map((r) => [r.id, r]));
   const today = todayIST();
   const settings = ctx.brand.settings;
@@ -76,7 +76,7 @@ export async function runReview(input: PostInput, ctx: BrandContext, opts: { ori
         }),
       )
       .digest("hex");
-    ai = await getCache<AiResponse>(cacheKey).catch(() => null);
+    ai = opts.backupOnly ? null : await getCache<AiResponse>(cacheKey).catch(() => null);
     if (ai) {
       aiStatus = "ok";
       model = "cached";
@@ -104,13 +104,13 @@ export async function runReview(input: PostInput, ctx: BrandContext, opts: { ori
         const part = await imagePart(img.src, opts.origin);
         if (part) parts.push({ text: `Image ${i + 1}:` }, part);
       }
-      const res = await callGemini(SYSTEM_PROMPT, parts);
+      const res = opts.backupOnly ? await callBackupOnly(SYSTEM_PROMPT, parts, 35000) : await callGemini(SYSTEM_PROMPT, parts);
       if (res.ok) {
         try {
           ai = restore(aiResponseSchema.parse(parseJson(res.text)), redactor.map);
           aiStatus = "ok";
           model = res.model;
-          await setCache(cacheKey, ai).catch(() => undefined);
+          if (!opts.backupOnly) await setCache(cacheKey, ai).catch(() => undefined);
         } catch (e) {
           aiStatus = "error";
           detail = `AI reply didn't match the expected format: ${String(e).slice(0, 120)}`;
