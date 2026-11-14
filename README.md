@@ -81,7 +81,7 @@ These are the three improvements named at Round 2. All three are live.
 
 ## Known limits
 
-- **AI can be slow or busy.** On the Gemini free tier a check can take up to about 15 seconds, or return the fast-check results with a note that the AI was unavailable. **Re-check** usually fixes it. Speech-to-text has the same limit; the script can be typed by hand instead.
+- **AI can be slow or busy.** On the Gemini free tier a check can take up to about 15 seconds. When Gemini is busy, the backup AI (ASI:One) takes over for text; only if both are busy does the report have the fast checks alone, with a note saying so. **Re-check** usually fixes it. Speech-to-text has the same limit; the script can be typed by hand instead.
 - **Videos over 40 MB are not saved.** They are still checked, and a reviewer sees the frames and the transcript with times; to play one, they load the same file on the post page. The free storage plan allows about 40 saved videos per workspace (the shared demo keeps its newest 20).
 - **Speech rules.** Rules about how text is written (capitals, spelling, units, prices) are not applied to speech, because a transcript's spelling is the transcriber's.
 - **Extension fixes** are applied in plain text boxes. In rich editors (for example LinkedIn's) the problems are listed and the fix is copied by hand.
@@ -147,7 +147,7 @@ caption + images
    └─ 4. brand score                          100 minus 15 / 7 / 3 per high / medium / low problem
 ```
 
-If the AI is busy (free-tier limit) or off, the fast checks still return a full report. The app tries Gemini Flash first and falls back to Flash-Lite when Flash is overloaded. AI results are cached by content, so repeat checks cost nothing.
+If the AI is busy (free-tier limit) or off, the fast checks still return a full report. The app tries Gemini Flash first and falls back to Flash-Lite when Flash is overloaded. If no Gemini model answers (for example when the free quota runs out while many people test at once), the text checks go to a backup AI, ASI:One, and the report says so. The backup reads text only: the caption, the text found in images and the speech, not the pictures themselves. AI results are cached by content, so repeat checks cost nothing.
 
 ## Tested against an answer key
 
@@ -160,7 +160,7 @@ npm test
 - The fast checks alone catch **all 41 planted mistakes with zero false flags** on these posts. (The same rules and posts were written by the same team, so this proves the checks work, not that they catch everything. The AI layer exists for reworded and new cases.)
 - The proof check is tested to drop hallucinated quotes, unknown rules and fake fact IDs, and to merge duplicates.
 - Fix application and insights (unclear-rule detection, expiring facts) have their own tests.
-- 85 automated tests in total (`npm test`), plus a live run of all 10 posts with the AI on: every score matches the answer key.
+- 95 automated tests in total (`npm test`), plus a live run of all 10 posts with the AI on: every score matches the answer key.
 - The PDF import's quote check is tested against the sample PDF.
 
 ## Works for any brand: tested with a second brand
@@ -189,14 +189,14 @@ A second fictional brand, **Solvira Skincare**, was set up only through the prod
 | Web app | Next.js 16 (App Router) + React 19 + TypeScript, Tailwind CSS v4 |
 | Database | Supabase Postgres with row level security |
 | Login | Supabase Auth (email and password), session in httpOnly cookies |
-| AI | Gemini Flash API (Flash-Lite as fallback), called only from the server; JSON answers validated with zod |
+| AI | Gemini Flash API (Flash-Lite as fallback), with ASI:One as a backup AI for text when Gemini is busy. Called only from the server; JSON answers validated with zod |
 | Image and video text | tesseract.js, self-hosted in `/public/tesseract`, runs in the browser |
 | Video | The browser's own `<video>`, canvas and Web Audio: no upload, no paid service |
 | PDF text | unpdf, on the server |
 | Colour and contrast | Canvas pixel maths in the browser, WCAG contrast formula |
 | Extension | Chrome Manifest V3, plain JavaScript (`/extension`) |
 | Docs add-on | Google Apps Script (`/public/downloads/google-docs-addon`) |
-| Tests | Vitest (85 tests) |
+| Tests | Vitest (95 tests) |
 | Hosting | Vercel, Mumbai region, next to the database |
 
 Everything runs on free tiers.
@@ -263,6 +263,8 @@ cp .env.example .env.local
 | `GEMINI_API_KEY` | no | A Gemini API key from Google AI Studio. Without it only the fast checks run, and speech in videos is typed by hand. |
 | `SUPABASE_PUBLISHABLE_KEY` | no | The project's publishable key. If set, people's requests use it instead of the secret key. |
 | `BRANDSENTINEL_ENC_KEY` | no | A separate secret for encrypting workspace keys, if you don't want to derive it from the database key. |
+| `ASI1_API_KEY` | no | A key for ASI:One, the backup AI used for text when Gemini is busy. Without it, a busy Gemini means the fast checks only. Never used for a workspace with its own Gemini key. |
+| `AI_BACKUP_FIRST` | no | Set to `1` to send text checks to the backup AI first (for testing it). |
 | `GEMINI_MODEL` | no | Model name override |
 | `HEALTH_TOKEN` | no | Lets `/api/health?ai=1` probe the AI models (sent as an `x-health-token` header) |
 
@@ -274,7 +276,7 @@ npm run dev
 
 Open http://localhost:3000. You land on the sign-in page. The three demo accounts are created by the server the first time someone signs in with them. `http://localhost:3000/api/health` should show `"db":"ok"` and `"auth":"ok"`.
 
-Other commands: `npm test` (85 tests), `npm run lint`, `npm run build`.
+Other commands: `npm test` (95 tests), `npm run lint`, `npm run build`.
 
 **Extension:** open `chrome://extensions`, turn on Developer mode, click **Load unpacked** and choose the `extension` folder. In its Connection settings, set the address to `http://localhost:3000` and paste a token from the Connect page.
 
@@ -282,7 +284,7 @@ Other commands: `npm test` (85 tests), `npm run lint`, `npm run build`.
 
 ## Testing
 
-**Automated (`npm test`, 85 tests in 13 files):**
+**Automated (`npm test`, 95 tests in 14 files):**
 
 - The fast checks against the answer key for the 10 sample posts: 41 planted mistakes, all caught, with no extra findings on the clean post.
 - The proof check: unknown rules, quotes that aren't in the post, made-up facts and out-of-scope rules are dropped.
@@ -290,6 +292,7 @@ Other commands: `npm test` (85 tests), `npm run lint`, `npm run build`.
 - Starter rules on a brand that is not the demo brand.
 - Video: timestamps for spoken and on-screen problems, speech checked like a caption, frames checked like images.
 - Webhook and Slack: signatures, blocked private addresses, message text.
+- Backup AI: used only when Gemini is busy, gets text only, never used for speech-to-text or for a company with its own Gemini key, and stops at its time limit.
 - Fixes, fixing text in images, document text, insights and API input checks.
 
 **Extension and Google Docs add-on (`npm run test:integrations`, needs Playwright with Chromium):**
@@ -342,7 +345,8 @@ Other commands: `npm test` (85 tests), `npm run lint`, `npm run build`.
 
 - AI never publishes or changes anything by itself. Every fix is a suggestion; a named person approves every post.
 - Every AI finding is labelled and must cite a real rule and quote; severity always comes from the rule, never the AI.
-- Emails, phone numbers and the brand's confidential terms are replaced with placeholders before any AI call.
+- Emails, phone numbers and the brand's confidential terms are replaced with placeholders before any AI call, including the backup AI.
+- A company that adds its own Gemini key keeps its posts with Google only: the backup AI is used just for the shared key.
 - The demo uses the Gemini free tier, where Google may use prompts to improve its products, so the demo uses fictional data only. A production version would use a paid tier where customer data isn't used for training.
 
 ## Security

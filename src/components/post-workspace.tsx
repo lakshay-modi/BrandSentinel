@@ -712,6 +712,9 @@ export function PostWorkspace({ id }: { id: string }) {
               <Panel className="order-2">
                 <ScorePanel score={review.score} band={review.band} findings={findings} onPick={pick} />
                 {review.ai_status !== "ok" && <p className="mt-3 rounded-md bg-med-bg px-3 py-2 text-sm text-med">{AI_NOTE[review.ai_status] ?? AI_NOTE.error}</p>}
+                {review.ai_status === "ok" && review.model === "asi1" && (
+                  <p className="mt-3 text-xs text-ink-soft">Gemini was busy, so the backup AI (ASI:One) did the AI checks. It reads text only: the text in images and the speech, not the pictures themselves.</p>
+                )}
                 {(review.redacted ?? 0) > 0 && (
                   <p className="mt-3 text-xs text-ink-soft">
                     {review.redacted} personal or confidential detail{review.redacted === 1 ? " was" : "s were"} hidden from the AI (shown to it as placeholders like [EMAIL 1]).
