@@ -4,7 +4,7 @@ export interface NumberToken {
   text: string;
   index: number;
   value: number;
-  unit: string; // canonical: ₹ g mg ml l kcal % cities stores km kg mAh kWh GB TB Mbps h
+  unit: string; // canonical: ₹ g mg ml l kcal % cities stores km kg mAh kWh GB TB Mbps h contacts subscribers users customers members sends emails
 }
 
 const UNIT_MAP: Record<string, string> = {
@@ -17,13 +17,17 @@ const UNIT_MAP: Record<string, string> = {
   kg: "kg", kgs: "kg", kilogram: "kg", kilograms: "kg",
   mah: "mAh", kwh: "kWh", gb: "GB", tb: "TB", mbps: "Mbps",
   h: "h", hr: "h", hrs: "h", hour: "h", hours: "h",
+  percent: "%", "per cent": "%",
+  // counts that products and services quote (plans, audiences, reach)
+  contacts: "contacts", contact: "contacts", subscribers: "subscribers", subscriber: "subscribers", users: "users", user: "users",
+  customers: "customers", customer: "customers", members: "members", member: "members", sends: "sends", send: "sends", emails: "emails",
 };
 
 const RE =
-  /(₹\s?|\brs\.?\s?|\binr\s?)?(\d[\d,]*(?:\.\d+)?)(\+)?\s?(%|(?:gms|gm|grams|gram|g|mg|ml|litres|litre|liters|liter|l|kcal|calories|calorie|cal|cities|city|stores|store|outlets|kilometres|kilometers|kilometre|kilometer|kms|km|kilograms|kilogram|kgs|kg|mah|kwh|gb|tb|mbps|hours|hour|hrs|hr|h)\b)?/gi;
+  /(₹\s?|\brs\.?\s?|\binr\s?)?(\d[\d,]*(?:\.\d+)?)(\+)?\s?(%|(?:gms|gm|grams|gram|g|mg|ml|litres|litre|liters|liter|l|kcal|calories|calorie|cal|cities|city|stores|store|outlets|kilometres|kilometers|kilometre|kilometer|kms|km|kilograms|kilogram|kgs|kg|mah|kwh|gb|tb|mbps|hours|hour|hrs|hr|h|per cent|percent|contacts|contact|subscribers|subscriber|users|user|customers|customer|members|member|sends|send|emails)\b)?/gi;
 
 // counts may have a word or two before the unit: "12 Indian cities", "2,000+ partner stores"
-const COUNT_RE = /(\d[\d,]*)(\+)?\s+(?:[A-Za-z]+\s+){1,2}?(cities|city|stores|store|outlets)\b/gi;
+const COUNT_RE = /(\d[\d,]*)(\+)?\s+(?:[A-Za-z]+\s+){1,2}?(cities|city|stores|store|outlets|contacts|subscribers|users|customers|members|sends|emails)\b/gi;
 
 export function extractNumbers(text: string): NumberToken[] {
   const out: NumberToken[] = [];

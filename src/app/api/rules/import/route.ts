@@ -6,7 +6,7 @@ import { actorSchema, clientId, fail, json, readJson, roleSchema, serverError } 
 import { bumpRulebook, db, getBrandContext, getCache, setCache } from "@/lib/db";
 import { callGemini, parseJson } from "@/lib/ai/gemini";
 import { loadWorkspaceAiKey } from "@/lib/secrets";
-import { IMPORT_SYSTEM_PROMPT, buildImportPrompt, parseImportReply, quoteInDocument, splitDocument, type ImportedRule } from "@/lib/ai/import-prompt";
+import { IMPORT_SYSTEM_PROMPT, buildImportPrompt, parseImportReply, provenWordLists, quoteInDocument, splitDocument, type ImportedRule } from "@/lib/ai/import-prompt";
 import { allowAiCall } from "@/lib/review/rate-limit";
 import { documentText } from "@/lib/doc-text";
 
@@ -59,7 +59,7 @@ export const POST = withSession(async (req, _ctx, me) => {
     if (replaceId && !ctx.documents.some((d) => d.id === replaceId)) return fail("The rulebook to replace wasn't found in this brand.", 404);
     // the rules the new ones are compared with: everything except the rulebook being replaced
     const others = ctx.rules.filter((r) => !replaceId || r.document_id !== replaceId);
-    const cacheKey = "import:" + createHash("sha256").update(ctx.brand.settings.protected ? "" : ctx.brand.id).update(clipped).update(others.map((r) => `${r.id}:${r.status}`).join(",")).digest("hex").slice(0, 32);
+    const cacheKey = "import:v2:" + createHash("sha256").update(ctx.brand.settings.protected ? "" : ctx.brand.id).update(clipped).update(others.map((r) => `${r.id}:${r.status}`).join(",")).digest("hex").slice(0, 32);
     let drafted = await getCache<{ rules: ImportedRule[]; model: string; partial?: string }>(cacheKey);
     if (!drafted) {
       if (!allowAiCall(clientId(req))) return fail("The AI is busy (free-tier limit). Try again in a minute.", 429);
@@ -149,22 +149,26 @@ export const POST = withSession(async (req, _ctx, me) => {
       if (error || !data) throw new Error(error?.message ?? "Could not save the rulebook");
       document = data;
     }
-    const rows = toAdd.map((r) => ({
+    const rows = toAdd.map((r) => {
+      // a word list from the document becomes a fast check in plain code (the AI still reads the rule too)
+      const words = provenWordLists(r, text);
+      return {
       id: nextId(r.category),
       brand_id: ctx.brand.id,
       category: r.category,
       severity: r.severity,
-      check_type: "ai",
+      check_type: words ? "code+ai" : "ai",
       scope: r.scope || "all",
       rule: r.rule,
       guideline: r.guideline,
       good: r.good,
       bad: r.bad,
-      params: {},
+      params: words ?? {},
       status: "draft",
       source: `${file.name}: “${r.source_quote.slice(0, 220)}”`,
       document_id: document?.id ?? null,
-    }));
+      };
+    });
     if (rows.length) {
       const { error } = await db().from("rules").insert(rows);
       if (error) throw new Error(error.message);

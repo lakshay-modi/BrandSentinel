@@ -27,7 +27,12 @@ interface Hit {
   advice?: string;
 }
 
-const DEFAULT_ACRONYMS = ["MRP", "FSSAI", "ASCI", "CCPA", "GST", "UPI", "COD", "EMI", "FAQ", "USA", "UK", "AI", "ID", "OTP", "QR", "DM", "IST"];
+// Common acronyms are not shouting: a brand can add its own on the capitals rule.
+const DEFAULT_ACRONYMS = [
+  "MRP", "FSSAI", "ASCI", "CCPA", "GST", "UPI", "COD", "EMI", "FAQ", "USA", "UK", "US", "EU", "UAE", "AI", "ID", "OTP", "QR", "DM", "IST",
+  "ROI", "SMS", "API", "URL", "SEO", "CRM", "KPI", "CTA", "CTR", "PPC", "B2B", "B2C", "CEO", "CFO", "CTO", "HR", "PR", "IT", "TV", "PC",
+  "PDF", "HTML", "CSS", "GIF", "PNG", "JPG", "JPEG", "MP4", "CSV", "USB", "GPS", "EV", "GB", "TB", "MB", "AM", "PM", "OK", "DIY", "VIP", "RSVP", "SKU", "ETA", "NGO",
+];
 
 /** Written text: the caption plus the text read from each image (a carousel's slides, or a video's frames). */
 function writtenSources(input: PostInput): Source[] {
@@ -283,6 +288,33 @@ export function runCodeChecks(ctx: CheckContext): Finding[] {
         message: `“${m.text}” is a confidential internal name and must not appear in a post.`,
         advice: "Remove the internal name, for example say “something new is coming soon”.",
       })), "Confidential names", "Remove the internal name.");
+    }
+  }
+
+  // ---------------- Word lists from imported guidelines ----------------
+  // An imported rule can carry the exact words its document bans, or "write X, not Y" pairs. Those are checked
+  // here in plain code, whatever the rule's ID, so a word list never depends on the AI noticing every word.
+  for (const rule of ctx.rules.values()) {
+    if (rule.status !== "approved" || !rule.check_type.includes("code")) continue;
+    const banned: string[] = Array.isArray(rule.params?.banned_phrases) ? rule.params.banned_phrases : [];
+    const preferred: Record<string, string> = rule.params?.preferred_terms && typeof rule.params.preferred_terms === "object" ? rule.params.preferred_terms : {};
+    for (const s of srcs) {
+      if (banned.length)
+        report(out, rule, s, findPhrases(s.text, banned).map((m) => ({ quote: m.text, message: `“${m.text}” is on the brand's list of words not to use.`, to: null, advice: "Rewrite this part without it." })), "Words not to use");
+      const pairs = Object.entries(preferred).filter(([from, to]) => from && to && from !== to);
+      if (pairs.length && s.location !== "speech") {
+        const hits: Hit[] = [];
+        for (const [from, to] of pairs) {
+          // a pair that differs only in capitals ("MailChimp" → "Mailchimp") is matched exactly as written
+          const caseOnly = from.toLowerCase() === to.toLowerCase();
+          for (const m of findAll(s.text, phraseRegex(from, caseOnly ? "g" : "gi"))) {
+            if (!caseOnly && m.text.toLowerCase() === to.toLowerCase()) continue;
+            const fixed = caseOnly ? to : keepCase(m.text, to);
+            hits.push({ quote: m.text, message: `Write “${fixed}”, not “${m.text}”.`, to: fixed });
+          }
+        }
+        report(out, rule, s, hits, "Preferred terms");
+      }
     }
   }
 

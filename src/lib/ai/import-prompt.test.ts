@@ -54,3 +54,16 @@ describe("splitting a long guidelines document", async () => {
     expect(splitDocument(lines).length).toBeGreaterThan(1);
   });
 });
+
+
+describe("word lists in imported rules", async () => {
+  const { provenWordLists } = await import("./import-prompt");
+  const doc = "Do not use these words: automagical, funnel, leverage. Write email, never e-mail. Write Mailchimp, never MailChimp.";
+  it("keeps only words that are really in the document", () => {
+    expect(provenWordLists({ banned_phrases: ["funnel", "leverage", "synergy"] }, doc)).toEqual({ banned_phrases: ["funnel", "leverage"] });
+    expect(provenWordLists({ preferred_terms: { "e-mail": "email", MailChimp: "Mailchimp", "web site": "website" } }, doc)).toEqual({ preferred_terms: { "e-mail": "email", MailChimp: "Mailchimp" } });
+  });
+  it("returns nothing when the AI invented every word", () => {
+    expect(provenWordLists({ banned_phrases: ["synergy"] }, doc)).toBeNull();
+  });
+});

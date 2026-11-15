@@ -68,6 +68,29 @@ describe("starter rules for a brand new workspace", () => {
     expect(ids(post({ caption: "The safest and fastest e-bike around. #RideKiro" }))).toContain("CLAIM-01");
   });
 
+  it("checks word lists imported from a brand's guidelines in plain code (Mailchimp-style rules)", () => {
+    const withLists = new Map(rules);
+    withLists.set("WORD-17", { id: "WORD-17", category: "words", severity: "medium", check_type: "code+ai", scope: "all", rule: "Never use the banned words.", guideline: "", good: "", bad: "", status: "approved", version: 1, params: { banned_phrases: ["leverage", "automagical", "crushing it"] } } as unknown as Rule);
+    withLists.set("WORD-11", { id: "WORD-11", category: "words", severity: "low", check_type: "code+ai", scope: "all", rule: "Write email, and our name as Mailchimp.", guideline: "", good: "", bad: "", status: "approved", version: 1, params: { preferred_terms: { "e-mail": "email", MailChimp: "Mailchimp" } } } as unknown as Rule);
+    const found = runCodeChecks({ input: post({ caption: "Leverage our AUTOMAGICAL tools and start crushing it. MailChimp makes E-mail easy, and Mailchimp says so. #RideKiro" }), rules: withLists, facts: [], brand, today: "2026-11-14" });
+    const banned = found.filter((f) => f.rule_id === "WORD-17").flatMap((f) => f.quotes);
+    expect(banned).toEqual(expect.arrayContaining(["Leverage", "AUTOMAGICAL", "crushing it"]));
+    const pref = found.find((f) => f.rule_id === "WORD-11");
+    expect(pref?.fix).toEqual({ kind: "replace", pairs: [{ from: "E-mail", to: "Email" }, { from: "MailChimp", to: "Mailchimp" }] });
+  });
+
+  it("doesn't treat common acronyms as shouting", () => {
+    expect(ids(post({ caption: "See the ROI of SMS and API reports in a PDF. #RideKiro" }))).toEqual([]);
+  });
+
+  it("compares percentages and counts written as words with the Fact Bank", () => {
+    const facts = [{ id: "F-01", product: "Kiro One", fact: "The Free plan includes up to 250 contacts and 500 email sends per month.", source: "Pricing page", valid_until: "2027-12-31", type: "general" }];
+    const quotes = (caption: string) => runCodeChecks({ input: post({ caption }), rules, facts, brand, today: "2026-11-14" }).filter((f) => f.rule_id === "CLAIM-02").flatMap((f) => f.quotes);
+    expect(quotes("Now 2,000 contacts and 10,000 email sends. #RideKiro")).toEqual(expect.arrayContaining(["2,000 contacts", "10,000 email sends"]));
+    expect(quotes("Up to 250 contacts and 500 email sends. #RideKiro")).toEqual([]);
+    expect(quotes("Open rates went up 30 percent. #RideKiro")).toEqual(["30 percent"]);
+  });
+
   it("doesn't call ordinary words health claims", () => {
     expect(ids(post({ caption: "Secure parking and tasty treats at every Kiro store. #RideKiro" }))).toEqual([]);
   });

@@ -110,17 +110,33 @@ export async function runReview(input: PostInput, ctx: BrandContext, opts: { ori
         const part = await imagePart(img.src, opts.origin);
         if (part) parts.push({ text: `Image ${i + 1}:` }, part);
       }
-      const res = viaBackup ? await callBackupOnly(SYSTEM_PROMPT, parts, opts.backupOnly ? 35000 : 45000) : await callGemini(SYSTEM_PROMPT, parts);
+      const started = Date.now();
+      let res = viaBackup ? await callBackupOnly(SYSTEM_PROMPT, parts, opts.backupOnly ? 35000 : 45000) : await callGemini(SYSTEM_PROMPT, parts);
+      const read = (text: string) => restore(aiResponseSchema.parse(parseJson(text)), redactor.map);
       if (res.ok) {
         try {
-          ai = restore(aiResponseSchema.parse(parseJson(res.text)), redactor.map);
-          aiStatus = "ok";
-          model = res.model;
-          if (!opts.backupOnly) await setCache(cacheKey, ai).catch(() => undefined);
+          ai = read(res.text);
         } catch (e) {
-          aiStatus = "error";
           detail = `AI reply didn't match the expected format: ${String(e).slice(0, 120)}`;
+          // a garbled answer gets one more try from the other AI, if there is time left
+          if (!viaBackup && res.model !== "asi1" && backupAvailable() && Date.now() - started < 20000) {
+            const again = await callBackupOnly(SYSTEM_PROMPT, parts, 30000);
+            if (again.ok) {
+              try {
+                ai = read(again.text);
+                res = again;
+              } catch {
+                /* still not readable: fast checks only */
+              }
+            }
+          }
         }
+        if (ai) {
+          aiStatus = "ok";
+          model = res.ok ? res.model : null;
+          detail = undefined;
+          if (!opts.backupOnly) await setCache(cacheKey, ai).catch(() => undefined);
+        } else aiStatus = "error";
       } else {
         aiStatus = res.status;
         detail = res.detail;
