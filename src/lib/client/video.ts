@@ -243,7 +243,10 @@ export function postVideoUrl(postId: string): string | null {
 }
 
 // ── Storing the video for reviewers (in the background, with progress the post page can show) ──────────
-export type StoreState = { state: "uploading"; percent: number } | { state: "done" } | { state: "failed"; reason: string };
+export type StoreState = { state: "uploading"; percent: number } | { state: "done" } | { state: "failed"; reason: string; retry: boolean } | { state: "too_big"; mb: number };
+
+/** Videos up to this size are saved for reviewers (the same limit as the server). */
+export const MAX_STORED_VIDEO_BYTES = 40 * 1024 * 1024;
 const stores = new Map<string, StoreState>();
 const storeListeners = new Set<() => void>();
 const setStore = (postId: string, s: StoreState) => {
@@ -267,6 +270,8 @@ async function call(url: string, method: string, body: unknown) {
 
 /** Upload straight to private storage with a one-time link, then ask the server to confirm it. */
 export async function storeVideo(postId: string, file: File): Promise<void> {
+  // too big to save: say so plainly, and don't offer a retry that can't work
+  if (file.size > MAX_STORED_VIDEO_BYTES) return setStore(postId, { state: "too_big", mb: Math.round(file.size / 1048576) });
   setStore(postId, { state: "uploading", percent: 0 });
   try {
     const type = file.type || (/\.webm$/i.test(file.name) ? "video/webm" : /\.mov$/i.test(file.name) ? "video/quicktime" : "video/mp4");
@@ -288,6 +293,6 @@ export async function storeVideo(postId: string, file: File): Promise<void> {
     await call(`/api/posts/${postId}/video`, "PATCH", {});
     setStore(postId, { state: "done" });
   } catch (e) {
-    setStore(postId, { state: "failed", reason: e instanceof Error ? e.message : String(e) });
+    setStore(postId, { state: "failed", reason: e instanceof Error ? e.message : String(e), retry: true });
   }
 }

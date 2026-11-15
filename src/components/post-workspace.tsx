@@ -504,10 +504,15 @@ export function PostWorkspace({ id }: { id: string }) {
                   </p>
                 )}
                 {storeState?.state === "done" && <p className="mt-2 text-[13px] text-pass">Saved. Reviewers can play this video and jump to each problem.</p>}
+                {storeState?.state === "too_big" && (
+                  <p className="mt-2 text-[13px] text-med">
+                    This video is {storeState.mb} MB, and videos up to 40 MB are saved for reviewers. They still see the frames and what is said, and anyone with the file can load it here to play it.
+                  </p>
+                )}
                 {storeState?.state === "failed" && (
                   <p className="mt-2 text-[13px] text-med">
                     The video couldn&apos;t be saved for reviewers ({storeState.reason}). They still see the frames and what is said.{" "}
-                    {videoUrl?.startsWith("blob:") && (
+                    {storeState.retry && videoUrl?.startsWith("blob:") && (
                       <button
                         type="button"
                         className="font-semibold text-ink underline underline-offset-2"
