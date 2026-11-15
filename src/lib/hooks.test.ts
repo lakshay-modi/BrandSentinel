@@ -46,5 +46,8 @@ describe("outgoing hooks", () => {
     expect(t).toContain("score 79/100");
     expect(slackText("post.changes_requested", post, null)).toContain("Priya");
     expect(slackText("test", null, null)).toContain("test message");
+    // nothing a person typed can ping the whole channel
+    const sneaky = slackText("post.changes_requested", { ...post, brand: "<!channel> Brand", created_by: "<!here>" }, null);
+    expect(sneaky).not.toMatch(/<!/);
   });
 });

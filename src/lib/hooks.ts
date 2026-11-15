@@ -116,8 +116,10 @@ const EVENT_TEXT: Record<HookEvent, (p: HookPost) => string> = {
 
 export function slackText(event: HookEvent, p: HookPost | null, link: string | null): string {
   if (!p) return EVENT_TEXT.test({} as HookPost) + ".";
-  const title = p.title.replace(/[<>&]/g, " ").slice(0, 90);
-  return `${EVENT_TEXT[event](p)}: ${link ? `<${link}|${title}>` : `“${title}”`} (${p.brand}, ${p.channel}${p.score !== null ? `, score ${p.score}/100` : ""}).`;
+  // Slack reads < > & as formatting (for example <!channel> pings everyone), so names are kept plain
+  const plain = (t: string) => t.replace(/[<>&]/g, " ");
+  const title = plain(p.title).slice(0, 90);
+  return `${EVENT_TEXT[event]({ ...p, created_by: plain(p.created_by) })}: ${link ? `<${link}|${title}>` : `“${title}”`} (${plain(p.brand)}, ${p.channel}${p.score !== null ? `, score ${p.score}/100` : ""}).`;
 }
 
 export function webhookBody(event: HookEvent, workspaceName: string, p: HookPost | null, link: string | null): string {
