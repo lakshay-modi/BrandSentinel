@@ -160,7 +160,7 @@ npm test
 - The fast checks alone catch **all 41 planted mistakes with zero false flags** on these posts. (The same rules and posts were written by the same team, so this proves the checks work, not that they catch everything. The AI layer exists for reworded and new cases.)
 - The proof check is tested to drop hallucinated quotes, unknown rules and fake fact IDs, and to merge duplicates.
 - Fix application and insights (unclear-rule detection, expiring facts) have their own tests.
-- 109 automated tests in total (`npm test`), plus a live run of all 10 posts with the AI on: every score matches the answer key.
+- 122 automated tests in total (`npm test`), plus a live run of all 10 posts with the AI on: every score matches the answer key.
 - The PDF import's quote check is tested against the sample PDF.
 
 ## Works for any brand: tested with a second brand
@@ -180,7 +180,43 @@ A second fictional brand, **Solvira Skincare**, was set up only through the prod
 | Barrier Cream claims | 4 | 3 | "chemical-free" was only flagged inside the comparison finding |
 | LinkedIn update | 4 | 4 | plus 1 false flag (exclamation rule on a post with one "!") |
 
-**20 of 21 caught, 1 false flag.** For a new brand every rule starts as an AI check; the demo brand's rules also have exact fast checks, which is why its answer key scores perfectly. Turning imported rules into fast checks is a planned improvement.
+**20 of 21 caught, 1 false flag.** For a new brand every rule starts as an AI check; the demo brand's rules also have exact fast checks, which is why its answer key scores perfectly. Since then, word lists in imported guidelines (banned words, and "write X, not Y" pairs) become exact fast checks too; see the Mailchimp test below.
+
+## Tested with a real brand: Mailchimp
+
+To see how BrandSentinel does with a real company's public brand data, a private test workspace was set up for **Mailchimp** on 15 November 2026, using only what Mailchimp publishes:
+
+- **Guidelines:** a two-page summary, written in our own words, of rules from Mailchimp's public [Content Style Guide](https://styleguide.mailchimp.com/) (published under CC BY-NC 4.0): voice, the name (Mailchimp, never MailChimp), its word list (email, never e-mail) and banned words (leverage, automagical, rockstar…), punctuation, gender-neutral language, social media rules (no engagement bait, no trending hashtags, at most one emoji on Instagram) and claims.
+- **Facts:** 7 facts from mailchimp.com: the plan limits from the help centre's pricing page (Free: 250 contacts and 500 sends a month; Essentials, Standard and Premium limits), the "up to 27x ROI" and "save 15%" claims and the 4.5-star rating from the homepage.
+- **Brand settings:** name spellings to correct, and the brand colours Cavendish Yellow and Peppercorn.
+
+The guidelines were imported through the normal Rulebook import (16 draft rules in about 10 seconds, 4 of them with exact word lists) and approved. Then 4 real lines from Mailchimp's homepage and 12 posts with 31 planted mistakes (answer key written before the run) were checked:
+
+| Post | Planted | Caught |
+| --- | --- | --- |
+| "MailChimp makes e-mail marketing easy…" | 2 | 2 (both fast checks, one-click fixes) |
+| Free plan with 2,000 contacts and 10,000 sends | 2 | 2 (fast check against the Fact Bank; the rewrite uses 250 and 500) |
+| Leverage, AUTOMAGICAL, crushing it, funnel, "!!!" | 6 | 6 |
+| "Like and share…" with 3 emoji and trending hashtags | 3 | 2 (the emoji count went to Ask a human: the starter rule allows 3) |
+| Freddie speaking, "chimp", "bananas", "chimptastic" | 3 | 3 |
+| "The best email platform", "rated 5 stars by every customer" | 2 | 2 (the rewrite uses the real 4.5 stars) |
+| "Gr8 news 4 u… Click here to read this" | 2 | 2 |
+| "Save 25%… Hurry, last chance!" | 3 | 3 (wrong discount, pressure, no "terms apply") |
+| "Every marketer needs his own…", "rockstar" | 2 | 2 |
+| "30 percent", "&" | 3 | 2 (the word "percent" was fixed in the rewrite but not flagged) |
+| Comment on an election | 1 | 1 |
+| Image with "MailChimp: e-mail made easy" in Mailchimp's colours | 2 | 2 (read from the image; colours recognised as on-brand) |
+
+**29 of 31 planted mistakes caught (94%), and no false alarms on Mailchimp's real copy.** Two of the four real homepage lines were flagged, rightly by the guide's own rules: the headline uses "&", and the "save 15%" line doesn't say that terms apply. Checks took 2 to 4 seconds each.
+
+The first run (before fixes) caught 24 of 31 with 2 false alarms. What the real brand showed, and what was changed:
+
+- **Word lists were left to the AI**, which missed "leverage" and "automagical". The import now saves a rule's exact words (banned words, and "write X, not Y" pairs such as e-mail → email) as fast checks, keeping only words that really are in the document and never everyday words like "like" or "share".
+- **Acronyms such as ROI and SMS were treated as shouting.** Common acronyms are now allowed.
+- **"30 percent" and "2,000 contacts" weren't compared with the facts.** The number check now reads percent written as a word and counts of contacts, subscribers, users, customers, sends and emails.
+- **A garbled AI answer lost the AI checks.** It now gets one more try from the backup AI.
+- **Rulebook import ran out of time** on a busy afternoon. Documents are now drafted in parts at the same time, Gemini 3 models are asked to think "low" (faster), and the import says which AI models were tried when none answered.
+- **Rewrites sometimes came back in quote marks.** They are now removed.
 
 ## Tech
 
@@ -196,7 +232,7 @@ A second fictional brand, **Solvira Skincare**, was set up only through the prod
 | Colour and contrast | Canvas pixel maths in the browser, WCAG contrast formula |
 | Extension | Chrome Manifest V3, plain JavaScript (`/extension`) |
 | Docs add-on | Google Apps Script (`/public/downloads/google-docs-addon`) |
-| Tests | Vitest (109 tests) |
+| Tests | Vitest (122 tests) |
 | Hosting | Vercel, Mumbai region, next to the database |
 
 Everything runs on free tiers.
@@ -276,7 +312,7 @@ npm run dev
 
 Open http://localhost:3000. You land on the sign-in page. The three demo accounts are created by the server the first time someone signs in with them. `http://localhost:3000/api/health` should show `"db":"ok"` and `"auth":"ok"`.
 
-Other commands: `npm test` (109 tests), `npm run lint`, `npm run build`.
+Other commands: `npm test` (122 tests), `npm run lint`, `npm run build`.
 
 **Extension:** open `chrome://extensions`, turn on Developer mode, click **Load unpacked** and choose the `extension` folder. In its Connection settings, set the address to `http://localhost:3000` and paste a token from the Connect page.
 
@@ -284,7 +320,7 @@ Other commands: `npm test` (109 tests), `npm run lint`, `npm run build`.
 
 ## Testing
 
-**Automated (`npm test`, 109 tests in 15 files):**
+**Automated (`npm test`, 122 tests in 17 files):**
 
 - The fast checks against the answer key for the 10 sample posts: 41 planted mistakes, all caught, with no extra findings on the clean post.
 - The proof check: unknown rules, quotes that aren't in the post, made-up facts and out-of-scope rules are dropped.
