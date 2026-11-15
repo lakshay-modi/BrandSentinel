@@ -2,14 +2,14 @@
 
 import { useEffect, useState } from "react";
 import type { GuidelineDoc } from "@/lib/types";
-import { toBase64 } from "@/lib/client/send";
+import { send, toBase64 } from "@/lib/client/send";
 import { Button, ErrorNote } from "./ui";
 
 export interface ImportResult {
   document: { id: string; name: string } | null;
   replaced: boolean;
   added: string[];
-  duplicates: { rule: string; duplicate_of: string }[];
+  duplicates: { rule: string; duplicate_of: string; category?: string; severity?: string; scope?: string; guideline?: string; good?: string; bad?: string }[];
   unproven: string[];
   pages: number;
   truncated: boolean;
@@ -33,6 +33,7 @@ export function RuleImport({
   sample,
   replacing,
   onDone,
+  onAdded,
 }: {
   role: string;
   actor: string;
@@ -40,6 +41,8 @@ export function RuleImport({
   /** the rulebook being replaced, if this is a replacement */
   replacing?: GuidelineDoc | null;
   onDone: (result: ImportResult) => void;
+  /** a skipped rule was added anyway */
+  onAdded?: () => void;
 }) {
   const [file, setFile] = useState<{ name: string; type: string; buf: ArrayBuffer } | null>(null);
   const [title, setTitle] = useState(replacing?.name ?? "");
@@ -48,6 +51,23 @@ export function RuleImport({
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<ImportResult | null>(null);
   const [dragging, setDragging] = useState(false);
+  // skipped rules added anyway: rule text → "adding" | new rule ID | error
+  const [kept, setKept] = useState<Record<string, string>>({});
+
+  async function addAnyway(d: ImportResult["duplicates"][number]) {
+    setKept((k) => ({ ...k, [d.rule]: "adding" }));
+    try {
+      const res = await send<{ rule: { id: string } }>("/api/rules", "POST", {
+        role,
+        actor,
+        rule: { category: d.category ?? "claims", severity: d.severity ?? "medium", scope: d.scope || "all", rule: d.rule, guideline: d.guideline ?? "", good: d.good ?? "", bad: d.bad ?? "", status: "draft" },
+      });
+      setKept((k) => ({ ...k, [d.rule]: res.rule.id }));
+      onAdded?.();
+    } catch (e) {
+      setKept((k) => ({ ...k, [d.rule]: `error:${e instanceof Error ? e.message : String(e)}` }));
+    }
+  }
 
   useEffect(() => {
     if (!busy) return;
@@ -105,12 +125,28 @@ export function RuleImport({
         {result.duplicates.length > 0 && (
           <div>
             <p className="font-medium">Already in the Rulebook, so skipped ({result.duplicates.length}):</p>
-            <ul className="mt-1 max-h-40 space-y-1 overflow-y-auto text-[13px] text-ink-soft thin-scroll">
-              {result.duplicates.map((d) => (
-                <li key={d.rule}>
-                  “{d.rule}” <span className="text-ink-faint">→ same as</span> <span className="font-mono">{d.duplicate_of}</span>
-                </li>
-              ))}
+            <p className="text-[12px] text-ink-faint">If one isn&apos;t really covered, add it anyway as a draft.</p>
+            <ul className="mt-1 max-h-48 space-y-1.5 overflow-y-auto text-[13px] text-ink-soft thin-scroll">
+              {result.duplicates.map((d) => {
+                const state = kept[d.rule];
+                return (
+                  <li key={d.rule} className="flex flex-wrap items-baseline gap-x-2">
+                    <span>
+                      “{d.rule}” <span className="text-ink-faint">→ same as</span> <span className="font-mono">{d.duplicate_of}</span>
+                    </span>
+                    {!state || state.startsWith("error:") ? (
+                      <button type="button" onClick={() => addAnyway(d)} className="text-[12px] font-semibold text-ink underline underline-offset-2">
+                        Add anyway
+                      </button>
+                    ) : state === "adding" ? (
+                      <span className="text-[12px] text-ink-faint">Adding…</span>
+                    ) : (
+                      <span className="text-[12px] font-semibold text-pass">Added as draft {state}</span>
+                    )}
+                    {state?.startsWith("error:") && <span className="w-full text-[12px] text-high">{state.slice(6)}</span>}
+                  </li>
+                );
+              })}
             </ul>
           </div>
         )}

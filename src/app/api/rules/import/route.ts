@@ -83,7 +83,8 @@ export const POST = withSession(async (req, _ctx, me) => {
 
     const existing = new Map(others.map((r) => [r.id, r]));
     const sameText = (a: string, b: string) => a.toLowerCase().replace(/\W+/g, " ").trim() === b.toLowerCase().replace(/\W+/g, " ").trim();
-    const duplicates: { rule: string; duplicate_of: string }[] = [];
+    // skipped as duplicates, with everything needed to add one anyway if the AI was wrong
+    const duplicates: { rule: string; duplicate_of: string; category: string; severity: string; scope: string; guideline: string; good: string; bad: string }[] = [];
     const unproven: string[] = [];
     const toAdd: ImportedRule[] = [];
     for (const r of drafted.rules) {
@@ -94,7 +95,7 @@ export const POST = withSession(async (req, _ctx, me) => {
       }
       const dup = (r.duplicate_of && existing.get(r.duplicate_of.toUpperCase())) || others.find((x) => sameText(x.rule, r.rule));
       if (dup && dup.status !== "rejected") {
-        duplicates.push({ rule: r.rule, duplicate_of: dup.id });
+        duplicates.push({ rule: r.rule, duplicate_of: dup.id, category: r.category, severity: r.severity, scope: r.scope, guideline: r.guideline, good: r.good, bad: r.bad });
         continue;
       }
       if (toAdd.some((x) => sameText(x.rule, r.rule))) continue;

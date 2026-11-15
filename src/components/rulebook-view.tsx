@@ -566,6 +566,7 @@ export function RulebookView() {
             actor={name}
             replacing={importOpen.replacing}
             sample={data?.brand.settings.import_sample}
+            onAdded={() => void reloadBrand()}
             onDone={async (res) => {
               await reloadBrand();
               if (res.document) {
