@@ -316,6 +316,7 @@ Other commands: `npm test` (98 tests), `npm run lint`, `npm run build`.
 - Submit three times at once and approve twice at once: each took effect once.
 - The public check API with the demo token and with a workspace's own token; a wrong token is refused.
 - Bad input (unknown channel, empty caption, broken request, bad post address) is refused with a plain message.
+- Real Slack: a BrandSentinel app with an incoming webhook in a real Slack workspace, connected on the Connect page of a new workspace. The test message, "needs the brand manager's approval" and "approved and ready to publish" all arrived in the channel within about 0.2 seconds each, with links back to the post, and the delivery log recorded each one.
 - Backup AI on the live site: ASI:One answered a test question in about 1 second, and ran a full check of a sample Oatvia post on its own in about 34 seconds. It found the made-up health claim, and its rewrite passed the proof check with nothing dropped.
 - Saved video: a creator added a video and checked it, and it uploaded to private storage. Signed in as the expert, the post page played it from a signed link, and clicking a problem jumped the player to 0:10. Deleting the draft removed the file.
 - The full approval journey as the three demo accounts (check, send back, re-check, disagree, resubmit, expert approval, final approval).
