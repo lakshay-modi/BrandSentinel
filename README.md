@@ -160,7 +160,7 @@ npm test
 - The fast checks alone catch **all 41 planted mistakes with zero false flags** on these posts. (The same rules and posts were written by the same team, so this proves the checks work, not that they catch everything. The AI layer exists for reworded and new cases.)
 - The proof check is tested to drop hallucinated quotes, unknown rules and fake fact IDs, and to merge duplicates.
 - Fix application and insights (unclear-rule detection, expiring facts) have their own tests.
-- 98 automated tests in total (`npm test`), plus a live run of all 10 posts with the AI on: every score matches the answer key.
+- 109 automated tests in total (`npm test`), plus a live run of all 10 posts with the AI on: every score matches the answer key.
 - The PDF import's quote check is tested against the sample PDF.
 
 ## Works for any brand: tested with a second brand
@@ -196,7 +196,7 @@ A second fictional brand, **Solvira Skincare**, was set up only through the prod
 | Colour and contrast | Canvas pixel maths in the browser, WCAG contrast formula |
 | Extension | Chrome Manifest V3, plain JavaScript (`/extension`) |
 | Docs add-on | Google Apps Script (`/public/downloads/google-docs-addon`) |
-| Tests | Vitest (98 tests) |
+| Tests | Vitest (109 tests) |
 | Hosting | Vercel, Mumbai region, next to the database |
 
 Everything runs on free tiers.
@@ -276,7 +276,7 @@ npm run dev
 
 Open http://localhost:3000. You land on the sign-in page. The three demo accounts are created by the server the first time someone signs in with them. `http://localhost:3000/api/health` should show `"db":"ok"` and `"auth":"ok"`.
 
-Other commands: `npm test` (98 tests), `npm run lint`, `npm run build`.
+Other commands: `npm test` (109 tests), `npm run lint`, `npm run build`.
 
 **Extension:** open `chrome://extensions`, turn on Developer mode, click **Load unpacked** and choose the `extension` folder. In its Connection settings, set the address to `http://localhost:3000` and paste a token from the Connect page.
 
@@ -284,7 +284,7 @@ Other commands: `npm test` (98 tests), `npm run lint`, `npm run build`.
 
 ## Testing
 
-**Automated (`npm test`, 98 tests in 14 files):**
+**Automated (`npm test`, 109 tests in 15 files):**
 
 - The fast checks against the answer key for the 10 sample posts: 41 planted mistakes, all caught, with no extra findings on the clean post.
 - The proof check: unknown rules, quotes that aren't in the post, made-up facts and out-of-scope rules are dropped.
@@ -293,6 +293,9 @@ Other commands: `npm test` (98 tests), `npm run lint`, `npm run build`.
 - Video: timestamps for spoken and on-screen problems, speech checked like a caption, frames checked like images.
 - Webhook and Slack: signatures, blocked private addresses, message text.
 - Backup AI: starts at once when Gemini fails and alongside a slow Gemini (first good answer wins), gets text only, never used for speech-to-text or for a company with its own Gemini key, and stops at its time limit.
+- Disguised text: invisible characters and look-alike digits ("Clin\u200bically pr0ven", "N0. 1") are still caught, and the original characters are quoted; codes like KIRO10 and amounts like 20g stay as they are.
+- Spec numbers with units (km, kg, hours, mAh…) compared with the Fact Bank; common superlatives ("the safest", "fastest").
+- Fair use of the shared AI: per-visitor limit, overflow to the backup AI, no shared limit on a company's own key.
 - Fixes, fixing text in images, document text, insights and API input checks.
 
 **Extension and Google Docs add-on (`npm run test:integrations`, needs Playwright with Chromium):**
@@ -302,6 +305,20 @@ Other commands: `npm test` (98 tests), `npm run lint`, `npm run build`.
 - Both use a stand-in API that replays answers recorded from the live API (`tests/integrations/recorded-api.json`), so they run on any machine.
 
 **Database rules:** tested in SQL as three different people in two workspaces: a manager sees only their own workspace's brands, posts and team; a creator can't change brands, promote themselves, or read or delete another workspace's posts.
+
+**Judge-style stress test on the live app (15 November).** Everything below was done on the live site with brand-new data: a made-up e-bike company ("Kiro Bikes") with its own guidelines PDF and Word file, 9 facts, and three real accounts (brand manager, creator, expert), plus a second company to attack the first. Every failure found was fixed, deployed and tested again; the results here are after the fixes.
+
+- **Accounts and access:** signed out, every page goes to sign-in and keeps the link; every API answers 401. Sign-up refuses a short or too-long password, a bad email and a missing name; names with HTML tags are saved as plain text. Invite links give the chosen role and can't be reused; the only brand manager can't demote or remove themselves; reset links and password changes work, and demo passwords can't be changed.
+- **Isolation:** the second company couldn't read, change, approve, re-check, delete or switch into the first company's posts, brands, facts or team, including by setting the brand cookie by hand. A token only reaches its own workspace; a revoked token stops at once.
+- **Roles:** creators can't approve, edit rules, add facts, invite, make tokens or change hooks; experts can't write posts; a role claimed in a request is ignored and the person's real role is used.
+- **Rulebook import:** the new guidelines PDF became 9 draft rules with their source quotes, the Word file 2 more; rules already in the Rulebook were skipped (and can be added anyway). A scan with no text, a fake PDF and an .exe are refused with plain messages.
+- **11 hard captions:** wrong numbers against the Fact Bank (with the closest true fact and a rewrite using a current offer), an expired offer, a competitor name, "the fastest", slang, Hinglish, hidden characters and look-alike digits, a prompt-injection attempt (ignored), confidential names and misspellings, a safety post (phone in hand, missing helmet line, wrong speed), a 3,000-character caption with a claim at the end, emoji and hashtag spam, and a paid partner post. All were caught; a clean post got 100 with no false alarms.
+- **Images:** a 3-slide carousel with pale yellow text on white (contrast 1.26:1), a "Safest e-bike" slide and dark-grey text on black: each problem was reported on its own slide, with contrast measured and alt text suggested.
+- **Video:** a new 20-second reel recorded in the browser (WebM, no sound): all four on-screen texts were read, "Burns fat" at 0:05 and "99 km" at 0:10 were caught with their times, the video was saved for reviewers, and clicking 0:05 moved the player there. A 65-second video is refused; a 41 MB video is checked but not saved, with a clear message.
+- **Workflow:** accept, disagree (a reason is required), submit, send back (a comment is required), re-check, expert approval and final approval, with every step in the history under the real person's name. Two submits or two approvals at the same moment took effect once; approved posts can't be edited or deleted.
+- **Load:** checks past the shared Gemini budget went to the backup AI (ASI:One answered a clean post live), and a visitor checking very fast is told to wait a minute rather than getting a silent "busy".
+- **Every page as a judge would see it:** each page at phone width (375 px) with no sideways scrolling and no errors in the browser console; the demo's clean post still scores 100, its off-brand image and sample reel give the same results as before.
+- **Bugs found and fixed in this round:** health claims and unproven numbers passing in new workspaces; disguised text and superlatives slipping through; "KIRO10 at any store" read as "10 stores"; pale and dark-on-dark text not read in images; video frames skipped when only the words changed; an AI rewrite swapping a confidential product for another; a duplicate rule wrongly skipped on import; the check form re-submitting the last post when you came back to it; sign-out needing a request body; a missing fact giving a server error; stale wording about video uploads.
 
 **By hand, on the live app (14 November):**
 
