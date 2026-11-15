@@ -55,6 +55,30 @@ export function parseImportReply(raw: unknown): { rules: ImportedRule[]; malform
 
 export type ImportedRule = z.infer<typeof ruleSchema>;
 
+/**
+ * Splits a guidelines document into up to `maxParts` parts at paragraph breaks, so each AI call drafts the
+ * rules of one part. Short answers come back fast, and the parts are drafted at the same time, so a long
+ * document doesn't run out of time. A short document stays in one part.
+ */
+export function splitDocument(text: string, maxParts = 8, minPart = 800): string[] {
+  const target = Math.max(minPart, Math.ceil(text.length / maxParts));
+  if (text.length <= target) return [text];
+  // paragraphs (blank lines), or lines if the document has no blank lines
+  const blocks = /\n\s*\n/.test(text) ? text.split(/\n\s*\n/) : text.split(/\n/);
+  const parts: string[] = [];
+  let cur = "";
+  for (const b of blocks) {
+    const block = b.trim();
+    if (!block) continue;
+    if (cur && cur.length + block.length + 2 > target && parts.length < maxParts - 1) {
+      parts.push(cur);
+      cur = block;
+    } else cur = cur ? `${cur}\n\n${block}` : block;
+  }
+  if (cur) parts.push(cur);
+  return parts;
+}
+
 export function buildImportPrompt(docText: string, existing: Rule[]): string {
   const current = existing.filter((r) => r.status !== "rejected").map((r) => `${r.id}: ${r.rule}`);
   return `EXISTING RULES (don't repeat these; mark duplicates with duplicate_of):\n${current.join("\n")}\n\nDOCUMENT:\n${docText}`;

@@ -6,7 +6,7 @@ import { actorSchema, clientId, fail, json, readJson, roleSchema, serverError } 
 import { bumpRulebook, db, getBrandContext, getCache, setCache } from "@/lib/db";
 import { callGemini, parseJson } from "@/lib/ai/gemini";
 import { loadWorkspaceAiKey } from "@/lib/secrets";
-import { IMPORT_SYSTEM_PROMPT, buildImportPrompt, parseImportReply, quoteInDocument, type ImportedRule } from "@/lib/ai/import-prompt";
+import { IMPORT_SYSTEM_PROMPT, buildImportPrompt, parseImportReply, quoteInDocument, splitDocument, type ImportedRule } from "@/lib/ai/import-prompt";
 import { allowAiCall } from "@/lib/review/rate-limit";
 import { documentText } from "@/lib/doc-text";
 
@@ -60,29 +60,48 @@ export const POST = withSession(async (req, _ctx, me) => {
     // the rules the new ones are compared with: everything except the rulebook being replaced
     const others = ctx.rules.filter((r) => !replaceId || r.document_id !== replaceId);
     const cacheKey = "import:" + createHash("sha256").update(ctx.brand.settings.protected ? "" : ctx.brand.id).update(clipped).update(others.map((r) => `${r.id}:${r.status}`).join(",")).digest("hex").slice(0, 32);
-    let drafted = await getCache<{ rules: ImportedRule[]; model: string }>(cacheKey);
+    let drafted = await getCache<{ rules: ImportedRule[]; model: string; partial?: string }>(cacheKey);
     if (!drafted) {
       if (!allowAiCall(clientId(req))) return fail("The AI is busy (free-tier limit). Try again in a minute.", 429);
-      const res = await callGemini(IMPORT_SYSTEM_PROMPT, [{ text: buildImportPrompt(clipped, others) }], 56_000, { firstMs: 12_000, laterMs: 42_000 }, 12_000);
-      if (!res.ok) {
-        console.warn(`[rules/import] no AI answer: ${res.detail}`);
+      // long documents are drafted in parts at the same time, so each AI answer is short and fast
+      const parts = splitDocument(clipped);
+      const answers = await Promise.all(parts.map((part) => callGemini(IMPORT_SYSTEM_PROMPT, [{ text: buildImportPrompt(part, others) }], 56_000, { firstMs: 12_000, laterMs: 42_000 }, 12_000)));
+      const rules: ImportedRule[] = [];
+      const models = new Set<string>();
+      let failedParts = 0;
+      let firstFailure: { status: string; detail: string } | null = null;
+      for (const res of answers) {
+        if (!res.ok) {
+          failedParts++;
+          firstFailure ??= { status: res.status, detail: res.detail };
+          continue;
+        }
+        let raw: unknown = null;
+        try {
+          raw = parseJson(res.text);
+        } catch {
+          /* handled below */
+        }
+        const parsed = parseImportReply(raw);
+        if (!parsed) {
+          console.error("[rules/import] AI reply had no rule list:", res.text.slice(0, 300));
+          failedParts++;
+          firstFailure ??= { status: "format", detail: "reply wasn't a rule list" };
+          continue;
+        }
+        if (parsed.malformed) console.warn(`[rules/import] dropped ${parsed.malformed} malformed rule(s)`);
+        rules.push(...parsed.rules);
+        models.add(res.model);
+      }
+      if (failedParts === parts.length) {
+        console.warn(`[rules/import] no AI answer: ${firstFailure?.detail}`);
+        if (firstFailure?.status === "format") return fail("The AI reply wasn't in the expected format. Try again.", 502);
         // which models were tried and what each answered (no keys or content), to tell "busy" from "too slow"
-        return json({ error: res.status === "off" ? "AI is not set up on this server." : "The AI is busy right now. Try again in a minute.", detail: res.detail }, res.status === "off" ? 503 : 429);
+        return json({ error: firstFailure?.status === "off" ? "AI is not set up on this server." : "The AI is busy right now. Try again in a minute.", detail: firstFailure?.detail }, firstFailure?.status === "off" ? 503 : 429);
       }
-      let raw: unknown = null;
-      try {
-        raw = parseJson(res.text);
-      } catch {
-        /* handled below */
-      }
-      const parsed = parseImportReply(raw);
-      if (!parsed) {
-        console.error("[rules/import] AI reply had no rule list:", res.text.slice(0, 300));
-        return fail("The AI reply wasn't in the expected format. Try again.", 502);
-      }
-      if (parsed.malformed) console.warn(`[rules/import] dropped ${parsed.malformed} malformed rule(s)`);
-      drafted = { rules: parsed.rules, model: res.model };
-      await setCache(cacheKey, drafted);
+      drafted = { rules: rules.slice(0, 60), model: [...models].join(" + "), partial: failedParts ? `${failedParts} of ${parts.length}` : undefined };
+      // a document read only in part isn't cached, so importing it again reads the missing parts
+      if (!failedParts) await setCache(cacheKey, drafted);
     }
 
     const existing = new Map(others.map((r) => [r.id, r]));
@@ -151,7 +170,7 @@ export const POST = withSession(async (req, _ctx, me) => {
       if (error) throw new Error(error.message);
     }
     if (replaceId || rows.length) await bumpRulebook(ctx.brand);
-    return json({ document, replaced: !!replaceId, added: rows.map((r) => r.id), duplicates, unproven, pages: doc.pages, chars: clipped.length, truncated: text.length > MAX_TEXT, model: drafted.model, actor });
+    return json({ document, replaced: !!replaceId, added: rows.map((r) => r.id), duplicates, unproven, pages: doc.pages, chars: clipped.length, truncated: text.length > MAX_TEXT, partial: drafted.partial ?? null, model: drafted.model, actor });
   } catch (e) {
     return serverError(e, "rules/import");
   }

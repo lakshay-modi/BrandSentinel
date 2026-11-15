@@ -36,3 +36,21 @@ describe("rule import proof", () => {
     expect(parseImportReply({ nothing: true })).toBeNull();
   });
 });
+
+describe("splitting a long guidelines document", async () => {
+  const { splitDocument } = await import("./import-prompt");
+  it("keeps a short document whole", () => {
+    expect(splitDocument("Rule one.\n\nRule two.")).toEqual(["Rule one.\n\nRule two."]);
+  });
+  it("splits a long one at paragraph breaks into at most 8 parts, keeping every paragraph", () => {
+    const paras = Array.from({ length: 40 }, (_, i) => `Section ${i + 1}. ${"Words about this rule. ".repeat(20)}`);
+    const parts = splitDocument(paras.join("\n\n"));
+    expect(parts.length).toBeGreaterThan(1);
+    expect(parts.length).toBeLessThanOrEqual(8);
+    expect(parts.join("\n\n").split("\n\n")).toEqual(paras.map((p) => p.trim()));
+  });
+  it("splits at line breaks when there are no blank lines", () => {
+    const lines = Array.from({ length: 60 }, (_, i) => `Line ${i}: ${"x".repeat(80)}`).join("\n");
+    expect(splitDocument(lines).length).toBeGreaterThan(1);
+  });
+});

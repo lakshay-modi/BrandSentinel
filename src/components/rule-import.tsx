@@ -13,6 +13,8 @@ export interface ImportResult {
   unproven: string[];
   pages: number;
   truncated: boolean;
+  /** "1 of 4": parts of the document the AI couldn't read this time */
+  partial?: string | null;
 }
 
 const MAX_BYTES = 3 * 1024 * 1024;
@@ -156,6 +158,11 @@ export function RuleImport({
           </p>
         )}
         {result.truncated && <p className="text-[13px] text-ink-faint">The document is long, so only the first part was read.</p>}
+        {result.partial && (
+          <p className="text-[13px] text-med">
+            {result.partial} parts of the document couldn&apos;t be read by the AI just now. Import the same file again in a minute to add the rules from those parts (rules already added are skipped).
+          </p>
+        )}
       </div>
     );
   }
