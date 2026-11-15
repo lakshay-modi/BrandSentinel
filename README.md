@@ -281,7 +281,7 @@ npm install
 
 **2. Set up the database.** In your Supabase project, open **SQL Editor** and run these files in order (paste each one and click Run):
 
-1. Every file in `supabase/migrations/`, from `0001` to `0015`.
+1. Every file in `supabase/migrations/`, from `0001` to `0016`.
 2. `supabase/seed.sql` (the Oatvia Foods demo brand: 26 rules, 16 facts).
 3. Optional: `supabase/seed_solvira.sql` (a second demo brand).
 4. Optional: `select public.take_demo_snapshot();` so **Reset demo** has something to restore.
