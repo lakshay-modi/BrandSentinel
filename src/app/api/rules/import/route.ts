@@ -63,7 +63,7 @@ export const POST = withSession(async (req, _ctx, me) => {
     let drafted = await getCache<{ rules: ImportedRule[]; model: string }>(cacheKey);
     if (!drafted) {
       if (!allowAiCall(clientId(req))) return fail("The AI is busy (free-tier limit). Try again in a minute.", 429);
-      const res = await callGemini(IMPORT_SYSTEM_PROMPT, [{ text: buildImportPrompt(clipped, others) }], 56_000, { firstMs: 12_000, laterMs: 42_000 }, 25_000);
+      const res = await callGemini(IMPORT_SYSTEM_PROMPT, [{ text: buildImportPrompt(clipped, others) }], 56_000, { firstMs: 12_000, laterMs: 42_000 }, 12_000);
       if (!res.ok) return fail(res.status === "off" ? "AI is not set up on this server." : "The AI is busy right now. Try again in a minute.", res.status === "off" ? 503 : 429);
       let raw: unknown = null;
       try {
