@@ -188,7 +188,7 @@ export interface ReviewResult {
   ask_human: AskHuman[];
   goal: Goal | null;
   suggested_caption: string | null;
-  ai_status: "ok" | "busy" | "off" | "error";
+  ai_status: "ok" | "busy" | "limited" | "off" | "error";
   model: string | null;
   rulebook_version: number;
 }

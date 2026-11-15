@@ -34,6 +34,7 @@ interface Data {
 
 const AI_NOTE: Record<string, string> = {
   busy: "The AI checks are busy right now (free-tier limit), so this report has the fast checks only. Re-check in a minute to add the AI checks.",
+  limited: "You ran several checks in the last minute, so this one has the fast checks only (this keeps the free AI fair for everyone). Re-check in a minute to add the AI checks.",
   error: "The AI checks didn't finish this time, so this report has the fast checks only. Re-check to try again.",
   off: "AI checks are switched off on this server, so this report has the fast checks only.",
 };

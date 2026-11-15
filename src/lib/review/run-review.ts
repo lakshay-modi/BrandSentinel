@@ -5,13 +5,13 @@ import type { Finding, PostInput, ReviewResult } from "../types";
 import { runCodeChecks } from "../checks/code-checks";
 import { runVisualChecks } from "../checks/visual-checks";
 import { todayIST } from "../checks/text-utils";
-import { aiConfigured, callBackupOnly, callGemini, parseJson, type AiPart } from "../ai/gemini";
+import { aiConfigured, backupAvailable, callBackupOnly, callGemini, parseJson, usingSharedAiKey, type AiPart } from "../ai/gemini";
 import { aiResponseSchema, buildUserPrompt, SYSTEM_PROMPT, type AiResponse } from "../ai/prompt";
 import { proofCheck } from "../ai/proof";
 import { createRedactor, restore } from "../ai/redact";
 import { assignIds, brandScore } from "./score";
 import { getCache, setCache, type BrandContext } from "../db";
-import { allowAiCall } from "./rate-limit";
+import { aiAllowance } from "./rate-limit";
 
 export interface ReviewOutput extends ReviewResult {
   dropped: number;
@@ -77,10 +77,16 @@ export async function runReview(input: PostInput, ctx: BrandContext, opts: { ori
       )
       .digest("hex");
     ai = opts.backupOnly ? null : await getCache<AiResponse>(cacheKey).catch(() => null);
+    const allowance = ai || opts.backupOnly ? "ok" : aiAllowance(opts.clientId, { sharedKey: usingSharedAiKey() });
+    // the shared Gemini budget is used up this minute: the backup AI takes the check instead
+    const viaBackup = !!opts.backupOnly || (allowance === "global" && backupAvailable());
     if (ai) {
       aiStatus = "ok";
       model = "cached";
-    } else if (!allowAiCall(opts.clientId)) {
+    } else if (allowance === "client") {
+      aiStatus = "limited";
+      detail = "Several checks in the last minute from this visitor";
+    } else if (allowance === "global" && !viaBackup) {
       aiStatus = "busy";
       detail = "Too many AI checks right now";
     } else {
@@ -104,7 +110,7 @@ export async function runReview(input: PostInput, ctx: BrandContext, opts: { ori
         const part = await imagePart(img.src, opts.origin);
         if (part) parts.push({ text: `Image ${i + 1}:` }, part);
       }
-      const res = opts.backupOnly ? await callBackupOnly(SYSTEM_PROMPT, parts, 35000) : await callGemini(SYSTEM_PROMPT, parts);
+      const res = viaBackup ? await callBackupOnly(SYSTEM_PROMPT, parts, opts.backupOnly ? 35000 : 45000) : await callGemini(SYSTEM_PROMPT, parts);
       if (res.ok) {
         try {
           ai = restore(aiResponseSchema.parse(parseJson(res.text)), redactor.map);

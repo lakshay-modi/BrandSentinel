@@ -3,6 +3,7 @@
 import type { AskHuman, Fact, Finding, Fix, Location, PostInput, Rule } from "../types";
 import type { AiResponse } from "./prompt";
 import { speechText } from "../video";
+import { findLoose } from "../checks/text-utils";
 
 const norm = (s: string) => s.toLowerCase().replace(/[\u2018\u2019]/g, "'").replace(/[\u201c\u201d]/g, '"').replace(/\s+/g, " ").trim();
 
@@ -26,7 +27,7 @@ function locate(input: PostInput, said: string, quote: string): Location | null 
   const candidates = [said, "caption", ...input.images.map((_, i) => `image ${i + 1}`), "speech"];
   for (const loc of candidates) {
     const t = textAt(input, loc);
-    if (t && norm(t).includes(q)) return (loc === "caption" ? "caption" : /^speech/i.test(loc) ? "speech" : `image ${Number(loc.replace(/\D/g, ""))}`) as Location;
+    if (t && (norm(t).includes(q) || findLoose(t, quote))) return (loc === "caption" ? "caption" : /^speech/i.test(loc) ? "speech" : `image ${Number(loc.replace(/\D/g, ""))}`) as Location;
   }
   return null;
 }
@@ -34,6 +35,9 @@ function locate(input: PostInput, said: string, quote: string): Location | null 
 /** Returns the exact original spelling of a quote (the AI may change quotes or case). */
 function original(input: PostInput, location: Location, quote: string): string {
   const t = textAt(input, location) ?? "";
+  // disguised text ("Clin\u200bically pr0ven"): the loose match gives the exact original characters
+  const loose = findLoose(t, quote);
+  if (loose && !norm(t).includes(norm(quote))) return loose.text;
   const i = norm(t).indexOf(norm(quote));
   if (i < 0) return quote;
   // map back by searching case-insensitively in the raw text

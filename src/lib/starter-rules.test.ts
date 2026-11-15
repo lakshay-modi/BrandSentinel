@@ -55,6 +55,19 @@ describe("starter rules for a brand new workspace", () => {
     expect(check("Charges in 4 hours, weighs 18 kg. #RideKiro").flatMap((f) => f.quotes)).toEqual(expect.arrayContaining(["4 hours", "18 kg"]));
   });
 
+  it("sees through hidden characters and look-alike digits, and quotes the original text", () => {
+    const found = run(post({ caption: "Clin\u200bically pr0ven to cure stress. India's N0. 1 e-bike, the b3st. #RideKiro" }));
+    const quotes = (id: string) => found.filter((f) => f.rule_id === id).flatMap((f) => f.quotes);
+    expect(quotes("CLAIM-04")).toEqual(expect.arrayContaining(["Clin\u200bically pr0ven", "cure"]));
+    expect(quotes("CLAIM-01").join(" ")).toMatch(/N0\. 1/);
+    // look-alike reading doesn't touch codes and numbers
+    expect(ids(post({ caption: "Use code KIRO10 at any store. #RideKiro" }))).toEqual([]);
+  });
+
+  it("catches common superlatives", () => {
+    expect(ids(post({ caption: "The safest and fastest e-bike around. #RideKiro" }))).toContain("CLAIM-01");
+  });
+
   it("doesn't call ordinary words health claims", () => {
     expect(ids(post({ caption: "Secure parking and tasty treats at every Kiro store. #RideKiro" }))).toEqual([]);
   });

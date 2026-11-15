@@ -63,3 +63,15 @@ describe("imported rules never trigger fast image checks", () => {
     expect(runVisualChecks(p09, aiOnly, demoBrand)).toEqual([]);
   });
 });
+
+
+describe("loose matching of disguised text", async () => {
+  const { findLoose, findAll } = await import("./text-utils");
+  it("finds a quote across invisible characters and returns the original characters", () => {
+    expect(findLoose("Clin\u200bically  PR0VEN!", "clinically proven")?.text).toBe("Clin\u200bically  PR0VEN");
+    expect(findLoose("Plain text", "missing")).toBeNull();
+  });
+  it("keeps plain text matching unchanged", () => {
+    expect(findAll("10% off with KIRO10", /\d+% off/gi).map((m) => m.text)).toEqual(["10% off"]);
+  });
+});

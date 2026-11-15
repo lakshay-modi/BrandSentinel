@@ -14,14 +14,66 @@ export function phraseRegex(phrase: string, flags = "gi"): RegExp {
   return new RegExp(start + escapeRegex(phrase) + end, flags);
 }
 
+// Characters people use to slip words past filters: invisible ones, and 0 or 3 after a letter ("pr0ven", "N0. 1", "b3st").
+const HIDDEN = /[\u200B-\u200D\u2060\uFEFF\u00AD]/;
+const LOOKALIKE: Record<string, string> = { "0": "o", "3": "e" };
+
+/**
+ * A copy of the text for matching, with the position of each of its characters in the original.
+ * Invisible characters are left out, and 0 or 3 right after a letter is read as o or e. With `loose`, it is also
+ * lower case, with one space for any run of spaces and plain quote marks, for comparing quotes.
+ * Returns null when there is nothing to change (the text can be used as it is).
+ */
+export function matchView(text: string, loose = false): { view: string; at: number[] } | null {
+  const tricky = HIDDEN.test(text) || /[A-Za-z][03](?!\d)/.test(text);
+  if (!tricky && !loose) return null;
+  let view = "";
+  const at: number[] = [];
+  const isLetter = (c: string | undefined) => !!c && /[A-Za-z]/.test(c);
+  for (let i = 0; i < text.length; i++) {
+    let c = text[i];
+    if (HIDDEN.test(c)) continue;
+    // only right after a letter and not in front of another digit, so numbers like "20g" or "KIRO10" stay numbers
+    if (LOOKALIKE[c] && isLetter(text[i - 1]) && !/\d/.test(text[i + 1] ?? "")) c = LOOKALIKE[c];
+    if (loose) {
+      if (/\s/.test(c)) {
+        if (view.endsWith(" ") || view === "") continue;
+        c = " ";
+      }
+      c = c.replace(/[\u2018\u2019]/, "'").replace(/[\u201c\u201d]/, '"').toLowerCase();
+    }
+    view += c;
+    at.push(i);
+  }
+  return { view, at };
+}
+
+/** Maps a match in a view back to the exact characters of the original text. */
+function fromView(text: string, at: number[], index: number, length: number): Match {
+  const start = at[index];
+  const end = at[index + length - 1] + 1;
+  return { text: text.slice(start, end), index: start };
+}
+
 export function findAll(text: string, re: RegExp): Match[] {
   const flags = re.flags.includes("g") ? re.flags : re.flags + "g";
   const r = new RegExp(re.source, flags);
   const out: Match[] = [];
-  for (const m of text.matchAll(r)) {
-    if (m[0].length) out.push({ text: m[0], index: m.index ?? 0 });
+  const v = matchView(text);
+  for (const m of (v?.view ?? text).matchAll(r)) {
+    if (!m[0].length) continue;
+    out.push(v ? fromView(text, v.at, m.index ?? 0, m[0].length) : { text: m[0], index: m.index ?? 0 });
   }
   return out;
+}
+
+/** Finds a quote in a text loosely (case, spacing, quote marks, invisible characters) and returns the original characters. */
+export function findLoose(text: string, quote: string): Match | null {
+  const v = matchView(text, true)!;
+  const q = matchView(quote, true)!.view.trim();
+  if (!q) return null;
+  const i = v.view.indexOf(q);
+  return i < 0 ? null : fromView(text, v.at, i, q.length);
 }
 
 /** Find every phrase from a list; when phrases overlap, keep the longest. */

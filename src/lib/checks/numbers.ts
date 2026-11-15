@@ -28,6 +28,8 @@ const COUNT_RE = /(\d[\d,]*)(\+)?\s+(?:[A-Za-z]+\s+){1,2}?(cities|city|stores|st
 export function extractNumbers(text: string): NumberToken[] {
   const out: NumberToken[] = [];
   for (const m of text.matchAll(COUNT_RE)) {
+    // a number glued to a word (e.g. "KIRO10 at any store") is part of a code, not a count
+    if (/[A-Za-z]/.test(text[(m.index ?? 0) - 1] ?? "")) continue;
     const value = parseFloat(m[1].replace(/,/g, ""));
     if (!Number.isNaN(value)) out.push({ text: m[0].trim(), index: m.index ?? 0, value, unit: UNIT_MAP[m[3].toLowerCase()] });
   }

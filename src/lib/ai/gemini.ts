@@ -38,7 +38,11 @@ function backupKey(): string | null {
  * its posts with the one provider it chose.
  */
 export function backupAvailable(): boolean {
-  if (!backupKey()) return false;
+  return !!backupKey() && usingSharedAiKey();
+}
+
+/** True when this request uses BrandSentinel's shared key (not a company's own Gemini key). */
+export function usingSharedAiKey(): boolean {
   const key = currentAiKey();
   return !key || key === (process.env.GEMINI_API_KEY?.trim() || null);
 }

@@ -19,11 +19,11 @@ interface StarterRule {
 
 export const STARTER_RULES: StarterRule[] = [
   {
-    id: "CLAIM-01", category: "claims", severity: "high", check_type: "code", scope: "all",
+    id: "CLAIM-01", category: "claims", severity: "high", check_type: "code+ai", scope: "all",
     rule: "No rankings or superlatives without an approved fact.",
-    guideline: "Claims like “No. 1” or “the best” need proof. Add the proof to the Fact Bank first, or describe the product instead.",
+    guideline: "Claims like “No. 1”, “the best” or “the safest” need proof. Add the proof to the Fact Bank first, or describe the product instead.",
     good: "Made with 100% whole oats.", bad: "India's No. 1 snack bar.",
-    params: { patterns: ["\\bno\\.?\\s?1\\b", "#1\\b", "\\bnumber one\\b", "\\bthe best\\b", "\\bbest\\s+in\\b", "\\bindia'?s favou?rite\\b", "\\bworld'?s (?:best|first|leading)\\b", "\\bmarket leader\\b", "\\bunbeatable\\b"] },
+    params: { patterns: ["\\bno\\.?\\s?1\\b", "#1\\b", "\\bnumber one\\b", "\\bthe best\\b", "\\bbest\\s+in\\b", "\\bindia'?s favou?rite\\b", "\\bworld'?s (?:best|first|leading)\\b", "\\bmarket leader\\b", "\\bunbeatable\\b", "\\b(?:the\\s+)?(?:safest|fastest|cheapest|strongest|healthiest|smartest|toughest|greatest|lightest)\\b", "\\bunbreakable\\b", "\\bindestructible\\b"] },
   },
   {
     id: "CLAIM-02", category: "claims", severity: "high", check_type: "code+ai", scope: "all (caption and image text)",
