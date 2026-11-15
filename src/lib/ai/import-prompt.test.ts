@@ -63,6 +63,10 @@ describe("word lists in imported rules", async () => {
     expect(provenWordLists({ banned_phrases: ["funnel", "leverage", "synergy"] }, doc)).toEqual({ banned_phrases: ["funnel", "leverage"] });
     expect(provenWordLists({ preferred_terms: { "e-mail": "email", MailChimp: "Mailchimp", "web site": "website" } }, doc)).toEqual({ preferred_terms: { "e-mail": "email", MailChimp: "Mailchimp" } });
   });
+  it("never bans everyday words like 'like' or 'share' outright", () => {
+    expect(provenWordLists({ banned_phrases: ["like", "share", "retweet"] }, "Never ask followers to like, share or retweet.")).toBeNull();
+  });
+
   it("returns nothing when the AI invented every word", () => {
     expect(provenWordLists({ banned_phrases: ["synergy"] }, doc)).toBeNull();
   });
