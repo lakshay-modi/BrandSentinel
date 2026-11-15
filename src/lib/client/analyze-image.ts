@@ -62,10 +62,15 @@ export function textColours(ctx: CanvasRenderingContext2D, box: { x0: number; y0
   const x = Math.max(0, box.x0 - pad);
   const y = Math.max(0, box.y0 - pad);
   const data = ctx.getImageData(x, y, Math.min(ctx.canvas.width - x, w + 2 * pad), Math.min(ctx.canvas.height - y, h + 2 * pad)).data;
-  const merged = mergeClose(colourBuckets(data));
+  const merged = mergeClose(colourBuckets(data), 14);
   if (!merged.length) return null;
   const bg = merged[0].rgb;
-  const fg = merged.slice(1).find((m) => colourDistance(m.rgb, bg) > 60 && m.count > 20)?.rgb;
+  const total = merged.reduce((n, m) => n + m.count, 0);
+  // usually the text colour is clearly different; when it isn't (dark grey on black, the very case contrast
+  // checks exist for), take a close colour that still covers a real part of the box, not anti-aliasing
+  const fg =
+    merged.slice(1).find((m) => colourDistance(m.rgb, bg) > 60 && m.count > 20)?.rgb ??
+    merged.slice(1).find((m) => colourDistance(m.rgb, bg) > 12 && m.count > total * 0.05)?.rgb;
   return fg ? { fg, bg } : null;
 }
 
