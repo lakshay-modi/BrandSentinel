@@ -100,7 +100,7 @@ export function clientId(req: Request): string {
 }
 
 /** Requests that change data must come from this site's own pages. */
-function crossSite(req: Request): boolean {
+export function crossSite(req: Request): boolean {
   if (req.headers.get("sec-fetch-site") === "cross-site") return true;
   const origin = req.headers.get("origin");
   if (!origin) return false;

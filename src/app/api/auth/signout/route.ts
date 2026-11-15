@@ -1,11 +1,9 @@
-import { z } from "zod";
-import { json, readJson } from "@/lib/api";
+import { crossSite, fail, json } from "@/lib/api";
 import { clearSessionCookies } from "@/lib/session";
 
-/** Sign out: the session cookies are removed. The visitor is back in the public demo. */
+/** Sign out: the session cookies are removed. Works with or without a body, so a plain POST is enough. */
 export async function POST(req: Request) {
-  const body = await readJson(req, z.object({}).passthrough());
-  if (!body.ok) return body.res;
+  if (crossSite(req)) return fail("Requests must come from the BrandSentinel site.", 403);
   await clearSessionCookies();
   return json({ ok: true });
 }
