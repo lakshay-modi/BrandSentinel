@@ -69,6 +69,34 @@ export function textColours(ctx: CanvasRenderingContext2D, box: { x0: number; y0
   return fg ? { fg, bg } : null;
 }
 
+/**
+ * A black-on-white copy of the image where each pixel is as dark as it is different from the background.
+ * OCR misses pale text on a light background (or dark on dark), exactly the text a contrast check must find;
+ * on this copy that text is dark and sharp. Same size as the original, so text boxes line up.
+ */
+export function separateFromBackground(ctx: CanvasRenderingContext2D, bg: RGB): HTMLCanvasElement {
+  const { width, height } = ctx.canvas;
+  const src = ctx.getImageData(0, 0, width, height).data;
+  const c = document.createElement("canvas");
+  c.width = width;
+  c.height = height;
+  const out = c.getContext("2d")!.createImageData(width, height);
+  for (let i = 0; i < src.length; i += 4) {
+    const d = Math.hypot(src[i] - bg[0], src[i + 1] - bg[1], src[i + 2] - bg[2]);
+    const v = 255 - Math.min(255, d * 3);
+    out.data[i] = out.data[i + 1] = out.data[i + 2] = v;
+    out.data[i + 3] = 255;
+  }
+  c.getContext("2d")!.putImageData(out, 0, 0);
+  return c;
+}
+
+const sameLine = (a: string, b: string) => {
+  const x = a.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const y = b.toLowerCase().replace(/[^a-z0-9]/g, "");
+  return !!x && !!y && (x.includes(y) || y.includes(x));
+};
+
 let workerPromise: Promise<import("tesseract.js").Worker> | null = null;
 export async function ocrWorker() {
   // The OCR engine and English language data are served from /public/tesseract, so OCR never depends on a CDN.
@@ -79,7 +107,11 @@ export async function ocrWorker() {
   return workerPromise;
 }
 
-export async function analyzeImage(src: string, onStatus?: (s: string) => void): Promise<ImageAnalysis> {
+/**
+ * Reads an image. `secondPass` decides when the low-contrast reading runs: always (images and slides), or only
+ * when the first reading found nothing (video frames, where there can be many).
+ */
+export async function analyzeImage(src: string, onStatus?: (s: string) => void, secondPass: "always" | "if-empty" = "always"): Promise<ImageAnalysis> {
   const img = await loadImage(src);
   const canvas = toCanvas(img, MAX_SIDE);
   const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
@@ -93,36 +125,44 @@ export async function analyzeImage(src: string, onStatus?: (s: string) => void):
     .map((b) => ({ hex: rgbToHex(b.rgb), share: Math.round((b.count / sampledTotal) * 1000) / 1000 }))
     .filter((d) => d.share >= 0.02);
 
-  // text: OCR, then contrast per line
+  // text: OCR, then contrast per line. Two passes: the image as it is, and a copy where text that is hard to
+  // see (pale on light, dark on dark) is made dark, so low-contrast text is read and its contrast measured.
   onStatus?.("Reading text in the image…");
-  let data: { blocks: import("tesseract.js").Block[] | null; text: string };
+  const passes: { blocks: import("tesseract.js").Block[] | null; text: string }[] = [];
   try {
     const worker = await ocrWorker();
-    data = (await worker.recognize(canvas, {}, { blocks: true, text: true })).data;
+    passes.push((await worker.recognize(canvas, {}, { blocks: true, text: true })).data);
+    const firstFound = (passes[0].blocks ?? []).some((b) => b.paragraphs.some((p) => p.lines.some((l) => l.confidence >= 40 && /[A-Za-z0-9]/.test(l.text))));
+    if (sampled[0] && (secondPass === "always" || !firstFound)) passes.push((await worker.recognize(separateFromBackground(ctx, sampled[0].rgb), {}, { blocks: true, text: true })).data);
   } catch (e) {
-    workerPromise = null;
-    return { ocr_text: "", lines: [], dominant, ocr_error: e instanceof Error ? e.message : String(e) };
+    if (!passes.length) {
+      workerPromise = null;
+      return { ocr_text: "", lines: [], dominant, ocr_error: e instanceof Error ? e.message : String(e) };
+    }
   }
   const lines: ImageAnalysis["lines"] = [];
-  for (const block of data.blocks ?? [])
-    for (const para of block.paragraphs)
-      for (const line of para.lines) {
-        const text = line.text.trim();
-        if (!text || line.confidence < 40 || !/[A-Za-z0-9]/.test(text)) continue;
-        const colours = textColours(ctx, line.bbox);
-        if (!colours) continue;
-        const height = line.bbox.y1 - line.bbox.y0;
-        lines.push({
-          text,
-          contrast: Math.round(contrastRatio(colours.fg, colours.bg) * 100) / 100,
-          fg: rgbToHex(colours.fg),
-          bg: rgbToHex(colours.bg),
-          large: height / canvas.height >= 0.035 || height >= 32,
-        });
-      }
+  for (const data of passes)
+    for (const block of data.blocks ?? [])
+      for (const para of block.paragraphs)
+        for (const line of para.lines) {
+          const text = line.text.trim();
+          if (!text || line.confidence < 40 || !/[A-Za-z0-9]/.test(text)) continue;
+          if (lines.some((l) => sameLine(l.text, text))) continue;
+          // colours always come from the original image
+          const colours = textColours(ctx, line.bbox);
+          if (!colours) continue;
+          const height = line.bbox.y1 - line.bbox.y0;
+          lines.push({
+            text,
+            contrast: Math.round(contrastRatio(colours.fg, colours.bg) * 100) / 100,
+            fg: rgbToHex(colours.fg),
+            bg: rgbToHex(colours.bg),
+            large: height / canvas.height >= 0.035 || height >= 32,
+          });
+        }
 
   void total;
-  return { ocr_text: lines.map((l) => l.text).join("\n") || data.text.trim(), lines, dominant };
+  return { ocr_text: lines.map((l) => l.text).join("\n") || passes[0]?.text.trim() || "", lines, dominant };
 }
 
 /** Downscaled JPEG data URL for saving with the post (keeps the database small). */

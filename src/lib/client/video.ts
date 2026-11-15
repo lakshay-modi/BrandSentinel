@@ -182,7 +182,7 @@ export async function readVideo(file: File, onStatus: (text: string) => void): P
         continue;
       }
       lastSig = sig;
-      const analysis = await analyzeImage(canvas.toDataURL("image/jpeg", 0.92));
+      const analysis = await analyzeImage(canvas.toDataURL("image/jpeg", 0.92), undefined, "if-empty");
       // the same words as the frame before (the picture moved behind them): one problem, not one per frame
       if (last && analysis.ocr_text.trim() && sameWords(analysis.ocr_text, last.analysis.ocr_text)) {
         last.t_end = t;
