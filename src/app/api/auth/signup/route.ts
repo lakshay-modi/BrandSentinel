@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { plainName } from "@/lib/schemas";
 import { actorSchema, allow, clientId, fail, json, readJson, serverError } from "@/lib/api";
 import { adminDb, userDb } from "@/lib/db";
 import { DEMO_DOMAIN, forgetMemberships, passwordSignIn, setSessionCookies, setWorkspaceCookie } from "@/lib/session";
@@ -10,7 +11,7 @@ const bodySchema = z
     email: z.string().trim().toLowerCase().email("Enter a valid email address").max(200),
     password: z.string().min(8, "Use at least 8 characters").max(72, "Use at most 72 characters"),
     /** start a new company workspace … */
-    workspace: z.string().trim().min(2, "Give your workspace a name").max(80).optional(),
+    workspace: plainName(2, 80, "Give your workspace a name").optional(),
     /** … or join one with an invite link */
     invite: z.string().regex(INVITE_TOKEN).optional(),
   })

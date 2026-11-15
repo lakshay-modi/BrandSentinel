@@ -4,7 +4,7 @@ export interface NumberToken {
   text: string;
   index: number;
   value: number;
-  unit: string; // canonical: ₹ g mg ml l kcal % cities stores
+  unit: string; // canonical: ₹ g mg ml l kcal % cities stores km kg mAh kWh GB TB Mbps h
 }
 
 const UNIT_MAP: Record<string, string> = {
@@ -12,10 +12,15 @@ const UNIT_MAP: Record<string, string> = {
   mg: "mg", ml: "ml", l: "l", litre: "l", litres: "l", liter: "l", liters: "l",
   kcal: "kcal", cal: "kcal", calories: "kcal", calorie: "kcal",
   "%": "%", cities: "cities", city: "cities", stores: "stores", store: "stores", outlets: "stores",
+  // product specs (bikes, electronics, appliances)
+  km: "km", kms: "km", kilometre: "km", kilometres: "km", kilometer: "km", kilometers: "km",
+  kg: "kg", kgs: "kg", kilogram: "kg", kilograms: "kg",
+  mah: "mAh", kwh: "kWh", gb: "GB", tb: "TB", mbps: "Mbps",
+  h: "h", hr: "h", hrs: "h", hour: "h", hours: "h",
 };
 
 const RE =
-  /(₹\s?|\brs\.?\s?|\binr\s?)?(\d[\d,]*(?:\.\d+)?)(\+)?\s?(%|(?:gms|gm|grams|gram|g|mg|ml|litres|litre|liters|liter|l|kcal|calories|calorie|cal|cities|city|stores|store|outlets)\b)?/gi;
+  /(₹\s?|\brs\.?\s?|\binr\s?)?(\d[\d,]*(?:\.\d+)?)(\+)?\s?(%|(?:gms|gm|grams|gram|g|mg|ml|litres|litre|liters|liter|l|kcal|calories|calorie|cal|cities|city|stores|store|outlets|kilometres|kilometers|kilometre|kilometer|kms|km|kilograms|kilogram|kgs|kg|mah|kwh|gb|tb|mbps|hours|hour|hrs|hr|h)\b)?/gi;
 
 // counts may have a word or two before the unit: "12 Indian cities", "2,000+ partner stores"
 const COUNT_RE = /(\d[\d,]*)(\+)?\s+(?:[A-Za-z]+\s+){1,2}?(cities|city|stores|store|outlets)\b/gi;

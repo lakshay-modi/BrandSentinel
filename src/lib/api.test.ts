@@ -29,6 +29,15 @@ describe("input checks on the API", () => {
     expect(actorSchema.parse("Dr. Meera, MD")).toBe("Dr. Meera MD");
     expect(actorSchema.parse("riya+test")).toBe("riya test");
     expect(actorSchema.parse("   ")).toBe("Guest");
+    // tags are dropped whole, so their names don't end up in the person's name
+    expect(actorSchema.parse("Zoë D'Souza <script>alert(1)</script>")).toBe("Zoë D'Souza alert(1)");
+  });
+
+  it("keeps workspace and brand names plain text", async () => {
+    const { plainName } = await import("./schemas");
+    const name = plainName(2, 80, "Give it a name");
+    expect(name.parse("Kiro Bikes 🚲 <b>India</b>")).toBe("Kiro Bikes 🚲 India");
+    expect(name.safeParse("<i></i>").success).toBe(false);
   });
 });
 

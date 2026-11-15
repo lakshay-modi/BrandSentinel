@@ -1,5 +1,13 @@
 import { z } from "zod";
 
+/** Names are plain text: anything that looks like an HTML tag is dropped. */
+export function stripTags(v: unknown): unknown {
+  return typeof v === "string" ? v.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim() : v;
+}
+
+/** A plain-text name (workspace, brand), between min and max characters once tags are removed. */
+export const plainName = (min: number, max: number, message: string) => z.preprocess(stripTags, z.string().min(min, message).max(max));
+
 export const factFields = z.object({
   product: z.string().trim().min(2).max(120),
   fact: z.string().trim().min(3).max(400),
@@ -12,7 +20,7 @@ const shortList = (max: number, each: number) => z.array(z.string().trim().min(1
 
 /** Brand details a brand manager can set when creating or editing a brand. */
 export const brandFields = z.object({
-  name: z.string().trim().min(2, "Give the brand a name").max(60),
+  name: plainName(2, 60, "Give the brand a name"),
   tagline: z.string().trim().max(120).default(""),
   products: shortList(20, 60),
   product_misspellings: shortList(20, 60),

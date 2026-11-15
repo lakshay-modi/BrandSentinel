@@ -46,6 +46,15 @@ describe("starter rules for a brand new workspace", () => {
     expect(found.filter((f) => f.rule_id === "CLAIM-02").length).toBeGreaterThan(0);
   });
 
+  it("compares spec numbers like km with the Fact Bank", () => {
+    const facts = [{ id: "F-01", product: "Kiro One", fact: "Kiro One has a 60 km range on one charge.", source: "Spec sheet", valid_until: "2027-12-31", type: "general" }];
+    const check = (caption: string) => runCodeChecks({ input: post({ caption }), rules, facts, brand, today: "2026-11-14" }).filter((f) => f.rule_id === "CLAIM-02");
+    const wrong = check("The Kiro One goes 80 km on one charge. #RideKiro");
+    expect(wrong[0]?.message).toMatch(/80 km.*F-01/);
+    expect(check("The Kiro One goes 60 km on one charge. #RideKiro")).toEqual([]);
+    expect(check("Charges in 4 hours, weighs 18 kg. #RideKiro").flatMap((f) => f.quotes)).toEqual(expect.arrayContaining(["4 hours", "18 kg"]));
+  });
+
   it("doesn't call ordinary words health claims", () => {
     expect(ids(post({ caption: "Secure parking and tasty treats at every Kiro store. #RideKiro" }))).toEqual([]);
   });

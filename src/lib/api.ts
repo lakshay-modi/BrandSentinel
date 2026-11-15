@@ -71,6 +71,7 @@ export const actorSchema = z.preprocess(
   (v) =>
     typeof v === "string"
       ? v
+          .replace(/<[^>]*>/g, " ")
           .replace(/[^\p{L}\p{N} .'_()-]+/gu, " ")
           .replace(/\s+/g, " ")
           .trim()

@@ -1,11 +1,12 @@
 import { z } from "zod";
+import { plainName } from "@/lib/schemas";
 import { allow, clientId, fail, json, readJson, serverError } from "@/lib/api";
 import { userDb } from "@/lib/db";
 import { forgetMemberships, getSession, NoWorkspaceError, NotSignedInError, setWorkspaceCookie } from "@/lib/session";
 import { acceptInvite, createWorkspace, INVITE_TOKEN, plainDbMessage } from "@/lib/workspaces";
 
 const bodySchema = z
-  .object({ name: z.string().trim().min(2, "Give your workspace a name").max(80).optional(), invite: z.string().regex(INVITE_TOKEN).optional(), member_name: z.string().trim().max(40).optional() })
+  .object({ name: plainName(2, 80, "Give your workspace a name").optional(), invite: z.string().regex(INVITE_TOKEN).optional(), member_name: z.string().trim().max(40).optional() })
   .refine((b) => !!b.name !== !!b.invite, "Name a new workspace or use an invite link");
 
 /** A signed-in person starts another workspace, or joins one with an invite link. */

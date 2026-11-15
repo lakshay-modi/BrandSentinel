@@ -24,8 +24,9 @@ export const PATCH = withSession<RouteContext<"/api/facts/[id]">>(async (req, ct
       .eq("brand_id", brand.id)
       .eq("id", id)
       .select("*")
-      .single();
+      .maybeSingle();
     if (error) throw new Error(error.message);
+    if (!data) return fail("Fact not found", 404);
     return json({ fact: data });
   } catch (e) {
     return serverError(e, "facts/[id]");

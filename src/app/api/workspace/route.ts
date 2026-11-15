@@ -1,4 +1,5 @@
 import { connection } from "next/server";
+import { plainName } from "@/lib/schemas";
 import { z } from "zod";
 import { fail, json, readJson } from "@/lib/api";
 import { db } from "@/lib/db";
@@ -29,7 +30,7 @@ export const GET = withSession(async (_req, _ctx, me) => {
 
 /** Rename the workspace (brand manager). */
 export const PATCH = withSession(async (req, _ctx, me) => {
-  const body = await readJson(req, z.object({ name: z.string().trim().min(2, "Give the workspace a name").max(80) }));
+  const body = await readJson(req, z.object({ name: plainName(2, 80, "Give the workspace a name") }));
   if (!body.ok) return body.res;
   if (!isManager(me)) return fail(me.workspace.isDemo ? "The demo workspace can't be renamed." : "Only a brand manager can rename the workspace.", 403);
   const { data, error } = await db().from("workspaces").update({ name: body.data.name }).eq("id", me.workspace.id).select("id").maybeSingle();
