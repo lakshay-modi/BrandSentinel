@@ -6,6 +6,8 @@ Built by Team O(1) for the CodeTitans India 2026 hackathon (problem statement by
 
 **Live app:** https://brand-sentinel-delta.vercel.app
 
+**Contents:** [Demo accounts](#demo-accounts) · [Demo or your own account](#demo-account-or-your-own-account) · [Try it in 5 minutes](#try-it-in-5-minutes) · [The three improvements](#round-3-the-three-improvements) · [Every feature and how to use it](#every-feature-and-how-to-use-it) · [Beyond the three](#beyond-the-three-improvements-what-we-added-and-why) · [Problems and how we solved them](#problems-we-faced-and-how-we-solved-them) · [Known limits](#known-limits) · [How a check works](#how-a-check-works) · [Results: answer key](#tested-against-an-answer-key), [second brand](#works-for-any-brand-tested-with-a-second-brand), [Mailchimp](#tested-with-a-real-brand-mailchimp) · [Run it locally](#run-it-locally) · [Testing](#testing) · [Security](#security)
+
 The app opens on a **sign-in page**. Every page needs a signed-in account: a demo account or your own.
 
 ## Demo accounts
@@ -23,7 +25,26 @@ Use these to try BrandSentinel. They are also listed on the sign-in page, where 
 - The demo accounts open only the demo workspace and its fictional brands (Oatvia Foods, Solvira Skincare, Voltaro). They can't create or join other workspaces.
 - **Your own workspace:** on the sign-in page, click **Create a workspace**. No confirmation email is sent, so it works at once, and only people you invite can see it.
 
-> **Webhook and Slack need your own workspace.** The demo workspace is shared by everyone, so it never sends anything outside BrandSentinel: on its Connect page the webhook and Slack settings are switched off, and approving a demo post only *logs* what would have been sent. To see a real webhook or Slack message, create your own workspace (takes a minute, steps below).
+### Demo account or your own account?
+
+Everything for checking and approving posts works with the demo accounts. These features need your own account, because the demo workspace is shared by every visitor: anything that sends data out, holds a secret or adds people stays off there.
+
+**To get your own account:** sign out, click **Create a workspace** on the sign-in page, and enter a workspace name, an email and a password. You start as brand manager of a new brand with 16 starter rules.
+
+| Feature | With a demo account | With your own account | Why the demo can't |
+| --- | --- | --- | --- |
+| Webhook "post approved" signal | Switched off; approving only logs what would be sent | Delivered and signed to your HTTPS address; **Send a test** shows it at once | A shared account must not send visitors' posts to addresses someone else typed in |
+| Slack messages | Switched off, logged only | Sent to your channel when a post is submitted, approved by the expert, sent back or approved | Same as the webhook |
+| Your own Gemini AI key | Uses BrandSentinel's shared free key | Connect it on **Team**; checked with Google, encrypted, no shared limit | A secret key can't live in a workspace everyone can open |
+| Private API tokens | One public demo token, built into the extension and Docs add-on | Create, name and revoke tokens on **Connect** | The public token can only reach the fictional demo brands |
+| Inviting a team with roles | No invites | Invite links for each role, one person each, 7 days | The demo is open to everyone already |
+| **Acting as** another role | Sign out and sign in with another demo account | A brand manager can act as creator or expert | Keeps each demo account to one clear role |
+| Password reset links and changing your password | The demo password is public and fixed | Reset links on **Team**; **Change password** in the account menu | Changing it would lock other judges out |
+| Creating or joining other workspaces | Refused | Create one, or join with an invite link | Demo accounts belong only to the demo workspace |
+| Renaming the workspace, deleting brands | The demo workspace and its demo brands are protected | Rename; delete a brand after typing its name | Keeps the demo the same for every judge |
+| Privacy and saved videos | Shared; **Reset demo** restores it; newest 20 videos kept | Private, never reset; about 40 saved videos | The demo is shared by design |
+
+Works the same in both: checking captions, images, carousels and videos, fixes (including inside images), the review queue and approvals, Rulebook import, the Fact Bank, Insights, brands, the extension, the Docs add-on and **Test results**.
 
 ## Try it in 5 minutes
 
@@ -79,6 +100,114 @@ These are the three improvements named at Round 2. All three are live.
 - **Timestamps:** every problem in a video shows when it happens. Clicking it jumps the player to that second.
 - **Reviewers can play the video on any device.** After the check, the video (up to 40 MB) is saved privately and played through a signed link that lasts an hour, so a reviewer clicks a problem and the player jumps to that second. Reading the frames happens on the creator's device; only the sound is sent for speech-to-text.
 
+## Every feature and how to use it
+
+Teams, video, carousels and connections are in the three improvements above.
+
+**Checking a post**
+
+| Feature | How to use it | Who |
+| --- | --- | --- |
+| Check a post | On **Check a post**, write the caption, pick the channel (Instagram, LinkedIn, X, Website, Email), post type and product, then **Check post** | Creator |
+| Live preview | Problems are underlined while you type | Creator |
+| Sample posts | Click a sample (for example **Launch post**) to fill the form with planted mistakes | Anyone |
+| Easy input | Drop or paste images (Ctrl+V works); drop a PDF, Word, .txt or .md file to fill the caption | Creator |
+| Post goal | After a check, confirm what the post is for (**Is that right?**), so fixes keep that message | Creator |
+| The report | A score dial and a bar with one segment per problem; each problem shows its rule ID, the exact words, the fact that proves it and a fix; filter by caption or images | Everyone |
+| For a human to decide | AI findings the proof check couldn't confirm are listed apart, not counted | Creator, reviewers |
+| Image checks | Text in images is read in the browser, contrast measured (WCAG 4.5:1), colours compared with the palette, alt text suggested | Automatic |
+
+**Fixing problems**
+
+| Feature | How to use it | Who |
+| --- | --- | --- |
+| Accept, edit or reject a fix | **Accept**, **Edit**, or **Reject** with a reason (required) | Creator |
+| Whole post with every fix | **Suggested version with every fix applied**, under the report | Creator |
+| Fix text inside an image | **Accept fix in image**, **Edit text in image** or **Recolour text**; **Undo** restores the old image | Creator |
+| Re-check | **Re-check** after fixing | Creator |
+
+**Approval**
+
+| Feature | How to use it | Who |
+| --- | --- | --- |
+| Submit for review | **Submit for review**. Claims, serious problems or disputed fixes go to the expert first; the rest straight to the brand manager | Creator |
+| Review queue | **Review queue** lists what waits for your role; the menu shows the count | Reviewers |
+| Approve or send back | **Approve claims** (expert) or **Approve post** (brand manager), or **Send back** with a comment (required) | Expert, brand manager |
+| History | Every step on the post page, under the real person's name | Everyone |
+| Delete a draft | From the queue or the post page, with 5 seconds to **Undo** | Creator |
+
+**Rulebook and Fact Bank**
+
+| Feature | How to use it | Who |
+| --- | --- | --- |
+| Starter rules | Every new brand gets 16 ready rules | Automatic |
+| Guidelines to rules | **Rulebook → Add a rulebook**: upload a PDF or Word file. Each drafted rule quotes a real sentence; word lists become exact fast checks | Brand manager |
+| Review drafts | Approve, edit or reject each; duplicates are skipped, with **Add anyway** | Brand manager |
+| Manage rulebooks | Rename, pause, replace or remove; filter and search rules; **Add a rule by hand** | Brand manager |
+| Fact Bank | **Add a fact**: the claim, product, source and **Valid until**. Numbers in posts are compared with these; expired facts stop counting as proof | Expert, brand manager |
+
+**Brands, insights and tools**
+
+| Feature | How to use it | Who |
+| --- | --- | --- |
+| Brands | **Brands**: create, edit or delete (type the name); the **Brand** switcher changes every page | Brand manager |
+| Insights | Posts checked, average score first to latest, fixes accepted, common problems, rules people disagree with, gaps in the guidelines, facts ending within 30 days | Brand manager |
+| Test results | **Test results** in the footer runs the answer key in your browser | Anyone |
+| Reset demo | On the demo's **Review queue** or **Brands** page | Demo only |
+| Who does what? | In the role bar at the top; each page also opens with a note for your role | Everyone |
+
+## Beyond the three improvements: what we added and why
+
+The three improvements made BrandSentinel usable by real teams. These additions make it trustworthy and useful from day one for any brand. Each fixes a gap we hit while building or testing.
+
+| Addition | Why we added it | Why it matters |
+| --- | --- | --- |
+| **Proof check: no proof, no flag** | AI sometimes invents rules, quotes or facts | Every problem points to a real rule, the exact words and an approved fact; plain code drops the rest |
+| **Code first, AI second** | Exact checks shouldn't depend on an AI that can be busy | The report always comes back; the fast checks caught all 41 planted mistakes |
+| **16 starter rules** | A new workspace started empty and found nothing | The first check already finds problems, including health claims and unproven numbers |
+| **Guidelines PDF or Word to rulebook** | Brands keep rules in PDFs, not tables | Mailchimp's guide became 16 rules in about 10 seconds, each quoting its source |
+| **Fact Bank with sources and end dates** | The costliest mistakes are wrong numbers and expired offers | A wrong figure is flagged with the true fact, and the rewrite uses it |
+| **Backup AI and fair-use limits** | The free Gemini tier gets busy when many judges test at once | AI checks keep working, and a fast clicker is asked to wait instead of getting a silent error |
+| **Fixes inside images** | An image problem left the creator waiting for a designer | The wording is fixed in place, so the check and approval move on |
+| **Risk-based approval** | Not every post needs an expert | Risky posts go to the expert first; simple ones straight to the brand manager |
+| **Unclear-rule alerts** | When people keep disagreeing with a rule, the rule is usually the problem | The rule is flagged, not the people |
+| **Keep the message** | AI that rewrites a whole post loses the creator's voice | Live preview, a confirmed post goal and small fixes |
+| **Several brands and rulebooks** | Agencies run more than one brand | One workspace covers them all |
+| **Defences against tricks** | Invisible characters, look-alike digits, and posts that give the AI orders | Still caught, and orders in a post are ignored |
+| **Security for real data** | Real teams will put unreleased work in it | Database-level isolation, encrypted secrets, no webhooks to private addresses |
+| **Built for judges to verify** | Judges must try everything without setup | One-click demo accounts, **Test results**, **Reset demo**, passwords without email |
+
+## Problems we faced and how we solved them
+
+The hardest part was staying reliable and accurate with no budget: a free AI tier, free storage, no email sender and no paid video service. Most problems came from our own tests; each fix was deployed and tested again.
+
+| Area | Problem | How we solved it |
+| --- | --- | --- |
+| AI | Gemini busy or out of free quota when many people test at once | Three Gemini models in turn, then ASI:One; results cached by content; 8 AI checks a minute per visitor and 12 Gemini calls a minute overall, with overflow to the backup |
+| AI | A slow Gemini answer could keep a check waiting 20 seconds or more | The backup starts as soon as Gemini fails, or after 10 seconds; the first good answer wins |
+| AI | The AI sometimes invented rules, quotes or facts | The proof check drops findings without a real rule, exact words and a real fact; unsure ones go to a human |
+| AI | Importing Mailchimp's guide timed out | Thinking level "low" for Gemini 3 models; documents drafted in up to 8 parts at once; failed parts marked; the error names the models tried |
+| AI | A garbled answer lost the AI checks | One more try with the backup AI |
+| AI | A rewrite swapped products or came back in quote marks | A prompt rule against changing products; quote marks removed in code |
+| AI | A post or PDF could try to give the AI orders | Content is marked as content to review, never instructions; the proof check catches the rest |
+| Accuracy | New workspaces let health claims and made-up numbers pass | Starter rules for both (also read by the AI), migrations for existing brands, wider superlatives |
+| Accuracy | Hidden characters and look-alike digits slipped through; the first fix broke "20g" | Rules match a cleaned copy; a 0 counts as an O only after a letter and not before a digit; the original is quoted |
+| Accuracy | "KIRO10 at any store" read as "10 stores" | Numbers glued to letters are left alone |
+| Accuracy | Imported word lists were left to the AI; the first fix banned "like" and "share" | Exact checks, keeping only words in the document and never everyday words |
+| Accuracy | ROI and SMS flagged as shouting | Common acronyms allowed |
+| Accuracy | "30 percent" and "2,000 contacts" not compared with facts | The number check reads "percent" and counts of contacts, users, sends and similar |
+| Accuracy | A new rule wrongly skipped as a duplicate | Stricter matching and **Add anyway** |
+| Media | The text reader missed pale-on-white and dark-on-black text | A second reading on a background-separated copy, and a colour measure for close colours |
+| Media | Video frames merged when only the words changed | Frames compared cell by cell |
+| Media | Free storage is about 1 GB | Videos up to 40 MB saved with one-hour links; demo keeps 20, workspaces about 40; bigger videos still checked |
+| Media | Speech-to-text has a cost and a limit | Only the sound is sent; the script can be typed by hand |
+| Accounts | No budget for email | No confirmation email; reset links from the brand manager; change your own password |
+| Accounts | Any visitor could change or break the shared demo | **Reset demo** from a snapshot, protected demo brands, one fixed role per demo account |
+| Security | The shared demo must never send visitors' posts outside | Webhook and Slack off in the demo, logged only |
+| Security | A webhook could point at internal addresses | HTTPS only; private addresses blocked, checked again after lookup |
+| Workflow | Two clicks at once could submit or approve twice | Each step takes effect once (tested with 3 submits and 2 approvals at once) |
+| Polish | Sign-out needed a request body, a missing fact gave a server error, names with HTML were saved oddly, the form re-sent the last post | All fixed and tested again on the live site |
+
 ## Known limits
 
 - **AI can be slow or busy.** On the Gemini free tier a check can take up to about 15 seconds. When Gemini is busy, the backup AI (ASI:One) takes over for text; only if both are busy does the report have the fast checks alone, with a note saying so. **Re-check** usually fixes it. Speech-to-text has the same limit; the script can be typed by hand instead.
@@ -88,7 +217,8 @@ These are the three improvements named at Round 2. All three are live.
 - **Google Docs add-on** is installed by pasting three files into Apps Script (about 2 minutes). It is not in the Workspace Marketplace.
 - **The demo workspace is shared.** Everyone using the demo accounts sees each other's changes. **Reset demo** (for testing only) restores the demo brands. Your own workspace is never reset.
 - **Fixing text inside images** is for small wording changes only. It uses a standard font and refuses on photos, strong gradients and styled lettering.
-- **New brands** get the starter rules as fast checks (the health-claim and number rules are read by the AI too); rules imported from a PDF are checked by AI, so they need the AI to be available.
+- **New brands** get the starter rules as fast checks (the health-claim and number rules are read by the AI too). Rules imported from a PDF are checked by AI, except their word lists, which become fast checks.
+- **Starter rule limits** (such as 3 emoji on Instagram) can't be edited yet; this caused one of the two Mailchimp misses.
 - **No password reset by email** (the free plan has no mail budget). Instead a brand manager makes a one-time reset link on the Team page and passes it on, and anyone can change their own password from the account menu.
 
 ## Brands, rulebooks and roles
@@ -382,9 +512,10 @@ Other commands: `npm test` (122 tests), `npm run lint`, `npm run build`.
 **Next (1 to 2 months)**
 
 - Password reset by email and sign-in with Google, once there is a mail sender.
-- Store videos (compressed) so reviewers can play them on any device.
+- Editable limits on the starter rules (for example the emoji count per channel).
+- Compress and store videos over 40 MB, so reviewers can play every video.
 - Publish the extension in the Chrome Web Store and the add-on in the Workspace Marketplace.
-- Turn more imported rules into fast checks automatically, so new brands depend less on the AI.
+- Turn more imported rules (beyond word lists) into fast checks automatically, so new brands depend less on the AI.
 
 **Later (3 to 6 months)**
 
