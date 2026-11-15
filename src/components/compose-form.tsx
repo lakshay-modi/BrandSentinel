@@ -344,6 +344,13 @@ export function ComposeForm() {
       if (video) attachVideo(res.post_id);
       void refreshPosts();
       router.push(`/posts/${res.post_id}`);
+      // this page stays mounted in the background: start the next post from an empty form, so coming back
+      // to "Check a post" doesn't show (and re-submit) the post that was just saved
+      setInput(EMPTY);
+      setImages([]);
+      setSampleId(null);
+      setVideo(null);
+      setFileNote(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
