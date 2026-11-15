@@ -1,5 +1,6 @@
 // Starter rules: common rules that fit most brands, so a new workspace's checks work from the first minute,
-// before any guidelines are imported. All of them are fast checks in plain code (no AI needed).
+// before any guidelines are imported. Most are fast checks in plain code; the two claim rules about health
+// and numbers are also read by the AI, which catches the same claim in other words.
 // A brand manager can edit, pause or remove them like any other rulebook.
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -7,7 +8,7 @@ interface StarterRule {
   id: string;
   category: "tone" | "words" | "claims" | "visuals" | "readability";
   severity: "high" | "medium" | "low";
-  check_type: "code";
+  check_type: "code" | "code+ai";
   scope: string;
   rule: string;
   guideline: string;
@@ -23,6 +24,20 @@ export const STARTER_RULES: StarterRule[] = [
     guideline: "Claims like “No. 1” or “the best” need proof. Add the proof to the Fact Bank first, or describe the product instead.",
     good: "Made with 100% whole oats.", bad: "India's No. 1 snack bar.",
     params: { patterns: ["\\bno\\.?\\s?1\\b", "#1\\b", "\\bnumber one\\b", "\\bthe best\\b", "\\bbest\\s+in\\b", "\\bindia'?s favou?rite\\b", "\\bworld'?s (?:best|first|leading)\\b", "\\bmarket leader\\b", "\\bunbeatable\\b"] },
+  },
+  {
+    id: "CLAIM-02", category: "claims", severity: "high", check_type: "code+ai", scope: "all (caption and image text)",
+    rule: "Every number must match an approved fact.",
+    guideline: "Amounts, prices, percentages and counts need proof. Add each number to the Fact Bank with its source before using it in a post.",
+    good: "A number copied exactly from the Fact Bank.", bad: "A protein, price or discount figure that isn't in the Fact Bank.",
+    params: {},
+  },
+  {
+    id: "CLAIM-04", category: "claims", severity: "high", check_type: "code+ai", scope: "all (caption and image text)",
+    rule: "No health or medical claims without approved proof.",
+    guideline: "Saying a product treats, cures, prevents or improves a health condition, or that it is clinically or scientifically proven, needs proof the brand can show. Describe the product instead.",
+    good: "Made with whole oats and nuts.", bad: "Clinically proven to boost your energy and immunity.",
+    params: { phrases: ["clinically proven", "clinically tested", "scientifically proven", "medically proven", "doctor recommended", "doctor-recommended", "cures", "cure", "heals", "prevents", "lose weight", "weight loss", "burn fat", "burns fat", "fat burning", "boost immunity", "boosts immunity", "immunity booster", "detox", "detoxify", "boost your energy", "boosts energy", "boost energy", "lowers cholesterol", "diabetic", "miracle", "guaranteed results"] },
   },
   {
     id: "CLAIM-08", category: "claims", severity: "high", check_type: "code", scope: "partner and influencer posts",

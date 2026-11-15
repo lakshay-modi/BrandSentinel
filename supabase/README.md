@@ -1,6 +1,6 @@
 # Database
 
-Run the files in `migrations/` in order (`0001` to `0014`) in the Supabase SQL Editor, then the seeds.
+Run the files in `migrations/` in order (`0001` to `0015`) in the Supabase SQL Editor, then the seeds.
 
 | File | What it adds |
 | --- | --- |
@@ -13,6 +13,7 @@ Run the files in `migrations/` in order (`0001` to `0014`) in the Supabase SQL E
 | `0012_connections.sql` | API tokens, webhook and Slack settings, delivery log |
 | `0013_post_video_storage.sql` | Private storage for checked videos (played through signed links) |
 | `0014_password_resets.sql` | One-time password reset links made by a brand manager |
+| `0015_starter_claim_rules.sql` | Adds the health-claim and number rules to brands that started from the starter rules |
 
 Seeds:
 

@@ -338,8 +338,8 @@ export function runCodeChecks(ctx: CheckContext): Finding[] {
     for (const s of srcs)
       report(out, r, s, findPhrases(s.text, r.params.phrases ?? []).map((m) => ({
         quote: m.text,
-        message: `“${m.text}” is a health or medical claim. Our products are food, not medicine.`,
-        advice: "Remove the health claim; describe the food instead (for example its protein).",
+        message: `“${m.text}” is a health or medical claim, and the brand has no approved proof for it.`,
+        advice: "Remove the health claim and describe the product instead (for example what it is made of).",
       })), "Health claims");
   }
 

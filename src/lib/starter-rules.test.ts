@@ -38,6 +38,18 @@ describe("starter rules for a brand new workspace", () => {
     expect(found).toEqual(expect.arrayContaining(["CLAIM-01", "TONE-01", "TONE-02", "TONE-03", "WORD-06"]));
   });
 
+  it("catches health claims and numbers with no approved fact (the gap a real Slack test found)", () => {
+    const found = run(post({ caption: "Meet the Kiro One: clinically proven to boost your energy, 20 km range and only ₹45,000. #RideKiro" }));
+    const claims = found.filter((f) => f.rule_id === "CLAIM-04").flatMap((f) => f.quotes);
+    expect(claims.join(" ")).toMatch(/clinically proven/i);
+    expect(claims.join(" ")).toMatch(/boost your energy/i);
+    expect(found.filter((f) => f.rule_id === "CLAIM-02").length).toBeGreaterThan(0);
+  });
+
+  it("doesn't call ordinary words health claims", () => {
+    expect(ids(post({ caption: "Secure parking and tasty treats at every Kiro store. #RideKiro" }))).toEqual([]);
+  });
+
   it("asks a paid partner post to start with a disclosure", () => {
     expect(ids(post({ partner: true, caption: "Loving my new ride. #RideKiro" }))).toContain("CLAIM-08");
     expect(ids(post({ partner: true, caption: "#ad Loving my new ride. #RideKiro" }))).not.toContain("CLAIM-08");

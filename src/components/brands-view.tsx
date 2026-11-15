@@ -344,7 +344,7 @@ export function BrandsView() {
             <input type="checkbox" className="mt-0.5 size-4" checked={starter} onChange={(e) => setStarter(e.target.checked)} />
             <span>
               <span className="font-semibold">Start with the starter rules</span>
-              <span className="block text-ink-soft">14 common rules (disclosure, rankings, capitals, hashtags, contrast, alt text and more), so checks work at once. You can edit, pause or remove them, and import your own guidelines on top.</span>
+              <span className="block text-ink-soft">16 common rules (health claims, numbers without proof, disclosure, rankings, capitals, hashtags, contrast, alt text and more), so checks work at once. You can edit, pause or remove them, and import your own guidelines on top.</span>
             </span>
           </label>
         )}

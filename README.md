@@ -34,7 +34,7 @@ Use these to try BrandSentinel. They are also listed on the sign-in page, where 
 5. **Video:** on Check a post, click **Try the sample reel**. The browser takes a frame every 2.5 seconds, reads the on-screen text and turns the speech into text. After the check, every problem has a time; click it to jump to that second.
 6. **Carousel:** add several images to one post. They are checked slide by slide and each problem names its slide.
 7. **Connect** (in the menu): download the browser extension or the Google Docs add-on. Both come set up for the demo, so they work straight away.
-8. **Sign out, then Create a workspace.** You start as brand manager with 14 starter rules, so the first check already finds problems. Open **Team** to invite people with a role or connect your own AI key.
+8. **Sign out, then Create a workspace.** You start as brand manager with 16 starter rules, so the first check already finds problems. Open **Team** to invite people with a role or connect your own AI key.
 9. As **Brand manager**, open **Rulebook → Add a rulebook** to turn a guidelines PDF into draft rules, and **Insights** to see the most common problems and the rules people disagree with.
 10. **Test results** (link in the footer) runs the fast checks on all 10 sample posts in your browser and compares them with the answer key.
 
@@ -88,7 +88,7 @@ These are the three improvements named at Round 2. All three are live.
 - **Google Docs add-on** is installed by pasting three files into Apps Script (about 2 minutes). It is not in the Workspace Marketplace.
 - **The demo workspace is shared.** Everyone using the demo accounts sees each other's changes. **Reset demo** (for testing only) restores the demo brands. Your own workspace is never reset.
 - **Fixing text inside images** is for small wording changes only. It uses a standard font and refuses on photos, strong gradients and styled lettering.
-- **New brands** get the starter rules as fast checks; rules imported from a PDF are checked by AI, so they need the AI to be available.
+- **New brands** get the starter rules as fast checks (the health-claim and number rules are read by the AI too); rules imported from a PDF are checked by AI, so they need the AI to be available.
 - **No password reset by email** (the free plan has no mail budget). Instead a brand manager makes a one-time reset link on the Team page and passes it on, and anyone can change their own password from the account menu.
 
 ## Brands, rulebooks and roles
@@ -226,7 +226,7 @@ Key files:
 - `src/lib/session.ts`, `workspaces.ts`, `secrets.ts`: login, workspaces, invites, encrypted keys
 - `src/lib/video.ts`, `src/lib/client/video.ts`, `src/app/api/transcribe/route.ts`: video frames, speech and timestamps
 - `src/app/api/v1/`, `src/lib/tokens.ts`, `src/lib/hooks.ts`: public API, tokens, webhook and Slack
-- `src/lib/starter-rules.ts`: the 14 starter rules for a new brand
+- `src/lib/starter-rules.ts`: the 16 starter rules for a new brand
 - `src/app/api/posts/[id]/action/route.ts`: approval workflow
 - `supabase/migrations/`: database schema and row rules
 - `extension/`: the browser extension
@@ -245,7 +245,7 @@ npm install
 
 **2. Set up the database.** In your Supabase project, open **SQL Editor** and run these files in order (paste each one and click Run):
 
-1. Every file in `supabase/migrations/`, from `0001` to `0014`.
+1. Every file in `supabase/migrations/`, from `0001` to `0015`.
 2. `supabase/seed.sql` (the Oatvia Foods demo brand: 26 rules, 16 facts).
 3. Optional: `supabase/seed_solvira.sql` (a second demo brand).
 4. Optional: `select public.take_demo_snapshot();` so **Reset demo** has something to restore.
@@ -305,7 +305,7 @@ Other commands: `npm test` (98 tests), `npm run lint`, `npm run build`.
 
 **By hand, on the live app (14 November):**
 
-- Sign up, create a workspace and run a first check (the new workspace starts with 14 rules).
+- Sign up, create a workspace and run a first check (the new workspace starts with 16 rules).
 - A weak password, a repeated email and a wrong password are each refused with a plain message.
 - Each demo account signs in with one click and can do only its own role's actions; a forged role in a request is ignored.
 - Invite link: create, join as a second person with the chosen role; reusing the link is refused.
