@@ -21,6 +21,11 @@ export function aiModels(): string[] {
   return [...new Set([primary, "gemini-3.8-flash", "gemini-flash-lite-latest", "gemini-flash-latest"].filter((m): m is string => !!m))];
 }
 
+/** Gemini 3 models take a thinking level (2.5 models don't, and "latest" names could be either). */
+export function usesThinkingLevel(model: string): boolean {
+  return /^gemini-3(\.\d+)?-/.test(model);
+}
+
 export function aiConfigured(): boolean {
   return !!currentAiKey() || backupAvailable();
 }
@@ -182,22 +187,26 @@ async function callGeminiOnly(system: string, parts: AiPart[], budgetMs: number,
   const key = currentAiKey();
   if (!key) return { ok: false, status: "off", detail: "No AI key is set" };
 
-  const body = JSON.stringify({
-    systemInstruction: { parts: [{ text: system }] },
-    contents: [
-      {
-        role: "user",
-        parts: parts.map((p) => (p.image ? { inline_data: { mime_type: p.image.mimeType, data: p.image.base64 } } : { text: p.text ?? "" })),
-      },
-    ],
-    generationConfig: { temperature: 0.1, responseMimeType: "application/json" },
-  });
+  // Gemini 3 models think before answering ("medium" by default on Flash), which can take longer than our time
+  // limits. Checking against rules needs little thinking, so they are asked to think "low" (faster answers).
+  const body = (thinking: boolean) =>
+    JSON.stringify({
+      systemInstruction: { parts: [{ text: system }] },
+      contents: [
+        {
+          role: "user",
+          parts: parts.map((p) => (p.image ? { inline_data: { mime_type: p.image.mimeType, data: p.image.base64 } } : { text: p.text ?? "" })),
+        },
+      ],
+      generationConfig: { temperature: 0.1, responseMimeType: "application/json", ...(thinking ? { thinkingConfig: { thinkingLevel: "low" } } : {}) },
+    });
 
   const deadline = Date.now() + budgetMs;
   const tried: string[] = [];
   let sawBusy = false;
 
   for (const model of aiModels()) {
+    let thinking = usesThinkingLevel(model);
     for (let attempt = 0; attempt < 2; attempt++) {
       const left = deadline - Date.now();
       if (left < 3000) return { ok: false, status: "busy", detail: `Out of time. Tried: ${tried.join(", ")}` };
@@ -209,7 +218,7 @@ async function callGeminiOnly(system: string, parts: AiPart[], budgetMs: number,
         const res = await fetch(`${ENDPOINT}/${model}:generateContent`, {
           method: "POST",
           headers: { "content-type": "application/json", "x-goog-api-key": key },
-          body,
+          body: body(thinking),
           signal: controller.signal,
         });
         if (res.ok) {
@@ -221,6 +230,10 @@ async function callGeminiOnly(system: string, parts: AiPart[], budgetMs: number,
         }
         tried.push(`${model}: ${res.status}`);
         if (res.status === 404) break; // this model name isn't available: next model
+        if (res.status === 400 && thinking) {
+          thinking = false; // this model doesn't take the thinking setting: ask again without it
+          continue;
+        }
         if (res.status === 429 || res.status >= 500) {
           sawBusy = true;
           if (attempt === 0 && res.status >= 500 && res.status !== 503) {
