@@ -45,23 +45,29 @@ function once(target: EventTarget, ok: string, ms: number, what: string): Promis
 }
 
 /** A tiny greyscale thumbnail of a frame, to tell whether the picture changed since the last one. */
+const SIG = 64;
+
 function signature(source: CanvasImageSource): Uint8Array {
   const c = document.createElement("canvas");
-  c.width = 24;
-  c.height = 24;
+  c.width = SIG;
+  c.height = SIG;
   const ctx = c.getContext("2d", { willReadFrequently: true })!;
-  ctx.drawImage(source, 0, 0, 24, 24);
-  const d = ctx.getImageData(0, 0, 24, 24).data;
-  const out = new Uint8Array(24 * 24);
+  ctx.drawImage(source, 0, 0, SIG, SIG);
+  const d = ctx.getImageData(0, 0, SIG, SIG).data;
+  const out = new Uint8Array(SIG * SIG);
   for (let i = 0; i < out.length; i++) out[i] = (d[i * 4] * 299 + d[i * 4 + 1] * 587 + d[i * 4 + 2] * 114) / 1000;
   return out;
 }
 
-/** Average brightness difference between two thumbnails (0 = the same picture, 255 = black vs white). */
+/**
+ * The share of a thumbnail that clearly changed (0 = the same picture). Counting changed cells, not the
+ * average change, matters: new words on the same background change only a small part of the picture,
+ * and those are exactly the frames that must be read.
+ */
 function difference(a: Uint8Array, b: Uint8Array): number {
-  let sum = 0;
-  for (let i = 0; i < a.length; i++) sum += Math.abs(a[i] - b[i]);
-  return sum / a.length;
+  let changed = 0;
+  for (let i = 0; i < a.length; i++) if (Math.abs(a[i] - b[i]) > 24) changed++;
+  return changed / a.length;
 }
 
 const sameWords = (a: string, b: string) => a.toLowerCase().replace(/[^a-z0-9]+/g, "") === b.toLowerCase().replace(/[^a-z0-9]+/g, "");
@@ -177,7 +183,7 @@ export async function readVideo(file: File, onStatus: (text: string) => void): P
       const sig = signature(canvas);
       const last = frames.at(-1);
       // the same picture as a moment ago: nothing new to read
-      if (last && lastSig && difference(sig, lastSig) < 4) {
+      if (last && lastSig && difference(sig, lastSig) < 0.005) {
         last.t_end = t;
         continue;
       }
@@ -208,7 +214,7 @@ export async function readVideo(file: File, onStatus: (text: string) => void): P
 const players = new Map<string, string>();
 let pending: { url: string; file: File; sample: boolean } | null = null;
 
-/** Remember the file just added on the check page … (`sample`: the public sample reel, which is never uploaded) */
+/** Remember the file just added on the check page … (`sample`: the public sample reel, which is played from its public file, not uploaded) */
 export function holdVideo(file: File, sample = false) {
   if (pending) URL.revokeObjectURL(pending.url);
   pending = { url: URL.createObjectURL(file), file, sample };

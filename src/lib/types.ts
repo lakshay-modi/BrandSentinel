@@ -116,7 +116,7 @@ export interface SpeechSegment {
   text: string;
 }
 
-/** A video post. The file itself is never uploaded: only its checked frames (in `images`) and this. */
+/** A video post: its checked frames (in `images`) and this. The file is saved privately after the check (`stored`) so reviewers can play it. */
 export interface PostVideo {
   name: string;
   duration: number;

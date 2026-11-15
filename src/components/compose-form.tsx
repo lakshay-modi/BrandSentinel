@@ -93,7 +93,7 @@ function VideoPanel({ video, onChange, onRemove }: { video: DraftVideo; onChange
         />
       )}
       <p className="mt-2 text-[12px] text-ink-faint">
-        The video itself is not uploaded. Only these frames, and the sound for the speech-to-text step, leave your device.
+        The frames are read on your device and only the sound goes to speech-to-text. After the check, the video (up to 40 MB) is saved privately so reviewers can play it.
       </p>
     </div>
   );
@@ -117,7 +117,7 @@ export function ComposeForm() {
   const [reading, setReading] = useState<string | null>(null);
   const [fileNote, setFileNote] = useState<string | null>(null);
   const dragDepth = useRef(0);
-  // a video post: its frames and speech, read in the browser (the file itself is never uploaded)
+  // a video post: its frames and speech, read in the browser (the file is saved privately after the check, for reviewers)
   const [video, setVideo] = useState<DraftVideo | null>(null);
   const [videoBusy, setVideoBusy] = useState<string | null>(null);
   const toast = useToast();
