@@ -45,6 +45,14 @@ function spokenFix(f: Finding): Finding {
   return { ...f, fix: { kind: "manual", advice: to ? `This is said in the video, so re-record or cut that line. Say instead: “${to}”.` : "This is said in the video, so re-record or cut that line." } };
 }
 
+/** The AI sometimes wraps its rewrite in quote marks: drop them, unless the caption itself starts with one. */
+export function unquote(text: string | null | undefined, caption: string): string {
+  const t = (text ?? "").trim();
+  const m = t.match(/^(["“”'])([\s\S]*)(["“”'])$/);
+  if (!m || /^["“”']/.test(caption.trim())) return t;
+  return m[2].trim();
+}
+
 export async function runReview(input: PostInput, ctx: BrandContext, opts: { origin: string; clientId: string; /** fast checks only, for checks while typing in other tools */ codeOnly?: boolean; /** send the AI part to the backup AI only, without cache (backup test) */ backupOnly?: boolean }): Promise<ReviewOutput> {
   const rules = new Map(ctx.rules.map((r) => [r.id, r]));
   const today = todayIST();
@@ -155,7 +163,7 @@ export async function runReview(input: PostInput, ctx: BrandContext, opts: { ori
     findings,
     ask_human: proof.ask_human,
     goal: ai?.goal && (ai.goal.message || ai.goal.post_type) ? ai.goal : null,
-    suggested_caption: ai?.suggested_caption?.trim() || null,
+    suggested_caption: unquote(ai?.suggested_caption, input.caption) || null,
     ai_status: aiStatus,
     model,
     rulebook_version: ctx.brand.rulebook_version,
