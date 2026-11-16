@@ -18,11 +18,14 @@ export const POST = withSession(async (req, _ctx, me) => {
   if (!backupConfigured()) return json({ configured: false });
   if (!allow("backup-check", clientId(req), 5, 10 * 60_000) || !allow("backup-check", "all", 20, 60 * 60_000)) return fail("Too many tests. Wait a few minutes.", 429);
   const t0 = Date.now();
-  const full = await req.json().then((b: { full?: unknown }) => b?.full === true).catch(() => false);
+  const body = await req.json().catch(() => ({}) as { full?: unknown; model?: unknown });
+  const full = body?.full === true;
+  // which ASI:One model to test (only ASI:One model names); the usual order when left out
+  const model = typeof body?.model === "string" && /^asi1(?:-[a-z]{2,12}){0,2}$/.test(body.model) ? body.model : undefined;
   if (full) {
     const ctx = await getBrandContext();
-    const out = await runReview({ channel: "instagram", post_type: "product", product: "", partner: false, caption: SAMPLE, images: [] }, ctx, { origin: new URL(req.url).origin, clientId: clientId(req), backupOnly: true });
-    return json({ configured: true, model: out.model, ms: Date.now() - t0, brand: ctx.brand.name, ai_status: out.ai_status, detail: out.ai_detail, score: out.score, problems: out.findings.length, ai_problems: out.findings.filter((f) => f.source === "ai").length, dropped: out.dropped, suggested_caption: out.suggested_caption });
+    const out = await runReview({ channel: "instagram", post_type: "product", product: "", partner: false, caption: SAMPLE, images: [] }, ctx, { origin: new URL(req.url).origin, clientId: clientId(req), backupOnly: true, backupModel: model });
+    return json({ configured: true, model: out.model, tested: model ?? "default order", ms: Date.now() - t0, brand: ctx.brand.name, ai_status: out.ai_status, detail: out.ai_detail, score: out.score, problems: out.findings.length, ai_problems: out.findings.filter((f) => f.source === "ai").length, dropped: out.dropped, suggested_caption: out.suggested_caption });
   }
   const res = await probeBackup();
   return json({ configured: true, model: BACKUP_MODEL, ms: Date.now() - t0, ...(res.ok ? { ok: true, answer: res.text.slice(0, 200) } : { ok: false, status: res.status, detail: res.detail }) });

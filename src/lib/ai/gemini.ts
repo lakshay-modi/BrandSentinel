@@ -76,9 +76,9 @@ export function backupConfigured(): boolean {
   return !!backupKey();
 }
 
-/** The backup AI alone (used to test it with a real check). */
-export function callBackupOnly(system: string, parts: AiPart[], budgetMs: number): Promise<AiCallResult> {
-  return callBackup(system, parts, budgetMs);
+/** The backup AI alone (used to test it with a real check, optionally with one named ASI:One model). */
+export function callBackupOnly(system: string, parts: AiPart[], budgetMs: number, model?: string): Promise<AiCallResult> {
+  return callBackup(system, parts, budgetMs, model);
 }
 
 /** One tiny question to the backup AI, to check it is set up. */
@@ -86,15 +86,17 @@ export function probeBackup(): Promise<AiCallResult> {
   return callBackup('You check that a service works. Reply with JSON only.', [{ text: 'Reply with exactly {"ok":true}' }], 30000);
 }
 
-async function callBackup(system: string, parts: AiPart[], budgetMs: number): Promise<AiCallResult> {
+async function callBackup(system: string, parts: AiPart[], budgetMs: number, onlyModel?: string): Promise<AiCallResult> {
   const key = backupKey();
   if (!key) return { ok: false, status: "off", detail: "No backup AI key is set" };
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), budgetMs);
+  let res: Response | null = null;
+  let used = BACKUP_MODEL;
+  const refused: string[] = [];
   try {
-    let res: Response | null = null;
-    let used = BACKUP_MODEL;
-    for (const model of backupModels()) {
+    for (const model of onlyModel ? [onlyModel] : backupModels()) {
+      if (res) refused.push(`${used}: ${res.status}`);
       used = model;
       res = await fetch(BACKUP_ENDPOINT, {
         method: "POST",
@@ -116,7 +118,7 @@ async function callBackup(system: string, parts: AiPart[], budgetMs: number): Pr
     if (!res || !res.ok) {
       const status = res?.status ?? 0;
       const busy = status === 429 || status >= 500;
-      return { ok: false, status: busy ? "busy" : "error", detail: `${used}: ${status}${busy || !res ? "" : ` ${(await res.text()).slice(0, 200)}`}` };
+      return { ok: false, status: busy ? "busy" : "error", detail: `${[...refused, ""].join(", ")}${used}: ${status}${busy || !res ? "" : ` ${(await res.text()).slice(0, 200)}`}` };
     }
     const json = await res.json();
     const text = stripThinking(String(json?.choices?.[0]?.message?.content ?? ""));
@@ -124,7 +126,7 @@ async function callBackup(system: string, parts: AiPart[], budgetMs: number): Pr
     return { ok: true, text, model: BACKUP_MODEL };
   } catch (e) {
     const aborted = e instanceof Error && e.name === "AbortError";
-    return { ok: false, status: "busy", detail: `${BACKUP_MODEL}: ${aborted ? "timeout" : "network error"}` };
+    return { ok: false, status: "busy", detail: `${[...refused, ""].join(", ")}${used}: ${aborted ? "timeout" : "network error"}` };
   } finally {
     clearTimeout(timer);
   }

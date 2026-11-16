@@ -53,7 +53,7 @@ export function unquote(text: string | null | undefined, caption: string): strin
   return m[2].trim();
 }
 
-export async function runReview(input: PostInput, ctx: BrandContext, opts: { origin: string; clientId: string; /** fast checks only, for checks while typing in other tools */ codeOnly?: boolean; /** send the AI part to the backup AI only, without cache (backup test) */ backupOnly?: boolean }): Promise<ReviewOutput> {
+export async function runReview(input: PostInput, ctx: BrandContext, opts: { origin: string; clientId: string; /** fast checks only, for checks while typing in other tools */ codeOnly?: boolean; /** send the AI part to the backup AI only, without cache (backup test) */ backupOnly?: boolean; /** with backupOnly: one ASI:One model to test */ backupModel?: string }): Promise<ReviewOutput> {
   const rules = new Map(ctx.rules.map((r) => [r.id, r]));
   const today = todayIST();
   const settings = ctx.brand.settings;
@@ -119,7 +119,7 @@ export async function runReview(input: PostInput, ctx: BrandContext, opts: { ori
         if (part) parts.push({ text: `Image ${i + 1}:` }, part);
       }
       const started = Date.now();
-      let res = viaBackup ? await callBackupOnly(SYSTEM_PROMPT, parts, opts.backupOnly ? 35000 : 45000) : await callGemini(SYSTEM_PROMPT, parts);
+      let res = viaBackup ? await callBackupOnly(SYSTEM_PROMPT, parts, opts.backupOnly ? 35000 : 45000, opts.backupOnly ? opts.backupModel : undefined) : await callGemini(SYSTEM_PROMPT, parts);
       const read = (text: string) => restore(aiResponseSchema.parse(parseJson(text)), redactor.map);
       if (res.ok) {
         try {
