@@ -32,7 +32,10 @@ export function applyFix(caption: string, fix: Fix): string | null {
       for (const { from, to } of fix.pairs) {
         const i = out.indexOf(from);
         if (i < 0) return null;
-        out = out.slice(0, i) + to + out.slice(i + from.length);
+        // a fix that lands at the start of a sentence starts with a capital ("Great! made with…" → "Made with…")
+        const atStart = /(^|[.!?]\s+)$/.test(out.slice(0, i));
+        const text = atStart && /^\p{Ll}/u.test(to) ? to.charAt(0).toUpperCase() + to.slice(1) : to;
+        out = out.slice(0, i) + text + out.slice(i + from.length);
       }
       return tidy(out);
     }

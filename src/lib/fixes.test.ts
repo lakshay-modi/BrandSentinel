@@ -37,4 +37,9 @@ describe("exclamation mark fix (TONE-02)", () => {
     const g = runCodeChecks({ input: p, rules, facts: demoFacts, brand: demoBrand, today: "2026-11-08" }).find((x) => x.rule_id === "TONE-02")!;
     expect(applyFix(p.caption, g.fix)).toBe("So good! Try it. Now.");
   });
+  it("starts a fix with a capital when it begins a sentence, and leaves it as it is mid-sentence", () => {
+    expect(applyFix("A protein bar! 100% natural oats.", { kind: "replace", pairs: [{ from: "100% natural", to: "made with whole-grain" }] })).toBe("A protein bar! Made with whole-grain oats.");
+    expect(applyFix("Our bar is 100% natural.", { kind: "replace", pairs: [{ from: "100% natural", to: "made with oats" }] })).toBe("Our bar is made with oats.");
+    expect(applyFix("hurry, it's here", { kind: "replace", pairs: [{ from: "hurry", to: "pick yours up" }] })).toBe("Pick yours up, it's here");
+  });
 });
