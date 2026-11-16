@@ -32,6 +32,11 @@ export function aiConfigured(): boolean {
 
 const BACKUP_ENDPOINT = "https://api.asi1.ai/v1/chat/completions";
 export const BACKUP_MODEL = "asi1";
+/** ASI:One models in order: the low-latency one first (a check must finish within the request's time), then the
+ * general one if the first is refused. ASI1_MODEL overrides the first. Answers are reported as "asi1" either way. */
+function backupModels(): string[] {
+  return [...new Set([process.env.ASI1_MODEL?.trim() || "asi1-fast", BACKUP_MODEL])];
+}
 
 function backupKey(): string | null {
   // ASIAPI is accepted as another name for the same key
@@ -87,23 +92,31 @@ async function callBackup(system: string, parts: AiPart[], budgetMs: number): Pr
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), budgetMs);
   try {
-    const res = await fetch(BACKUP_ENDPOINT, {
-      method: "POST",
-      headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
-      body: JSON.stringify({
-        model: BACKUP_MODEL,
-        messages: [
-          { role: "system", content: `${system}\n\nReply with one JSON object only: no other text and no code fences.` },
-          { role: "user", content: backupPrompt(parts) },
-        ],
-        temperature: 0.1,
-        stream: false,
-      }),
-      signal: controller.signal,
-    });
-    if (!res.ok) {
-      const busy = res.status === 429 || res.status >= 500;
-      return { ok: false, status: busy ? "busy" : "error", detail: `${BACKUP_MODEL}: ${res.status}${busy ? "" : ` ${(await res.text()).slice(0, 200)}`}` };
+    let res: Response | null = null;
+    let used = BACKUP_MODEL;
+    for (const model of backupModels()) {
+      used = model;
+      res = await fetch(BACKUP_ENDPOINT, {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: "system", content: `${system}\n\nReply with one JSON object only: no other text and no code fences.` },
+            { role: "user", content: backupPrompt(parts) },
+          ],
+          temperature: 0.1,
+          stream: false,
+        }),
+        signal: controller.signal,
+      });
+      // a model this key can't use (unknown name, not on the plan): try the next one
+      if (res.ok || ![400, 404, 422].includes(res.status)) break;
+    }
+    if (!res || !res.ok) {
+      const status = res?.status ?? 0;
+      const busy = status === 429 || status >= 500;
+      return { ok: false, status: busy ? "busy" : "error", detail: `${used}: ${status}${busy || !res ? "" : ` ${(await res.text()).slice(0, 200)}`}` };
     }
     const json = await res.json();
     const text = stripThinking(String(json?.choices?.[0]?.message?.content ?? ""));

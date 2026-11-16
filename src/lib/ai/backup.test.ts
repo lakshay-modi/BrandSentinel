@@ -126,6 +126,24 @@ describe("backup AI", () => {
     expect(calls.filter((c) => c === "asi1")).toHaveLength(1);
   });
 
+  it("asks the low-latency model first, and the general one if that model is refused", async () => {
+    vi.stubEnv("AI_BACKUP_FIRST", "1");
+    const models: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: string, init?: RequestInit) => {
+        const model = JSON.parse(String(init?.body)).model as string;
+        models.push(model);
+        return model === "asi1-fast"
+          ? new Response("unknown model", { status: 404 })
+          : new Response(JSON.stringify({ choices: [{ message: { content: '{"from":"asi1"}' } }] }), { status: 200 });
+      }),
+    );
+    const res = await callGemini("sys", [{ text: "post" }]);
+    expect(res).toMatchObject({ ok: true, model: "asi1", text: '{"from":"asi1"}' });
+    expect(models).toEqual(["asi1-fast", "asi1"]);
+  });
+
   it("gets the text only, and is told the images are missing", () => {
     const prompt = backupPrompt([{ text: "the post" }, { text: "Image 1:" }, { image: { mimeType: "image/png", base64: "AAAA" } }]);
     expect(prompt).toContain("the post");
