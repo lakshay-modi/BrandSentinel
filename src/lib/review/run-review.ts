@@ -5,7 +5,7 @@ import type { Finding, PostInput, ReviewResult } from "../types";
 import { runCodeChecks } from "../checks/code-checks";
 import { runVisualChecks } from "../checks/visual-checks";
 import { todayIST } from "../checks/text-utils";
-import { aiConfigured, backupAvailable, callBackupOnly, callGemini, parseJson, usingSharedAiKey, type AiPart } from "../ai/gemini";
+import { aiConfigured, BACKUP_MODEL, backupAvailable, callBackupOnly, callGemini, parseJson, usingSharedAiKey, type AiPart } from "../ai/gemini";
 import { aiResponseSchema, buildUserPrompt, SYSTEM_PROMPT, type AiResponse } from "../ai/prompt";
 import { proofCheck } from "../ai/proof";
 import { createRedactor, restore } from "../ai/redact";
@@ -141,7 +141,7 @@ export async function runReview(input: PostInput, ctx: BrandContext, opts: { ori
         } catch (e) {
           detail = `AI reply didn't match the expected format: ${String(e).slice(0, 120)}`;
           // a garbled answer gets one more try from the other AI, if there is time left
-          if (!viaBackup && res.model !== "asi1" && backupAvailable() && Date.now() - started < 20000) {
+          if (!viaBackup && res.model !== BACKUP_MODEL && backupAvailable() && Date.now() - started < 20000) {
             const again = await callBackupOnly(SYSTEM_PROMPT, parts, 30000);
             if (again.ok) {
               try {
@@ -157,7 +157,8 @@ export async function runReview(input: PostInput, ctx: BrandContext, opts: { ori
           aiStatus = "ok";
           model = res.ok ? res.model : null;
           detail = undefined;
-          if (!opts.backupOnly) await setCache(cacheKey, ai).catch(() => undefined);
+          // only Gemini's answers are cached: a backup answer is handled with more care (below) and shouldn't come back as Gemini's
+          if (!opts.backupOnly && model !== BACKUP_MODEL) await setCache(cacheKey, ai).catch(() => undefined);
         } else aiStatus = "error";
       } else {
         aiStatus = res.status;
@@ -167,7 +168,16 @@ export async function runReview(input: PostInput, ctx: BrandContext, opts: { ori
   }
 
   // 3. proof check: only AI findings with a real rule, quote and fact survive
-  const proof = ai ? proofCheck(ai, code, input, rules, ctx.facts) : { findings: code, ask_human: [], dropped: 0 };
+  let proof = ai ? proofCheck(ai, code, input, rules, ctx.facts) : { findings: code, ask_human: [], dropped: 0 };
+  // the backup AI is a smaller model: its own findings are shown for a person to decide, not counted as problems
+  if (model === BACKUP_MODEL) {
+    const fromBackup = proof.findings.filter((f) => f.source === "ai");
+    proof = {
+      ...proof,
+      findings: proof.findings.filter((f) => f.source !== "ai"),
+      ask_human: [...proof.ask_human, ...fromBackup.map((f) => ({ quote: f.quotes[0] ?? "", location: f.location, note: `${f.rule_id}: ${f.message} Found by the backup AI, so a person decides.` }))],
+    };
+  }
   const findings = assignIds(proof.findings.map(spokenFix));
   const { score, band } = brandScore(findings);
 
