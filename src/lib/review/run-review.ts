@@ -53,6 +53,20 @@ export function unquote(text: string | null | undefined, caption: string): strin
   return m[2].trim();
 }
 
+/** Numbers written in a text (1,299 → 1299), leaving out digits glued to a letter before them (KIRO10, #TeamO1). */
+function numbersIn(text: string): string[] {
+  return [...text.matchAll(/(?<![\p{L}\d#.,])\d+(?:[.,]\d+)*/gu)].map((m) => m[0].replace(/,/g, "").replace(/\.0+$/, ""));
+}
+
+/**
+ * A suggested rewrite may only use numbers the post or the approved facts already have: an AI that adds a
+ * figure ("20 g of protein") would put an unproven claim into the creator's post. Such a rewrite is dropped.
+ */
+export function rewriteKeepsNumbers(rewrite: string, known: string[]): boolean {
+  const allowed = new Set(known.flatMap(numbersIn));
+  return numbersIn(rewrite).every((n) => allowed.has(n));
+}
+
 export async function runReview(input: PostInput, ctx: BrandContext, opts: { origin: string; clientId: string; /** fast checks only, for checks while typing in other tools */ codeOnly?: boolean; /** send the AI part to the backup AI only, without cache (backup test) */ backupOnly?: boolean; /** with backupOnly: one ASI:One model to test */ backupModel?: string }): Promise<ReviewOutput> {
   const rules = new Map(ctx.rules.map((r) => [r.id, r]));
   const today = todayIST();
@@ -163,7 +177,12 @@ export async function runReview(input: PostInput, ctx: BrandContext, opts: { ori
     findings,
     ask_human: proof.ask_human,
     goal: ai?.goal && (ai.goal.message || ai.goal.post_type) ? ai.goal : null,
-    suggested_caption: unquote(ai?.suggested_caption, input.caption) || null,
+    suggested_caption: (() => {
+      const text = unquote(ai?.suggested_caption, input.caption);
+      if (!text) return null;
+      const known = [input.caption, ctx.brand.name, ...settings.products, ...ctx.facts.map((f) => `${f.product} ${f.fact}`), ...input.images.map((i) => i.analysis?.ocr_text ?? ""), ...(input.video?.transcript ?? []).map((t) => t.text)];
+      return rewriteKeepsNumbers(text, known) ? text : null;
+    })(),
     ai_status: aiStatus,
     model,
     rulebook_version: ctx.brand.rulebook_version,

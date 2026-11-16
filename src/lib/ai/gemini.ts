@@ -32,10 +32,11 @@ export function aiConfigured(): boolean {
 
 const BACKUP_ENDPOINT = "https://api.asi1.ai/v1/chat/completions";
 export const BACKUP_MODEL = "asi1";
-/** ASI:One models in order: the low-latency one first (a check must finish within the request's time), then the
- * general one if the first is refused. ASI1_MODEL overrides the first. Answers are reported as "asi1" either way. */
+/** ASI:One models in order: Mini first (measured live: a full check in about 7 seconds, where asi1 and asi1-fast
+ * took over 35), then the general one if Mini is refused. ASI1_MODEL overrides the first. Answers are reported as
+ * "asi1" either way. */
 function backupModels(): string[] {
-  return [...new Set([process.env.ASI1_MODEL?.trim() || "asi1-fast", BACKUP_MODEL])];
+  return [...new Set([process.env.ASI1_MODEL?.trim() || "asi1-mini", BACKUP_MODEL])];
 }
 
 function backupKey(): string | null {

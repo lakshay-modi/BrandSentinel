@@ -134,14 +134,14 @@ describe("backup AI", () => {
       vi.fn(async (_url: string, init?: RequestInit) => {
         const model = JSON.parse(String(init?.body)).model as string;
         models.push(model);
-        return model === "asi1-fast"
+        return model === "asi1-mini"
           ? new Response("unknown model", { status: 404 })
           : new Response(JSON.stringify({ choices: [{ message: { content: '{"from":"asi1"}' } }] }), { status: 200 });
       }),
     );
     const res = await callGemini("sys", [{ text: "post" }]);
     expect(res).toMatchObject({ ok: true, model: "asi1", text: '{"from":"asi1"}' });
-    expect(models).toEqual(["asi1-fast", "asi1"]);
+    expect(models).toEqual(["asi1-mini", "asi1"]);
   });
 
   it("gets the text only, and is told the images are missing", () => {
