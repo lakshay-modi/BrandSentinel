@@ -43,6 +43,12 @@ function colourBuckets(data: Uint8ClampedArray, step = 1): { rgb: RGB; count: nu
     .sort((a, b) => b.count - a.count);
 }
 
+/** The most common colour of an image: its background, in most graphics. */
+export function mainColour(ctx: CanvasRenderingContext2D): RGB | null {
+  const buckets = mergeClose(colourBuckets(ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height).data, 4));
+  return buckets[0]?.rgb ?? null;
+}
+
 /** Merges near-identical buckets so anti-aliasing doesn't split one colour into many. */
 function mergeClose(buckets: { rgb: RGB; count: number }[], distance = 28) {
   const out: { rgb: RGB; count: number }[] = [];

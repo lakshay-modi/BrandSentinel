@@ -5,7 +5,7 @@
 import type { ImageAnalysis } from "../types";
 import { colourDistance, type RGB } from "../color";
 import { findLineRun, replaceQuote, wrapIntoLines } from "../image-text";
-import { analyzeImage, loadImage, ocrWorker, textColours, toCanvas } from "./analyze-image";
+import { analyzeImage, loadImage, mainColour, ocrWorker, separateFromBackground, textColours, toCanvas } from "./analyze-image";
 
 const FONT = '"Helvetica Neue", Helvetica, Arial, "Liberation Sans", "DejaVu Sans", sans-serif';
 const MAX_SIDE = 800; // the size images are saved at
@@ -177,10 +177,24 @@ export async function rewriteImageText(
   const canvas = toCanvas(img, MAX_SIDE);
   const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
   const lines = await readLines(canvas);
-  const run = findLineRun(
+  let run = findLineRun(
     lines.map((l) => l.text),
     quote,
   );
+  if (!run) {
+    // pale text on a light background (or dark on dark) is often missed by the first reading: the check reads a
+    // copy where that text is made dark, so look there too. The copy is the same size, so the boxes line up.
+    const bg = mainColour(ctx);
+    if (bg) {
+      const overlaps = (a: Box, b: Box) => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1;
+      for (const l of await readLines(separateFromBackground(ctx, bg))) if (!lines.some((x) => overlaps(x.bbox, l.bbox))) lines.push(l);
+      lines.sort((a, b) => a.bbox.y0 - b.bbox.y0 || a.bbox.x0 - b.bbox.x0);
+      run = findLineRun(
+        lines.map((l) => l.text),
+        quote,
+      );
+    }
+  }
   if (!run) throw new ImageEditError(`Couldn't find “${quote}” in the image. If the text was read wrongly, use Correct under the image, or change the image itself.`);
 
   const targets = lines.slice(run.start, run.end + 1);

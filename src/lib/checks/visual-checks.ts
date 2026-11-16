@@ -49,7 +49,9 @@ export function runVisualChecks(input: PostInput, rules: Map<string, Rule>, bran
       if (bad.length) {
         const worst = bad[0];
         const need = worst.large ? minLarge : min;
-        const best = palette
+        // a brand colour that reads on this background; without a palette, near-black or white, whichever reads better
+        const choices = palette.length ? palette : [{ name: "near-black", hex: "#111111" }, { name: "white", hex: "#FFFFFF" }];
+        const best = choices
           .map((p) => ({ p, ratio: contrastRatio(p.hex, worst.bg) }))
           .sort((x, y) => y.ratio - x.ratio)[0];
         out.push({

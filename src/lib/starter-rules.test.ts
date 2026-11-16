@@ -109,4 +109,11 @@ describe("starter rules for a brand new workspace", () => {
     const found = ids(post({ caption: "Project Falcon ships soon. #RideKiro #a #b #c #d #e", images: [{ src: "/demo/x.png", alt_text: "" }] }));
     expect(found).toEqual(expect.arrayContaining(["WORD-08", "WORD-07", "READ-02"]));
   });
+
+  it("a contrast problem on a brand without a palette still suggests a colour that reads, so it can be recoloured", () => {
+    const image = { src: "/demo/x.png", alt_text: "A slide", analysis: { ocr_text: "Made for riders", lines: [{ text: "Made for riders", contrast: 1.2, fg: "#F3E9A6", bg: "#FFFFFF", large: true }], dominant: [] } };
+    const f = run(post({ caption: "New colours.", images: [image] })).find((x) => x.rule_id === "READ-01");
+    expect(f?.fix.kind).toBe("manual");
+    expect(f?.fix.kind === "manual" && f.fix.advice).toMatch(/Change the text colour to near-black #111111/);
+  });
 });
