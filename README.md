@@ -188,6 +188,8 @@ The hardest part was staying reliable and accurate with no budget: a free AI tie
 | AI | The AI sometimes invented rules, quotes or facts | The proof check drops findings without a real rule, exact words and a real fact; unsure ones go to a human |
 | AI | Importing Mailchimp's guide timed out | Thinking level "low" for Gemini 3 models; documents drafted in up to 8 parts at once; failed parts marked; the error names the models tried |
 | AI | A garbled answer lost the AI checks | One more try with the backup AI |
+| AI | On a day Gemini's free tier was overloaded, the backup (asi1) timed out on full checks | Measured live: ASI:One Mini finishes in 2 to 7 seconds, so it goes first; its own findings go to a person, because it once flagged "Made for students" as a health claim |
+| AI | A rewrite invented "20 g of protein" | Rewrites that add a number the post and the Fact Bank don't have are dropped |
 | AI | A rewrite swapped products or came back in quote marks | A prompt rule against changing products; quote marks removed in code |
 | AI | A post or PDF could try to give the AI orders | Content is marked as content to review, never instructions; the proof check catches the rest |
 | Accuracy | New workspaces let health claims and made-up numbers pass | Starter rules for both (also read by the AI), migrations for existing brands, wider superlatives |
@@ -198,6 +200,7 @@ The hardest part was staying reliable and accurate with no budget: a free AI tie
 | Accuracy | "30 percent" and "2,000 contacts" not compared with facts | The number check reads "percent" and counts of contacts, users, sends and similar |
 | Accuracy | A new rule wrongly skipped as a duplicate | Stricter matching and **Add anyway** |
 | Media | The text reader missed pale-on-white and dark-on-black text | A second reading on a background-separated copy, and a colour measure for close colours |
+| Media | "Edit text in image" couldn't find pale text that the check had found | It reads the background-separated copy too, like the check; a brand without a palette is offered near-black or white for **Recolour text** |
 | Media | Video frames merged when only the words changed | Frames compared cell by cell |
 | Media | Free storage is about 1 GB | Videos up to 40 MB saved with one-hour links; demo keeps 20, workspaces about 40; bigger videos still checked |
 | Media | Speech-to-text has a cost and a limit | Only the sound is sent; the script can be typed by hand |
@@ -210,7 +213,7 @@ The hardest part was staying reliable and accurate with no budget: a free AI tie
 
 ## Known limits
 
-- **AI can be slow or busy.** On the Gemini free tier a check can take up to about 15 seconds. When Gemini is busy, the backup AI (ASI:One) takes over for text; only if both are busy does the report have the fast checks alone, with a note saying so. **Re-check** usually fixes it. Speech-to-text has the same limit; the script can be typed by hand instead.
+- **AI can be slow or busy.** On the Gemini free tier a check can take up to about 15 seconds, and at busy times Google answers "overloaded". Then the backup AI (ASI:One Mini) takes over for text, and its findings are shown for a person to decide; only if both are busy does the report have the fast checks alone, with a note saying so. **Re-check** usually fixes it. Speech-to-text has the same limit; the script can be typed by hand instead.
 - **Videos over 40 MB are not saved.** They are still checked, and a reviewer sees the frames and the transcript with times; to play one, they load the same file on the post page. The free storage plan allows about 40 saved videos per workspace (the shared demo keeps its newest 20).
 - **Speech rules.** Rules about how text is written (capitals, spelling, units, prices) are not applied to speech, because a transcript's spelling is the transcriber's.
 - **Extension fixes** are applied in plain text boxes. In rich editors (for example LinkedIn's) the problems are listed and the fix is copied by hand.
@@ -277,7 +280,7 @@ caption + images
    └─ 4. brand score                          100 minus 15 / 7 / 3 per high / medium / low problem
 ```
 
-If the AI is busy (free-tier limit) or off, the fast checks still return a full report. The app tries Gemini Flash first and falls back to Flash-Lite when Flash is overloaded. If Gemini fails (for example when the free quota runs out while many people test at once), the text checks go straight to a backup AI, ASI:One; if Gemini is just slow, ASI:One starts after 10 seconds as well and the first good answer is used. The report says when the backup did the check. The backup reads text only: the caption, the text found in images and the speech, not the pictures themselves. AI results are cached by content, so repeat checks cost nothing.
+If the AI is busy (free-tier limit) or off, the fast checks still return a full report. The app tries Gemini Flash first and falls back to Flash-Lite when Flash is overloaded. If Gemini fails (for example when the free quota runs out while many people test at once), the text checks go straight to a backup AI, ASI:One; if Gemini is just slow, ASI:One starts after 10 seconds as well and the first good answer is used. The backup is ASI:One Mini, the fastest ASI:One model (a full check in about 2 to 7 seconds, where the larger models took over 35). Because it is a smaller model, its own findings are listed under **For a human to decide** instead of counting as problems, and its answers are never cached. The report says when the backup did the check. A suggested rewrite from either AI is dropped if it adds a number the post and the Fact Bank don't have. The backup reads text only: the caption, the text found in images and the speech, not the pictures themselves. AI results are cached by content, so repeat checks cost nothing.
 
 ## Tested against an answer key
 
@@ -290,7 +293,7 @@ npm test
 - The fast checks alone catch **all 41 planted mistakes with zero false flags** on these posts. (The same rules and posts were written by the same team, so this proves the checks work, not that they catch everything. The AI layer exists for reworded and new cases.)
 - The proof check is tested to drop hallucinated quotes, unknown rules and fake fact IDs, and to merge duplicates.
 - Fix application and insights (unclear-rule detection, expiring facts) have their own tests.
-- 122 automated tests in total (`npm test`), plus a live run of all 10 posts with the AI on: every score matches the answer key.
+- 127 automated tests in total (`npm test`), plus a live run of all 10 posts with the AI on: every score matches the answer key.
 - The PDF import's quote check is tested against the sample PDF.
 
 ## Works for any brand: tested with a second brand
@@ -362,7 +365,7 @@ The first run (before fixes) caught 24 of 31 with 2 false alarms. What the real 
 | Colour and contrast | Canvas pixel maths in the browser, WCAG contrast formula |
 | Extension | Chrome Manifest V3, plain JavaScript (`/extension`) |
 | Docs add-on | Google Apps Script (`/public/downloads/google-docs-addon`) |
-| Tests | Vitest (122 tests) |
+| Tests | Vitest (127 tests) |
 | Hosting | Vercel, Mumbai region, next to the database |
 
 Everything runs on free tiers.
@@ -442,7 +445,7 @@ npm run dev
 
 Open http://localhost:3000. You land on the sign-in page. The three demo accounts are created by the server the first time someone signs in with them. `http://localhost:3000/api/health` should show `"db":"ok"` and `"auth":"ok"`.
 
-Other commands: `npm test` (122 tests), `npm run lint`, `npm run build`.
+Other commands: `npm test` (127 tests), `npm run lint`, `npm run build`.
 
 **Extension:** open `chrome://extensions`, turn on Developer mode, click **Load unpacked** and choose the `extension` folder. In its Connection settings, set the address to `http://localhost:3000` and paste a token from the Connect page.
 
@@ -450,7 +453,7 @@ Other commands: `npm test` (122 tests), `npm run lint`, `npm run build`.
 
 ## Testing
 
-**Automated (`npm test`, 122 tests in 17 files):**
+**Automated (`npm test`, 127 tests in 18 files):**
 
 - The fast checks against the answer key for the 10 sample posts: 41 planted mistakes, all caught, with no extra findings on the clean post.
 - The proof check: unknown rules, quotes that aren't in the post, made-up facts and out-of-scope rules are dropped.
@@ -462,6 +465,8 @@ Other commands: `npm test` (122 tests), `npm run lint`, `npm run build`.
 - Disguised text: invisible characters and look-alike digits ("Clin\u200bically pr0ven", "N0. 1") are still caught, and the original characters are quoted; codes like KIRO10 and amounts like 20g stay as they are.
 - Spec numbers with units (km, kg, hours, mAh…) compared with the Fact Bank; common superlatives ("the safest", "fastest").
 - Fair use of the shared AI: per-visitor limit, overflow to the backup AI, no shared limit on a company's own key.
+- Backup AI: ASI:One Mini is asked first and the general model only if Mini is refused; a check the backup answered keeps its fast-check problems, sends the backup's own findings to a person, and caches nothing.
+- Rewrites that add a number the post and the facts don't have are dropped; a fix that begins a sentence starts with a capital; a contrast problem on a brand without a palette suggests near-black or white, so **Recolour text** works.
 - Fixes, fixing text in images, document text, insights and API input checks.
 
 **Extension and Google Docs add-on (`npm run test:integrations`, needs Playwright with Chromium):**
@@ -485,6 +490,13 @@ Other commands: `npm test` (122 tests), `npm run lint`, `npm run build`.
 - **Load:** when Gemini was slow, the backup AI answered instead (ASI:One checked a clean post live). Checks past the shared Gemini budget go to the backup AI, and a visitor checking very fast is told to wait a minute instead of getting a silent "busy" (both covered by automated tests).
 - **Every page as a judge would see it:** each page at phone width (375 px) with no sideways scrolling and no errors in the browser console; the demo's clean post still scores 100, its off-brand image and sample reel give the same results as before.
 - **Bugs found and fixed in this round:** health claims and unproven numbers passing in new workspaces; disguised text and superlatives slipping through; "KIRO10 at any store" read as "10 stores"; pale and dark-on-dark text not read in images; video frames skipped when only the words changed; an AI rewrite swapping a confidential product for another; a duplicate rule wrongly skipped on import; the check form re-submitting the last post when you came back to it; sign-out needing a request body; a missing fact giving a server error; stale wording about video uploads.
+
+**Final check before submission (16 November)**, on the live app with a real account (the team's own workspace) and the three demo accounts:
+
+- **Code:** lint, type check, 127 unit tests, the extension and Docs add-on tests in a real Chromium, and a production build: all pass. The live database has all 16 migrations, row level security on all 17 tables and the demo snapshot.
+- **Own workspace:** a fact added to the Fact Bank; a 13-problem post (caption and an image with pale text) caught in full, with the price compared with the new fact; fixes accepted, one rejected (a reason is required), re-checked, sent back by the expert (a comment is required), resubmitted, approved by the expert and the brand manager using **Acting as**. Each step sent a real Slack message (all delivered) and an approved post can't be deleted. Invites, the join page, tokens, the public API and revoking (a revoked token stops at once) all worked; unsafe webhook addresses were refused. A 6-second video was read frame by frame, saved, played from a signed link and removed with its draft. A guidelines PDF became 21 draft rules while Gemini was overloaded (the backup drafted them).
+- **Demo accounts:** one-click sign-in for each role, returning to the page asked for; the Launch post scores 14, the Clean post 100 and the Off-brand image 57, as in the answer key; the sample reel gave 10 problems with times, and clicking 0:10 moved the player; the full approval journey across the three demo accounts; every demo restriction (webhook, Slack, AI key, tokens, invites, reset links, password, new workspace, renaming, deleting a demo brand) refused with a plain reason; **Test results** shows 41 of 41 caught; every page at 375 px with no sideways scrolling and no script errors.
+- **Found and fixed during this check:** "Edit text in image" couldn't find pale text that the check had found; a brand without a palette got no **Recolour text** button; on a day when Gemini's free tier was overloaded, the backup model (asi1) timed out, so the backup now uses ASI:One Mini (2 to 7 seconds); Mini once flagged "Made for students" as a health claim, so the backup's findings now go to a person; a rewrite invented "20 g of protein", so rewrites can't add numbers; an accepted fix after "!" started with a small letter.
 
 **By hand, on the live app (14 November):**
 
