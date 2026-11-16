@@ -42,4 +42,16 @@ describe("exclamation mark fix (TONE-02)", () => {
     expect(applyFix("Our bar is 100% natural.", { kind: "replace", pairs: [{ from: "100% natural", to: "made with oats" }] })).toBe("Our bar is made with oats.");
     expect(applyFix("hurry, it's here", { kind: "replace", pairs: [{ from: "hurry", to: "pick yours up" }] })).toBe("Pick yours up, it's here");
   });
+  it("a fix that is a whole statement doesn't leave a dangling word or run two statements together", () => {
+    const eco = { kind: "replace" as const, pairs: [{ from: "eco-friendly", to: "our outer box is made from recyclable paperboard" }] };
+    const natural = { kind: "replace" as const, pairs: [{ from: "100% natural", to: "made with whole-grain oats" }] };
+    const start = "A protein bar! 100% natural, eco-friendly pack. Grab yours today.";
+    const one = applyFix(start, eco)!;
+    expect(one).toBe("A protein bar! 100% natural. Our outer box is made from recyclable paperboard. Grab yours today.");
+    expect(applyFix(one, natural)).toBe("A protein bar! Made with whole-grain oats. Our outer box is made from recyclable paperboard. Grab yours today.");
+    // the other order gives the same text
+    expect(applyFix(applyFix(start, natural)!, eco)).toBe("A protein bar! Made with whole-grain oats. Our outer box is made from recyclable paperboard. Grab yours today.");
+    // short phrases are left alone
+    expect(applyFix("Today, the best bar is here.", { kind: "replace", pairs: [{ from: "the best", to: "our new" }] })).toBe("Today, our new bar is here.");
+  });
 });

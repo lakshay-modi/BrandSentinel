@@ -20,6 +20,11 @@ function addEnd(caption: string, text: string): string {
   return body + sep + text.replace(/^\s*/, " ") + m[0];
 }
 
+/** A replacement that is a full statement of its own: starts like one and has a verb ("our box is made from…"). */
+function isStatement(text: string): boolean {
+  return /^(?:our|we|the|this|these|it|each|every|all)\b/i.test(text.trim()) && /\b(?:is|are|was|were|has|have)\b/i.test(text) && text.trim().split(/\s+/).length >= 4;
+}
+
 export function canApply(fix: Fix): boolean {
   return fix.kind === "replace" || fix.kind === "remove" || fix.kind === "add_start" || fix.kind === "add_end";
 }
@@ -32,10 +37,21 @@ export function applyFix(caption: string, fix: Fix): string | null {
       for (const { from, to } of fix.pairs) {
         const i = out.indexOf(from);
         if (i < 0) return null;
+        let before = out.slice(0, i);
+        let after = out.slice(i + from.length);
+        // A fix that is a whole statement ("our outer box is made from recyclable paperboard") replacing a describing
+        // word ("eco-friendly pack.") would leave the described word dangling and run two statements together.
+        if (isStatement(to)) {
+          // drop the one word the old text described, when it ends the sentence: "…paperboard pack." → "…paperboard."
+          after = after.replace(/^ [\p{Ll}]+(?=\s*(?:[.!?]|$))/u, "");
+          // "100% natural, our outer box is…" → "100% natural. Our outer box is…"
+          const lead = before.match(/([^.!?]*), $/);
+          if (lead && lead[1].trim().split(/\s+/).length >= 2) before = before.slice(0, -2) + ". ";
+        }
         // a fix that lands at the start of a sentence starts with a capital ("Great! made with…" → "Made with…")
-        const atStart = /(^|[.!?]\s+)$/.test(out.slice(0, i));
+        const atStart = /(^|[.!?]\s+)$/.test(before);
         const text = atStart && /^\p{Ll}/u.test(to) ? to.charAt(0).toUpperCase() + to.slice(1) : to;
-        out = out.slice(0, i) + text + out.slice(i + from.length);
+        out = before + text + after;
       }
       return tidy(out);
     }

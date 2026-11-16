@@ -293,7 +293,7 @@ npm test
 - The fast checks alone catch **all 41 planted mistakes with zero false flags** on these posts. (The same rules and posts were written by the same team, so this proves the checks work, not that they catch everything. The AI layer exists for reworded and new cases.)
 - The proof check is tested to drop hallucinated quotes, unknown rules and fake fact IDs, and to merge duplicates.
 - Fix application and insights (unclear-rule detection, expiring facts) have their own tests.
-- 127 automated tests in total (`npm test`), plus a live run of all 10 posts with the AI on: every score matches the answer key.
+- 128 automated tests in total (`npm test`), plus a live run of all 10 posts with the AI on: every score matches the answer key.
 - The PDF import's quote check is tested against the sample PDF.
 
 ## Works for any brand: tested with a second brand
@@ -365,7 +365,7 @@ The first run (before fixes) caught 24 of 31 with 2 false alarms. What the real 
 | Colour and contrast | Canvas pixel maths in the browser, WCAG contrast formula |
 | Extension | Chrome Manifest V3, plain JavaScript (`/extension`) |
 | Docs add-on | Google Apps Script (`/public/downloads/google-docs-addon`) |
-| Tests | Vitest (127 tests) |
+| Tests | Vitest (128 tests) |
 | Hosting | Vercel, Mumbai region, next to the database |
 
 Everything runs on free tiers.
@@ -445,7 +445,7 @@ npm run dev
 
 Open http://localhost:3000. You land on the sign-in page. The three demo accounts are created by the server the first time someone signs in with them. `http://localhost:3000/api/health` should show `"db":"ok"` and `"auth":"ok"`.
 
-Other commands: `npm test` (127 tests), `npm run lint`, `npm run build`.
+Other commands: `npm test` (128 tests), `npm run lint`, `npm run build`.
 
 **Extension:** open `chrome://extensions`, turn on Developer mode, click **Load unpacked** and choose the `extension` folder. In its Connection settings, set the address to `http://localhost:3000` and paste a token from the Connect page.
 
@@ -453,7 +453,7 @@ Other commands: `npm test` (127 tests), `npm run lint`, `npm run build`.
 
 ## Testing
 
-**Automated (`npm test`, 127 tests in 18 files):**
+**Automated (`npm test`, 128 tests in 18 files):**
 
 - The fast checks against the answer key for the 10 sample posts: 41 planted mistakes, all caught, with no extra findings on the clean post.
 - The proof check: unknown rules, quotes that aren't in the post, made-up facts and out-of-scope rules are dropped.
@@ -493,7 +493,7 @@ Other commands: `npm test` (127 tests), `npm run lint`, `npm run build`.
 
 **Final check before submission (16 November)**, on the live app with a real account (the team's own workspace) and the three demo accounts:
 
-- **Code:** lint, type check, 127 unit tests, the extension and Docs add-on tests in a real Chromium, and a production build: all pass. The live database has all 16 migrations, row level security on all 17 tables and the demo snapshot.
+- **Code:** lint, type check, 128 unit tests, the extension and Docs add-on tests in a real Chromium, and a production build: all pass. The live database has all 16 migrations, row level security on all 17 tables and the demo snapshot.
 - **Own workspace:** a fact added to the Fact Bank; a 13-problem post (caption and an image with pale text) caught in full, with the price compared with the new fact; fixes accepted, one rejected (a reason is required), re-checked, sent back by the expert (a comment is required), resubmitted, approved by the expert and the brand manager using **Acting as**. Each step sent a real Slack message (all delivered) and an approved post can't be deleted. Invites, the join page, tokens, the public API and revoking (a revoked token stops at once) all worked; unsafe webhook addresses were refused. A 6-second video was read frame by frame, saved, played from a signed link and removed with its draft. A guidelines PDF became 21 draft rules while Gemini was overloaded (the backup drafted them).
 - **Demo accounts:** one-click sign-in for each role, returning to the page asked for; the Launch post scores 14, the Clean post 100 and the Off-brand image 57, as in the answer key; the sample reel gave 10 problems with times, and clicking 0:10 moved the player; the full approval journey across the three demo accounts; every demo restriction (webhook, Slack, AI key, tokens, invites, reset links, password, new workspace, renaming, deleting a demo brand) refused with a plain reason; **Test results** shows 41 of 41 caught; every page at 375 px with no sideways scrolling and no script errors.
 - **Found and fixed during this check:** "Edit text in image" couldn't find pale text that the check had found; a brand without a palette got no **Recolour text** button; on a day when Gemini's free tier was overloaded, the backup model (asi1) timed out, so the backup now uses ASI:One Mini (2 to 7 seconds); Mini once flagged "Made for students" as a health claim, so the backup's findings now go to a person; a rewrite invented "20 g of protein", so rewrites can't add numbers; an accepted fix after "!" started with a small letter.
