@@ -223,6 +223,7 @@ The hardest part was staying reliable and accurate with no budget: a free AI tie
 | Security | The shared demo must never send visitors' posts outside | Webhook and Slack off in the demo, logged only |
 | Security | A webhook could point at internal addresses | HTTPS only; private addresses blocked, checked again after lookup |
 | Workflow | Two clicks at once could submit or approve twice | Each step takes effect once (tested with 3 submits and 2 approvals at once) |
+| Polish | Fixes accepted one by one could leave a dangling word and a run-on ("…oats, our outer box is made from recyclable paperboard pack"); a fix after "!" started with a small letter | A fix that is a whole statement starts its own sentence and drops the leftover word; fixes that begin a sentence are capitalised |
 | Polish | Sign-out needed a request body, a missing fact gave a server error, names with HTML were saved oddly, the form re-sent the last post | All fixed and tested again on the live site |
 
 ## How a check works
